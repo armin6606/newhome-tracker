@@ -319,7 +319,6 @@ export default function HomePage() {
                       <tr key={l.id} className="hover:bg-amber-50/50 transition-colors">
                         <td className="px-4 py-3 max-w-[160px]">
                           <span className="block truncate text-stone-800 font-medium text-xs">{cleanCommunityName(l.community.name)}</span>
-                          <span className="text-stone-400 text-xs">{l.community.city}, {l.community.state}</span>
                         </td>
                         <td className="px-4 py-3 text-stone-500 text-xs whitespace-nowrap">{l.community.builder.name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
