@@ -89,13 +89,19 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
   try {
     const page = await context.newPage()
     console.log("Loading Lennar Irvine page...")
-    await page.goto(IRVINE_URL, { waitUntil: "networkidle", timeout: 60000 })
+    await page.goto(IRVINE_URL, { waitUntil: "domcontentloaded", timeout: 90000 })
+
+    // Wait for homesite cards to appear
+    await page.waitForSelector('[class*="HomesiteCard_link"]', { timeout: 30000 }).catch(() => {
+      console.log("HomesiteCard_link selector not found, trying fallback wait...")
+    })
+    await page.waitForTimeout(3000)
 
     // Scroll to bottom to trigger lazy-loaded cards
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
     await page.waitForTimeout(2000)
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-    await page.waitForTimeout(1000)
+    await page.waitForTimeout(2000)
 
     const rawCards = await page.evaluate(() => {
       const results: Array<{
