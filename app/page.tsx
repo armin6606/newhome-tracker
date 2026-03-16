@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import { formatPrice, formatNumber, daysAgo } from "@/lib/utils"
+import { formatPrice, formatNumber } from "@/lib/utils"
 
 type Listing = {
   id: number
@@ -298,8 +298,6 @@ export default function HomePage() {
                       { label: "Price", field: "currentPrice" },
                       { label: "$/Sqft", field: "pricePerSqft" },
                       { label: "Move-In", field: null },
-                      { label: "Status", field: null },
-                      { label: "Listed", field: "firstDetected" },
                     ].map(({ label, field }) => (
                       <th
                         key={label}
@@ -313,9 +311,9 @@ export default function HomePage() {
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {loading ? (
-                    <tr><td colSpan={12} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
+                    <tr><td colSpan={10} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
                   ) : displayed.length === 0 ? (
-                    <tr><td colSpan={12} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
+                    <tr><td colSpan={10} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
                   ) : (
                     displayed.map((l) => (
                       <tr key={l.id} className="hover:bg-amber-50/50 transition-colors">
@@ -350,12 +348,6 @@ export default function HomePage() {
                             <span className="text-stone-600 text-xs">{l.moveInDate || "—"}</span>
                           )}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${l.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-500"}`}>
-                            {l.status === "removed" ? "Sold" : l.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-stone-400 text-xs whitespace-nowrap">{daysAgo(l.firstDetected)}d ago</td>
                       </tr>
                     ))
                   )}
