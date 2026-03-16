@@ -42,6 +42,7 @@ model Listing {
   beds          Float?
   baths         Float?
   garages       Int?
+  floors        Int?
   currentPrice  Int?
   pricePerSqft  Int?
   hoaFees       Int?

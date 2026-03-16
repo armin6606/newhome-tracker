@@ -1,5 +1,6 @@
 import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
+import { parseFloors } from "./toll-brothers"
 
 const BASE_URL = "https://www.lennar.com"
 const IRVINE_URL = `${BASE_URL}/new-homes/california/orange-county/irvine`
@@ -164,6 +165,7 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
         beds,
         baths,
         garages: undefined,
+        floors: parseFloors(planName),
         price,
         pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
         hoaFees: undefined,

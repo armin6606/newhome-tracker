@@ -10,6 +10,7 @@ export interface ScrapedListing {
   beds?: number
   baths?: number
   garages?: number
+  floors?: number
   price?: number
   pricePerSqft?: number
   hoaFees?: number
@@ -17,6 +18,13 @@ export interface ScrapedListing {
   schools?: string
   incentives?: string
   sourceUrl: string
+}
+
+/** Parse floor count from plan name: "Plan 1 - 2 Story" → 2, "3-Story" → 3 */
+export function parseFloors(text: string | null | undefined): number | undefined {
+  if (!text) return undefined
+  const m = text.match(/(\d)\s*[-–]?\s*stor(?:y|ies)/i)
+  return m ? parseInt(m[1], 10) : undefined
 }
 
 const BASE_URL = "https://www.tollbrothers.com"
@@ -217,6 +225,7 @@ async function scrapeCommunityPage(
       baths,
       sqft,
       garages,
+      floors: parseFloors(raw.planName),
       price,
       pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
       moveInDate: raw.moveInDate || undefined,

@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   const minBeds = searchParams.get("minBeds") ? parseFloat(searchParams.get("minBeds")!) : undefined
   const minSqft = searchParams.get("minSqft") ? parseInt(searchParams.get("minSqft")!) : undefined
   const maxSqft = searchParams.get("maxSqft") ? parseInt(searchParams.get("maxSqft")!) : undefined
+  const floors = searchParams.get("floors") ? parseInt(searchParams.get("floors")!) : undefined
   const communityId = searchParams.get("communityId") ? parseInt(searchParams.get("communityId")!) : undefined
   const sortBy = searchParams.get("sortBy") || "firstDetected"
   const sortDir = searchParams.get("sortDir") === "asc" ? "asc" : "desc"
@@ -27,9 +28,10 @@ export async function GET(req: NextRequest) {
     if (minSqft) (where.sqft as Record<string, number>).gte = minSqft
     if (maxSqft) (where.sqft as Record<string, number>).lte = maxSqft
   }
+  if (floors) where.floors = floors
   if (communityId) where.communityId = communityId
 
-  const validSortFields = ["currentPrice", "firstDetected", "sqft", "beds", "pricePerSqft"]
+  const validSortFields = ["currentPrice", "firstDetected", "sqft", "beds", "pricePerSqft", "floors"]
   const orderByField = validSortFields.includes(sortBy) ? sortBy : "firstDetected"
 
   const listings = await prisma.listing.findMany({
