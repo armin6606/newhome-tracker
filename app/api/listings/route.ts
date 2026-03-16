@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   const listings = await prisma.listing.findMany({
     where,
-    include: { community: { select: { name: true, builder: { select: { name: true } } } } },
+    include: { community: { select: { name: true, city: true, state: true, builder: { select: { name: true } } } } },
     orderBy: { [orderByField]: sortDir },
     take: 500,
   })
