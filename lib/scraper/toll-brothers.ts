@@ -181,7 +181,14 @@ async function scrapeCommunityPage(
           planName: ((card.querySelector('[class*="ModelCard_modelName"]') as HTMLElement)?.innerText?.trim()) || "",
           detailsText: ((card.querySelector('[class*="modelDetails"]') as HTMLElement)?.innerText?.trim()) || "",
           priceText: (priceEl?.innerText?.trim()) || (priceElFallback?.innerText?.trim()) || "",
-          moveInDate: ((card.querySelector('[class*="qmiDate"]') as HTMLElement)?.innerText?.trim()) || "",
+          moveInDate: (
+            ((card.querySelector('[class*="qmiDate"]') as HTMLElement)?.innerText?.trim()) ||
+            ((card.querySelector('[class*="moveInDate"]') as HTMLElement)?.innerText?.trim()) ||
+            ((card.querySelector('[class*="deliveryDate"]') as HTMLElement)?.innerText?.trim()) ||
+            ((card.querySelector('[class*="EstimatedDelivery"]') as HTMLElement)?.innerText?.trim()) ||
+            ((card.querySelector('[class*="availability"]') as HTMLElement)?.innerText?.trim()) ||
+            ""
+          ),
           sourceUrl: linkEl?.href || cUrl,
         })
       })
