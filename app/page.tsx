@@ -263,6 +263,7 @@ export default function HomePage() {
               <tr className="bg-stone-50 border-b border-stone-200">
                 {[
                   { label: "Community", field: null },
+                  { label: "City", field: null },
                   { label: "Builder", field: null },
                   { label: "Address", field: "address" },
                   { label: "Lot", field: null },
@@ -287,15 +288,16 @@ export default function HomePage() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {loading ? (
-                <tr><td colSpan={12} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
+                <tr><td colSpan={13} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
               ) : displayed.length === 0 ? (
-                <tr><td colSpan={12} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
+                <tr><td colSpan={13} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
               ) : (
                 displayed.map((l) => (
                   <tr key={l.id} className="hover:bg-amber-50/50 transition-colors">
                     <td className="px-4 py-3 max-w-[160px]">
                       <span className="block truncate text-stone-800 font-medium text-xs">{cleanCommunityName(l.community.name)}</span>
                     </td>
+                    <td className="px-4 py-3 text-stone-500 text-xs whitespace-nowrap">{l.community.city}</td>
                     <td className="px-4 py-3 text-stone-500 text-xs whitespace-nowrap">{l.community.builder.name}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Link href={`/listings/${l.id}`} className="font-medium text-stone-900 hover:text-amber-700 hover:underline">
