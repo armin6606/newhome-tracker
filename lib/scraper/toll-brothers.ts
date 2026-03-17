@@ -65,6 +65,45 @@ function parseModelDetails(text: string | null | undefined) {
   return { beds, baths, sqft, garages, floors }
 }
 
+/** Visit an individual homesite detail page and extract the availability/move-in date */
+async function scrapeDetailDate(page: Page, url: string): Promise<string | undefined> {
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
+    await page.waitForTimeout(1500)
+
+    const date = await page.evaluate(() => {
+      // Try known class fragments first
+      const selectors = [
+        '[class*="qmiDate"]',
+        '[class*="deliveryDate"]',
+        '[class*="EstimatedDelivery"]',
+        '[class*="availability"]',
+        '[class*="moveIn"]',
+        '[class*="move-in"]',
+        '[class*="availableDate"]',
+        '[class*="homesiteDate"]',
+      ]
+      for (const sel of selectors) {
+        const el = document.querySelector(sel) as HTMLElement | null
+        const txt = el?.innerText?.trim()
+        if (txt && txt.length > 2) return txt
+      }
+
+      // Fallback: scan visible text for "Available M/YYYY" or "Quick Move-In"
+      const body = (document.body as HTMLElement).innerText || ""
+      const m = body.match(/Available\s+(\d{1,2}\/\d{4})/i)
+      if (m) return `Available ${m[1]}`
+      if (/quick\s*move[-\s]?in/i.test(body)) return "Quick Move-In"
+
+      return null
+    })
+
+    return date || undefined
+  } catch {
+    return undefined
+  }
+}
+
 export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
@@ -208,7 +247,9 @@ async function scrapeCommunityPage(
     [realName, communityUrl] as [string, string]
   )
 
-  return rawCards.map((raw) => {
+  const listings: ScrapedListing[] = []
+
+  for (const raw of rawCards) {
     // "Home Site 35 | 136 Creation" → lot + street
     const parts = raw.addressRaw.split(/\s*\|\s*/)
     const lotNumber = parts.length > 1 ? parts[0].trim() : undefined
@@ -217,7 +258,15 @@ async function scrapeCommunityPage(
     const { beds, baths, sqft, garages, floors: floorsFromDetails } = parseModelDetails(raw.detailsText)
     const price = parsePrice(raw.priceText)
 
-    return {
+    // If the community card didn't give us a date, visit the detail page to find it
+    let moveInDate = raw.moveInDate || undefined
+    if (!moveInDate && raw.sourceUrl && raw.sourceUrl !== communityUrl) {
+      console.log(`    Fetching detail date: ${raw.sourceUrl}`)
+      moveInDate = await scrapeDetailDate(page, raw.sourceUrl)
+      await page.waitForTimeout(800)
+    }
+
+    listings.push({
       communityName: raw.communityName,
       communityUrl: raw.communityUrl,
       address,
@@ -230,8 +279,10 @@ async function scrapeCommunityPage(
       floors: floorsFromDetails ?? parseFloors(raw.planName),
       price,
       pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
-      moveInDate: raw.moveInDate || undefined,
+      moveInDate,
       sourceUrl: raw.sourceUrl,
-    }
-  })
+    })
+  }
+
+  return listings
 }

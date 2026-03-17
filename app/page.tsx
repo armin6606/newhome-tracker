@@ -348,7 +348,7 @@ export default function HomePage() {
                     <td className="px-4 py-3 font-semibold text-stone-900 whitespace-nowrap">{formatPrice(l.currentPrice)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className={ppsqColor(l.pricePerSqft, ppsqThresholds)}>
-                        {l.pricePerSqft ? `$${l.pricePerSqft}` : "—"}
+                        {l.pricePerSqft ? `$${l.pricePerSqft.toLocaleString()}` : "—"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-stone-600 whitespace-nowrap text-xs">
