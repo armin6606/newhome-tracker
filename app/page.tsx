@@ -244,7 +244,7 @@ export default function HomePage() {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Beds</label>
             <div className="flex gap-1">
-              {(["", "3", "5"] as const).map((val) => (
+              {(["", "3", "4", "5"] as const).map((val) => (
                 <button
                   key={val}
                   onClick={() => setMinBeds(val)}
@@ -324,7 +324,6 @@ export default function HomePage() {
                   { label: "Price", field: "currentPrice" },
                   { label: "$/Sqft", field: "pricePerSqft" },
                   { label: "HOA/mo", field: null },
-                  { label: "Est. Mo.", field: null },
                   { label: "Move-In", field: null },
                 ].map(({ label, field }) => (
                   <th
@@ -339,9 +338,9 @@ export default function HomePage() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {loading ? (
-                <tr><td colSpan={14} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
+                <tr><td colSpan={13} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
               ) : displayed.length === 0 ? (
-                <tr><td colSpan={14} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
+                <tr><td colSpan={13} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
               ) : (
                 displayed.map((l) => (
                   <tr key={l.id} className="hover:bg-amber-50/50 transition-colors">
@@ -374,11 +373,6 @@ export default function HomePage() {
                     </td>
                     <td className="px-4 py-3 text-stone-600 whitespace-nowrap text-xs">
                       {l.hoaFees ? `$${l.hoaFees.toLocaleString()}/mo` : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-stone-700 whitespace-nowrap text-xs">
-                      {interestRate && l.currentPrice
-                        ? `$${(estimatedMonthly(l.currentPrice, interestRate, l.hoaFees) ?? 0).toLocaleString()}/mo`
-                        : "—"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {isReady(l.moveInDate) ? (
