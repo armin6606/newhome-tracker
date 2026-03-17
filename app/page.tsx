@@ -244,7 +244,7 @@ export default function HomePage() {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Beds</label>
             <div className="flex gap-1">
-              {(["", "3", "4", "5"] as const).map((val) => (
+              {(["", "3", "5"] as const).map((val) => (
                 <button
                   key={val}
                   onClick={() => setMinBeds(val)}
