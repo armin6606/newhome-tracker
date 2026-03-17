@@ -49,6 +49,7 @@ function parseModelDetails(text: string | null | undefined) {
   let baths: number | undefined
   let sqft: number | undefined
   let garages: number | undefined
+  let floors: number | undefined
 
   for (let i = 0; i < tokens.length - 1; i++) {
     const n = parseFloat(tokens[i].replace(/,/g, ""))
@@ -56,11 +57,12 @@ function parseModelDetails(text: string | null | undefined) {
     const label = tokens[i + 1].toLowerCase()
     if (label === "bedrooms" || label === "beds") beds = n
     else if (label === "baths" || label === "bathrooms") baths = n
-    else if (label === "square feet" || label === "sq ft" || label === "sqft") sqft = n
+    else if (label === "square feet" || label === "sq ft" || label === "sqft" || label === "square footage") sqft = n
     else if (label === "garages" || label === "garage") garages = n
+    else if (label === "stories" || label === "story" || label === "floors" || label === "floor") floors = n
   }
 
-  return { beds, baths, sqft, garages }
+  return { beds, baths, sqft, garages, floors }
 }
 
 export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
@@ -212,7 +214,7 @@ async function scrapeCommunityPage(
     const lotNumber = parts.length > 1 ? parts[0].trim() : undefined
     const address = parts.length > 1 ? parts[1].trim() : raw.addressRaw.trim()
 
-    const { beds, baths, sqft, garages } = parseModelDetails(raw.detailsText)
+    const { beds, baths, sqft, garages, floors: floorsFromDetails } = parseModelDetails(raw.detailsText)
     const price = parsePrice(raw.priceText)
 
     return {
@@ -225,7 +227,7 @@ async function scrapeCommunityPage(
       baths,
       sqft,
       garages,
-      floors: parseFloors(raw.planName),
+      floors: floorsFromDetails ?? parseFloors(raw.planName),
       price,
       pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
       moveInDate: raw.moveInDate || undefined,

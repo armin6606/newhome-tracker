@@ -31,6 +31,15 @@ function formatLot(lot: string | null) {
   return lot.replace(/home site\s*/i, "").trim() || "—"
 }
 
+function ppsqColor(ppsq: number | null): string {
+  if (!ppsq) return "text-stone-400"
+  if (ppsq >= 900) return "font-semibold text-red-600"
+  if (ppsq >= 750) return "font-semibold text-orange-500"
+  if (ppsq >= 600) return "font-semibold text-amber-500"
+  if (ppsq >= 450) return "font-semibold text-lime-600"
+  return "font-semibold text-emerald-600"
+}
+
 function cleanCommunityName(name: string): string {
   return name
     .replace(/^toll brothers\s+(at|in|by|of)\s+/i, "")
@@ -317,7 +326,7 @@ export default function HomePage() {
                     <td className="px-4 py-3 text-stone-700 whitespace-nowrap">{formatNumber(l.sqft)}</td>
                     <td className="px-4 py-3 font-semibold text-stone-900 whitespace-nowrap">{formatPrice(l.currentPrice)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={l.pricePerSqft ? "text-amber-600 font-medium" : "text-stone-400"}>
+                      <span className={ppsqColor(l.pricePerSqft)}>
                         {l.pricePerSqft ? `$${l.pricePerSqft}` : "—"}
                       </span>
                     </td>

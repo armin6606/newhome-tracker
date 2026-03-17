@@ -48,8 +48,12 @@ function parseMeta(items: string[]): { beds?: number; baths?: number; sqft?: num
 
 /** "912 Chinon Irvine, CA" → "912 Chinon" */
 function cleanAddress(raw: string): string {
-  // Remove city/state suffix like " Irvine, CA" or " Irvine CA"
-  return raw.replace(/\s+[A-Za-z\s]+,?\s+[A-Z]{2}$/, "").trim()
+  // Step 1: remove ", CA" (or " CA") at end
+  // Step 2: remove the trailing city word (e.g. "Irvine")
+  return raw
+    .replace(/,?\s*[A-Z]{2}$/, "")   // "912 Chinon Irvine"
+    .replace(/\s+\S+$/, "")           // "912 Chinon"
+    .trim()
 }
 
 /** "Homesite #0091" → "0091" */
