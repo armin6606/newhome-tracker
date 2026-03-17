@@ -26,6 +26,16 @@ function isReady(moveInDate: string | null) {
   return !!moveInDate?.toLowerCase().includes("quick")
 }
 
+/** Estimated monthly payment: 20% down, 30-year fixed, P+I + HOA */
+function estimatedMonthly(price: number | null, annualRate: number, hoaFees: number | null): number | null {
+  if (!price || !annualRate) return null
+  const principal = price * 0.8 // 20% down
+  const r = annualRate / 100 / 12
+  const n = 360
+  const pi = principal * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+  return Math.round(pi + (hoaFees ?? 0))
+}
+
 function formatLot(lot: string | null) {
   if (!lot) return "—"
   return lot.replace(/home site\s*/i, "").trim() || "—"
@@ -71,6 +81,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState("currentPrice")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+  const [interestRate, setInterestRate] = useState<number | null>(null)
 
   // Server-side filters
   const [status, setStatus] = useState("active")
@@ -104,6 +115,14 @@ export default function HomePage() {
   }, [status, sortBy, sortDir, minPrice, maxPrice, minBeds, minSqft, maxSqft, floors])
 
   useEffect(() => { fetchListings() }, [fetchListings])
+
+  // Fetch current 30-year mortgage rate once on mount
+  useEffect(() => {
+    fetch("/api/mortgage-rate")
+      .then((r) => r.json())
+      .then((d) => { if (d.rate) setInterestRate(d.rate) })
+      .catch(() => setInterestRate(6.85))
+  }, [])
 
   // Deduplicate by address (keep first occurrence = lowest id)
   const deduped = listings.filter((l, idx, arr) => {
@@ -180,6 +199,7 @@ export default function HomePage() {
                 { label: "Avg $/Sqft", value: avgPpsq ? `$${avgPpsq}` : "—" },
                 { label: "Communities", value: communities.toString() },
                 { label: "Move-In Ready", value: readyCount.toString() },
+                { label: "30-Yr Rate", value: interestRate ? `${interestRate.toFixed(2)}%` : "—" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex flex-col">
                   <span className="text-amber-400 font-bold text-lg leading-none">{value}</span>
@@ -304,6 +324,7 @@ export default function HomePage() {
                   { label: "Price", field: "currentPrice" },
                   { label: "$/Sqft", field: "pricePerSqft" },
                   { label: "HOA/mo", field: null },
+                  { label: "Est. Mo.", field: null },
                   { label: "Move-In", field: null },
                 ].map(({ label, field }) => (
                   <th
@@ -318,9 +339,9 @@ export default function HomePage() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {loading ? (
-                <tr><td colSpan={13} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
+                <tr><td colSpan={14} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
               ) : displayed.length === 0 ? (
-                <tr><td colSpan={13} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
+                <tr><td colSpan={14} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
               ) : (
                 displayed.map((l) => (
                   <tr key={l.id} className="hover:bg-amber-50/50 transition-colors">
@@ -353,6 +374,11 @@ export default function HomePage() {
                     </td>
                     <td className="px-4 py-3 text-stone-600 whitespace-nowrap text-xs">
                       {l.hoaFees ? `$${l.hoaFees.toLocaleString()}/mo` : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-stone-700 whitespace-nowrap text-xs">
+                      {interestRate && l.currentPrice
+                        ? `$${(estimatedMonthly(l.currentPrice, interestRate, l.hoaFees) ?? 0).toLocaleString()}/mo`
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {isReady(l.moveInDate) ? (

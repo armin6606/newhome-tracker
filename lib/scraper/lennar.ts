@@ -2,6 +2,34 @@ import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
 import { parseFloors } from "./toll-brothers"
 
+/**
+ * Known Lennar Irvine plan name → floor count.
+ * Plan names don't encode stories so we maintain a lookup table.
+ * Add new plans here as they are discovered.
+ */
+const LENNAR_PLAN_FLOORS: Record<string, number> = {
+  // Great Park Neighborhoods
+  "isla":    3,
+  "rhea":    3,
+  "rhea 3":  3,
+  "rhea 2":  3,
+  "rhea 1":  3,
+  "isla 1":  3,
+  "isla 2":  3,
+  "isla 3":  3,
+}
+
+function lennarPlanFloors(planName: string | undefined): number | undefined {
+  if (!planName) return undefined
+  const key = planName.toLowerCase().trim()
+  if (LENNAR_PLAN_FLOORS[key] !== undefined) return LENNAR_PLAN_FLOORS[key]
+  // Check if any key is a prefix of the plan name (e.g. "Rhea 3 Plan A")
+  for (const [k, v] of Object.entries(LENNAR_PLAN_FLOORS)) {
+    if (key.startsWith(k)) return v
+  }
+  return undefined
+}
+
 const BASE_URL = "https://www.lennar.com"
 const IRVINE_URL = `${BASE_URL}/new-homes/california/orange-county/irvine`
 
@@ -169,7 +197,7 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
         beds,
         baths,
         garages: undefined,
-        floors: parseFloors(planName),
+        floors: lennarPlanFloors(planName) ?? parseFloors(planName),
         price,
         pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
         hoaFees: undefined,

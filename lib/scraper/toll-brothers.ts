@@ -177,6 +177,37 @@ async function scrapeCommunityPage(
   const h1Text = await page.evaluate(() => document.querySelector("h1")?.innerText?.trim() || "")
   const realName = h1Text ? toTitleCase(h1Text) : communityName
 
+  // Extract community-level HOA from the page before clicking any tabs
+  const communityHoa = await page.evaluate(() => {
+    const body = (document.body as HTMLElement).innerText || ""
+    const patterns = [
+      /HOA\s*(?:Fee|Dues|Fees|Assessment)?\s*:?\s*\$\s*([\d,]+)/i,
+      /\$\s*([\d,]+)\s*\/\s*(?:mo\.?|month)\s*HOA/i,
+      /Monthly\s+(?:HOA|Association\s+Fee)\s*:?\s*\$\s*([\d,]+)/i,
+      /Association\s+(?:Fee|Dues)\s*:?\s*\$\s*([\d,]+)/i,
+      /Homeowners\s+Association\s*:?\s*\$\s*([\d,]+)/i,
+    ]
+    for (const pat of patterns) {
+      const m = body.match(pat)
+      if (m) {
+        const n = parseInt(m[1].replace(/,/g, ""), 10)
+        if (!isNaN(n) && n > 0 && n < 5000) return n
+      }
+    }
+    // Also check any element whose class name contains "hoa" (case-insensitive)
+    const els = document.querySelectorAll('[class*="hoa" i], [class*="monthlyFee" i], [class*="associationFee" i]')
+    for (const el of Array.from(els)) {
+      const txt = (el as HTMLElement).innerText || ""
+      const m = txt.match(/\$\s*([\d,]+)/)
+      if (m) {
+        const n = parseInt(m[1].replace(/,/g, ""), 10)
+        if (!isNaN(n) && n > 0 && n < 5000) return n
+      }
+    }
+    return null
+  })
+  if (communityHoa) console.log(`  HOA: $${communityHoa}/mo`)
+
   // Try clicking a QMI / Available Homes tab
   for (const tabText of ["Quick Move-In", "Available Homes", "Move-In Ready"]) {
     try {
@@ -279,6 +310,7 @@ async function scrapeCommunityPage(
       floors: floorsFromDetails ?? parseFloors(raw.planName),
       price,
       pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
+      hoaFees: communityHoa || undefined,
       moveInDate,
       sourceUrl: raw.sourceUrl,
     })
