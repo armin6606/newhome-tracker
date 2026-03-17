@@ -52,9 +52,18 @@ export async function runScraper() {
       continue
     }
 
+    // Deduplicate by sourceUrl (same listing can appear in parent + sub-community pages)
+    const seenUrls = new Set<string>()
+    const dedupedListings = scrapedListings.filter((l) => {
+      if (seenUrls.has(l.sourceUrl)) return false
+      seenUrls.add(l.sourceUrl)
+      return true
+    })
+    console.log(`After dedup: ${dedupedListings.length} unique listings`)
+
     // Group by community
     const byCommunity = new Map<string, typeof scrapedListings>()
-    for (const listing of scrapedListings) {
+    for (const listing of dedupedListings) {
       const key = listing.communityName
       if (!byCommunity.has(key)) byCommunity.set(key, [])
       byCommunity.get(key)!.push(listing)
