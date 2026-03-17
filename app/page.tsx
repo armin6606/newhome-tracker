@@ -31,16 +31,27 @@ function formatLot(lot: string | null) {
   return lot.replace(/home site\s*/i, "").trim() || "—"
 }
 
-function ppsqColor(ppsq: number | null): string {
+function getPpsqThresholds(listings: Listing[]): [number, number, number, number] {
+  const vals = listings
+    .map((l) => l.pricePerSqft)
+    .filter((p): p is number => p != null)
+    .sort((a, b) => a - b)
+  if (vals.length < 5) return [450, 600, 750, 900]
+  const p = (pct: number) => vals[Math.floor((vals.length - 1) * pct)]
+  return [p(0.2), p(0.4), p(0.6), p(0.8)]
+}
+
+function ppsqColor(ppsq: number | null, thresholds: [number, number, number, number]): string {
   if (!ppsq) return "text-stone-400"
-  if (ppsq >= 900) return "font-semibold text-red-600"
-  if (ppsq >= 750) return "font-semibold text-orange-500"
-  if (ppsq >= 600) return "font-semibold text-amber-500"
-  if (ppsq >= 450) return "font-semibold text-lime-600"
+  const [t1, t2, t3, t4] = thresholds
+  if (ppsq >= t4) return "font-semibold text-red-600"
+  if (ppsq >= t3) return "font-semibold text-orange-500"
+  if (ppsq >= t2) return "font-semibold text-amber-500"
+  if (ppsq >= t1) return "font-semibold text-lime-600"
   return "font-semibold text-emerald-600"
 }
 
-const EXTERIOR_STYLES = /\s+(contemporary|mid[-\s]century|modern farmhouse|modern|craftsman|traditional|colonial|mediterranean|spanish|ranch|prairie|tudor|victorian|farmhouse|cape cod|coastal|transitional|industrial|scandinavian|rustic|urban|shingle|french country|english cottage|italianate|art deco|southwest|adobe|bungalow|georgian|federal|neoclassical|plantation|queenslander|revival|heritage|classic|luxury|new american|american|santa barbara|hacienda|pueblo|craftsman revival)(\s+|$)/gi
+const EXTERIOR_STYLES = /\s+(contemporary|mid[-\s]century|modern farmhouse|modern|tuscan|craftsman|traditional|colonial|mediterranean|spanish|ranch|prairie|tudor|victorian|farmhouse|cape cod|coastal|transitional|industrial|scandinavian|rustic|urban|shingle|french country|english cottage|italianate|art deco|southwest|adobe|bungalow|georgian|federal|neoclassical|plantation|queenslander|revival|heritage|classic|luxury|new american|american|santa barbara|hacienda|pueblo|craftsman revival)(\s+|$)/gi
 
 function cleanPlanName(name: string | null): string {
   if (!name) return "—"
@@ -105,6 +116,9 @@ export default function HomePage() {
     if (moveInOnly && !isReady(l.moveInDate)) return false
     return true
   })
+
+  // Dynamic $/sqft color thresholds based on current displayed listings
+  const ppsqThresholds = getPpsqThresholds(displayed)
 
   // Stats
   const activeListings = listings.filter((l) => l.status === "active")
@@ -333,7 +347,7 @@ export default function HomePage() {
                     <td className="px-4 py-3 text-stone-700 whitespace-nowrap">{formatNumber(l.sqft)}</td>
                     <td className="px-4 py-3 font-semibold text-stone-900 whitespace-nowrap">{formatPrice(l.currentPrice)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={ppsqColor(l.pricePerSqft)}>
+                      <span className={ppsqColor(l.pricePerSqft, ppsqThresholds)}>
                         {l.pricePerSqft ? `$${l.pricePerSqft}` : "—"}
                       </span>
                     </td>
