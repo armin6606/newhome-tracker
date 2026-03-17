@@ -40,6 +40,13 @@ function ppsqColor(ppsq: number | null): string {
   return "font-semibold text-emerald-600"
 }
 
+const EXTERIOR_STYLES = /\s+(contemporary|mid[-\s]century|modern farmhouse|modern|craftsman|traditional|colonial|mediterranean|spanish|ranch|prairie|tudor|victorian|farmhouse|cape cod|coastal|transitional|industrial|scandinavian|rustic|urban|shingle|french country|english cottage|italianate|art deco|southwest|adobe|bungalow|georgian|federal|neoclassical|plantation|queenslander|revival|heritage|classic|luxury|new american|american|santa barbara|hacienda|pueblo|craftsman revival)(\s+|$)/gi
+
+function cleanPlanName(name: string | null): string {
+  if (!name) return "—"
+  return name.replace(EXTERIOR_STYLES, " ").trim() || name.trim()
+}
+
 function cleanCommunityName(name: string): string {
   return name
     .replace(/^toll brothers\s+(at|in|by|of)\s+/i, "")
@@ -315,7 +322,7 @@ export default function HomePage() {
                     </td>
                     <td className="px-4 py-3 text-stone-500 text-xs whitespace-nowrap">{formatLot(l.lotNumber)}</td>
                     <td className="px-4 py-3 text-stone-500 text-xs max-w-[130px]">
-                      <span className="block truncate">{l.floorPlan || "—"}</span>
+                      <span className="block truncate">{cleanPlanName(l.floorPlan)}</span>
                     </td>
                     <td className="px-4 py-3 text-stone-700 whitespace-nowrap">
                       {l.beds != null && l.baths != null ? `${l.beds}/${l.baths}` : (l.beds ?? "—")}
