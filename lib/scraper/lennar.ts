@@ -1,4 +1,4 @@
-import { chromium } from "playwright"
+import { chromium, type Page } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
 import { parseFloors } from "./toll-brothers"
 
@@ -110,6 +110,68 @@ function communityUrlFromHref(href: string): string {
   return href
 }
 
+/** Visit a Lennar homesite detail page to extract floors, HOA, move-in date, and taxes */
+async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
+  floors?: number
+  hoaFees?: number
+  taxes?: number
+  moveInDate?: string
+}> {
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
+    await page.waitForTimeout(2000)
+
+    return await page.evaluate(() => {
+      const body = (document.body as HTMLElement).innerText || ""
+
+      // --- Floors: count SlashMenu floor tabs ---
+      const floorTabs = document.querySelectorAll('[class*="SlashMenu_label"]')
+      const floors = floorTabs.length > 0 ? floorTabs.length : undefined
+
+      // --- Move-in date ---
+      let moveInDate: string | undefined
+      const m = body.match(/Available\s+(\d{1,2}\/\d{4})/i)
+      if (m) moveInDate = `Available ${m[1]}`
+      else if (/quick\s*move[-\s]?in/i.test(body)) moveInDate = "Quick Move-In"
+      else if (/move[-\s]?in\s*ready/i.test(body)) moveInDate = "Move-In Ready"
+      // Also check dedicated date elements
+      const dateEl = document.querySelector('[class*="Availability_label"], [class*="moveIn"], [class*="availability"]') as HTMLElement | null
+      if (!moveInDate && dateEl?.innerText?.trim()) moveInDate = dateEl.innerText.trim()
+
+      // --- HOA ---
+      let hoaFees: number | undefined
+      const hoaPatterns = [
+        /HOA\s*(?:Fee|Dues|Fees)?\s*:?\s*\$\s*([\d,]+)/i,
+        /\$\s*([\d,]+)\s*\/\s*(?:mo\.?|month)\s*HOA/i,
+        /Monthly\s+(?:HOA|Association)\s*(?:Fee)?\s*:?\s*\$\s*([\d,]+)/i,
+        /Association\s+(?:Fee|Dues)\s*:?\s*\$\s*([\d,]+)/i,
+        /Community\s+(?:Fee|Dues)\s*:?\s*\$\s*([\d,]+)/i,
+      ]
+      for (const pat of hoaPatterns) {
+        const hm = body.match(pat)
+        if (hm) { const n = parseInt(hm[1].replace(/,/g, ""), 10); if (!isNaN(n) && n > 0 && n < 5000) { hoaFees = n; break } }
+      }
+
+      // --- Taxes ---
+      let taxes: number | undefined
+      const taxPatterns = [
+        /(?:Property\s+)?Tax(?:es)?\s*:?\s*\$\s*([\d,]+)\s*\/\s*(?:mo|month)/i,
+        /\$\s*([\d,]+)\s*\/\s*(?:mo|month)\s*(?:in\s+)?tax/i,
+        /Mello[- ]Roos\s*:?\s*\$\s*([\d,]+)/i,
+        /CFD\s*:?\s*\$\s*([\d,]+)/i,
+      ]
+      for (const pat of taxPatterns) {
+        const tm = body.match(pat)
+        if (tm) { const n = parseInt(tm[1].replace(/,/g, ""), 10); if (!isNaN(n) && n > 0 && n < 50000) { taxes = n; break } }
+      }
+
+      return { floors, hoaFees, taxes, moveInDate: moveInDate || undefined }
+    })
+  } catch {
+    return {}
+  }
+}
+
 export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
@@ -180,12 +242,26 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
       const address = cleanAddress(raw.addressText)
       if (!address) continue
 
-      // Use status as moveInDate when it's informative (e.g. "Move-in ready", "Quick move-in")
+      // Card-level status text
       const statusLower = raw.statusText.toLowerCase()
-      const moveInDate =
+      let moveInDate: string | undefined =
         statusLower.includes("move-in") || statusLower.includes("quick") || statusLower.includes("ready")
           ? raw.statusText
           : undefined
+
+      // Visit detail page to get floors, HOA, taxes, and specific move-in date
+      let detailFloors: number | undefined
+      let detailHoa: number | undefined
+      let detailTaxes: number | undefined
+      if (raw.href) {
+        console.log(`  Fetching Lennar detail: ${raw.href}`)
+        const detail = await scrapeLennarDetailPage(page, raw.href)
+        detailFloors = detail.floors
+        detailHoa = detail.hoaFees
+        detailTaxes = detail.taxes
+        moveInDate = moveInDate || detail.moveInDate
+        await page.waitForTimeout(800)
+      }
 
       allListings.push({
         communityName,
@@ -197,10 +273,11 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
         beds,
         baths,
         garages: undefined,
-        floors: lennarPlanFloors(planName) ?? parseFloors(planName),
+        floors: lennarPlanFloors(planName) ?? detailFloors ?? parseFloors(planName),
         price,
         pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
-        hoaFees: undefined,
+        hoaFees: detailHoa,
+        taxes: detailTaxes,
         moveInDate,
         schools: undefined,
         incentives: undefined,

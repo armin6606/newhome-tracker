@@ -16,6 +16,7 @@ type Listing = {
   currentPrice: number | null
   pricePerSqft: number | null
   hoaFees: number | null
+  taxes: number | null
   moveInDate: string | null
   status: string
   firstDetected: string
@@ -324,6 +325,7 @@ export default function HomePage() {
                   { label: "Price", field: "currentPrice" },
                   { label: "$/Sqft", field: "pricePerSqft" },
                   { label: "HOA/mo", field: null },
+                  { label: "Taxes/mo", field: null },
                   { label: "Move-In", field: null },
                 ].map(({ label, field }) => (
                   <th
@@ -338,9 +340,9 @@ export default function HomePage() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {loading ? (
-                <tr><td colSpan={13} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
+                <tr><td colSpan={14} className="px-4 py-12 text-center text-stone-400">Loading listings...</td></tr>
               ) : displayed.length === 0 ? (
-                <tr><td colSpan={13} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
+                <tr><td colSpan={14} className="px-4 py-12 text-center text-stone-400">No listings found.</td></tr>
               ) : (
                 displayed.map((l) => (
                   <tr key={l.id} className="hover:bg-amber-50/50 transition-colors">
@@ -348,7 +350,17 @@ export default function HomePage() {
                       <span className="block truncate text-stone-800 font-medium text-xs">{cleanCommunityName(l.community.name)}</span>
                     </td>
                     <td className="px-4 py-3 text-stone-500 text-xs whitespace-nowrap">{l.community.city}</td>
-                    <td className="px-4 py-3 text-stone-500 text-xs whitespace-nowrap">{l.community.builder.name}</td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap">
+                      <span className={
+                        l.community.builder.name.toLowerCase().includes("lennar")
+                          ? "font-semibold text-blue-600"
+                          : l.community.builder.name.toLowerCase().includes("toll")
+                          ? "font-semibold text-amber-600"
+                          : "text-stone-500"
+                      }>
+                        {l.community.builder.name}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Link href={`/listings/${l.id}`} className="font-medium text-stone-900 hover:text-amber-700 hover:underline">
                         {l.address}
@@ -372,7 +384,10 @@ export default function HomePage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-stone-600 whitespace-nowrap text-xs">
-                      {l.hoaFees ? `$${l.hoaFees.toLocaleString()}/mo` : "—"}
+                      {l.hoaFees ? `$${l.hoaFees.toLocaleString()}` : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-stone-600 whitespace-nowrap text-xs">
+                      {l.taxes ? `$${l.taxes.toLocaleString()}` : "—"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {isReady(l.moveInDate) ? (

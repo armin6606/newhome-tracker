@@ -14,6 +14,7 @@ export interface ScrapedListing {
   price?: number
   pricePerSqft?: number
   hoaFees?: number
+  taxes?: number
   moveInDate?: string
   schools?: string
   incentives?: string
@@ -65,42 +66,81 @@ function parseModelDetails(text: string | null | undefined) {
   return { beds, baths, sqft, garages, floors }
 }
 
-/** Visit an individual homesite detail page and extract the availability/move-in date */
-async function scrapeDetailDate(page: Page, url: string): Promise<string | undefined> {
+/** Visit an individual homesite detail page and extract date, HOA, taxes, and floors */
+async function scrapeDetailPage(page: Page, url: string): Promise<{
+  moveInDate?: string
+  hoaFees?: number
+  taxes?: number
+  floors?: number
+}> {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
     await page.waitForTimeout(1500)
 
-    const date = await page.evaluate(() => {
-      // Try known class fragments first
-      const selectors = [
-        '[class*="qmiDate"]',
-        '[class*="deliveryDate"]',
-        '[class*="EstimatedDelivery"]',
-        '[class*="availability"]',
-        '[class*="moveIn"]',
-        '[class*="move-in"]',
-        '[class*="availableDate"]',
-        '[class*="homesiteDate"]',
+    return await page.evaluate(() => {
+      const body = (document.body as HTMLElement).innerText || ""
+
+      // --- Move-in date ---
+      let moveInDate: string | undefined
+      const dateSelectors = [
+        '[class*="qmiDate"]', '[class*="deliveryDate"]', '[class*="EstimatedDelivery"]',
+        '[class*="availability"]', '[class*="moveIn"]', '[class*="move-in"]',
+        '[class*="availableDate"]', '[class*="homesiteDate"]',
       ]
-      for (const sel of selectors) {
-        const el = document.querySelector(sel) as HTMLElement | null
-        const txt = el?.innerText?.trim()
-        if (txt && txt.length > 2) return txt
+      for (const sel of dateSelectors) {
+        const txt = (document.querySelector(sel) as HTMLElement)?.innerText?.trim()
+        if (txt && txt.length > 2) { moveInDate = txt; break }
+      }
+      if (!moveInDate) {
+        const m = body.match(/Available\s+(\d{1,2}\/\d{4})/i)
+        if (m) moveInDate = `Available ${m[1]}`
+        else if (/quick\s*move[-\s]?in/i.test(body)) moveInDate = "Quick Move-In"
       }
 
-      // Fallback: scan visible text for "Available M/YYYY" or "Quick Move-In"
-      const body = (document.body as HTMLElement).innerText || ""
-      const m = body.match(/Available\s+(\d{1,2}\/\d{4})/i)
-      if (m) return `Available ${m[1]}`
-      if (/quick\s*move[-\s]?in/i.test(body)) return "Quick Move-In"
+      // --- HOA ---
+      let hoaFees: number | undefined
+      const hoaPatterns = [
+        /HOA\s*(?:Fee|Dues|Fees|Assessment)?\s*:?\s*\$\s*([\d,]+)/i,
+        /\$\s*([\d,]+)\s*\/\s*(?:mo\.?|month)\s*HOA/i,
+        /Monthly\s+(?:HOA|Association)\s*(?:Fee|Dues)?\s*:?\s*\$\s*([\d,]+)/i,
+        /Association\s+(?:Fee|Dues)\s*:?\s*\$\s*([\d,]+)/i,
+        /Homeowners?\s+Association\s*:?\s*\$\s*([\d,]+)/i,
+      ]
+      for (const pat of hoaPatterns) {
+        const m = body.match(pat)
+        if (m) { const n = parseInt(m[1].replace(/,/g, ""), 10); if (!isNaN(n) && n > 0 && n < 5000) { hoaFees = n; break } }
+      }
 
-      return null
+      // --- Taxes ---
+      let taxes: number | undefined
+      const taxPatterns = [
+        /(?:Property\s+)?Tax(?:es)?\s*:?\s*\$\s*([\d,]+)\s*\/\s*(?:mo|month)/i,
+        /\$\s*([\d,]+)\s*\/\s*(?:mo|month)\s*(?:in\s+)?tax/i,
+        /Mello[- ]Roos\s*:?\s*\$\s*([\d,]+)/i,
+        /CFD\s*:?\s*\$\s*([\d,]+)/i,
+        /Est(?:imated)?\s+(?:Annual\s+)?Tax(?:es)?\s*:?\s*\$\s*([\d,]+)/i,
+      ]
+      for (const pat of taxPatterns) {
+        const m = body.match(pat)
+        if (m) { const n = parseInt(m[1].replace(/,/g, ""), 10); if (!isNaN(n) && n > 0 && n < 50000) { taxes = n; break } }
+      }
+
+      // --- Floors from model details block ---
+      let floors: number | undefined
+      const detailEls = document.querySelectorAll('[class*="modelDetails"] [class*="modelDetail"], [class*="ModelCard_modelNumber"], [class*="ModelCard_modelUnit"]')
+      const tokens = Array.from(detailEls).map((e) => (e as HTMLElement).innerText?.trim()).filter(Boolean)
+      for (let i = 0; i < tokens.length - 1; i++) {
+        const label = tokens[i + 1].toLowerCase()
+        if (label === "stories" || label === "story" || label === "floors") {
+          const n = parseInt(tokens[i].replace(/,/g, ""), 10)
+          if (!isNaN(n)) { floors = n; break }
+        }
+      }
+
+      return { moveInDate: moveInDate || undefined, hoaFees, taxes, floors }
     })
-
-    return date || undefined
   } catch {
-    return undefined
+    return {}
   }
 }
 
@@ -289,11 +329,18 @@ async function scrapeCommunityPage(
     const { beds, baths, sqft, garages, floors: floorsFromDetails } = parseModelDetails(raw.detailsText)
     const price = parsePrice(raw.priceText)
 
-    // If the community card didn't give us a date, visit the detail page to find it
+    // Visit detail page to get move-in date, HOA, taxes, and floors
     let moveInDate = raw.moveInDate || undefined
-    if (!moveInDate && raw.sourceUrl && raw.sourceUrl !== communityUrl) {
-      console.log(`    Fetching detail date: ${raw.sourceUrl}`)
-      moveInDate = await scrapeDetailDate(page, raw.sourceUrl)
+    let detailHoa: number | undefined
+    let detailTaxes: number | undefined
+    let detailFloors: number | undefined
+    if (raw.sourceUrl && raw.sourceUrl !== communityUrl) {
+      console.log(`    Fetching detail page: ${raw.sourceUrl}`)
+      const detail = await scrapeDetailPage(page, raw.sourceUrl)
+      moveInDate = moveInDate || detail.moveInDate
+      detailHoa = detail.hoaFees
+      detailTaxes = detail.taxes
+      detailFloors = detail.floors
       await page.waitForTimeout(800)
     }
 
@@ -307,10 +354,11 @@ async function scrapeCommunityPage(
       baths,
       sqft,
       garages,
-      floors: floorsFromDetails ?? parseFloors(raw.planName),
+      floors: floorsFromDetails ?? detailFloors ?? parseFloors(raw.planName),
       price,
       pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
-      hoaFees: communityHoa || undefined,
+      hoaFees: detailHoa || communityHoa || undefined,
+      taxes: detailTaxes,
       moveInDate,
       sourceUrl: raw.sourceUrl,
     })
