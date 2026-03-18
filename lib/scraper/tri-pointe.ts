@@ -1,3 +1,8 @@
+/**
+ * TRI Pointe Homes scraper.
+ * OC page: https://www.tripointehomes.com/ca/orange-county/
+ * Uses [class*="container-listing"] cards (move-in ready + community entries).
+ */
 import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
 
@@ -14,108 +19,97 @@ export async function scrapeTriPointeOC(): Promise<ScrapedListing[]> {
     const page = await context.newPage()
     console.log("Loading TRI Pointe OC page...")
     await page.goto(OC_URL, { waitUntil: "domcontentloaded", timeout: 60000 })
-    await page.waitForTimeout(4000)
+    await page.waitForTimeout(5000)
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
     await page.waitForTimeout(2000)
 
-    const communities = await page.evaluate(() => {
-      const results: { name: string; url: string; city: string }[] = []
-      const seen = new Set<string>()
+    const cards = await page.evaluate(() => {
+      const results: {
+        address: string; href: string; price?: number; beds?: number
+        baths?: number; sqft?: number; communityName?: string; status?: string
+      }[] = []
 
-      // TRI Pointe community cards - they use Next.js with Tailwind
-      const cards = document.querySelectorAll("a[href*='/community/'], a[href*='/neighborhoods/'], a[href*='/ca/']")
-      cards.forEach((a) => {
-        const href = (a as HTMLAnchorElement).href
-        if (!href || seen.has(href) || !href.includes("tripointehomes.com")) return
-        // Filter for OC URLs
-        if (!href.includes("/ca/") && !href.includes("orange-county")) return
-        seen.add(href)
-        const card = a.closest("article, section, div[class*='card'], li") || a
-        const nameEl = card.querySelector("h2, h3, h4") as HTMLElement | null
-        const name = nameEl?.innerText?.trim() || (a as HTMLElement).innerText?.trim() || ""
-        if (!name || name.length > 80) return
-        const text = (card as HTMLElement).innerText || ""
-        const cityM = text.match(/([A-Z][a-z]+(?:\s[A-Z][a-z]+)?),\s*CA/)
-        results.push({ name, url: href, city: cityM?.[1] || "" })
+      document.querySelectorAll('[class*="container-listing"]').forEach((el) => {
+        const text = (el as HTMLElement).innerText || ""
+        if (text.length > 600) return // skip the page-level container
+
+        const linkEl = el.querySelector("a[href]") as HTMLAnchorElement | null
+        const href = linkEl?.href || ""
+
+        const priceM = text.match(/\$([\d,]+)/)
+        const price = priceM ? parseInt(priceM[1].replace(/,/g, ""), 10) : undefined
+        const bedM = text.match(/(\d+)\s*Beds?/i)
+        const bathM = text.match(/([\d.]+)\s*Baths?/i)
+        const sqftM = text.match(/([\d,]+)\s*Sq\.?\s*Ft/i)
+        const commM = text.match(/In\s+(.+)/im)
+        const lines = text.split("\n").map((l) => l.trim()).filter(Boolean)
+        const addrLine = lines.find((l) => /^\d+\s+[A-Z]/.test(l))
+
+        if (!href && !addrLine) return
+
+        results.push({
+          address: addrLine || lines[1] || "Plan Available",
+          href,
+          price: price && price > 100000 ? price : undefined,
+          beds: bedM ? parseFloat(bedM[1]) : undefined,
+          baths: bathM ? parseFloat(bathM[1]) : undefined,
+          sqft: sqftM ? parseInt(sqftM[1].replace(/,/g, ""), 10) : undefined,
+          communityName: commM?.[1]?.trim().split("\n")[0],
+          status: /move.in.ready/i.test(lines[0] || "") ? "Move-In Ready" : undefined,
+        })
       })
+
       return results
     })
 
-    console.log(`Found ${communities.length} TRI Pointe OC communities`)
+    // Get community-level entries too
+    const communities = await page.evaluate((baseUrl) => {
+      const results: { name: string; url: string }[] = []
+      const seen = new Set<string>()
+      document.querySelectorAll('a[href*="/ca/orange-county/"]').forEach((a) => {
+        const href = (a as HTMLAnchorElement).href
+        const segments = href.replace(baseUrl, "").split("/").filter(Boolean)
+        // Community root = exactly 2 segments (state + community slug)
+        if (!href || seen.has(href) || segments.length !== 2) return
+        seen.add(href)
+        const name = (a as HTMLElement).innerText?.trim() || ""
+        if (!name || name.length > 80) return
+        results.push({ name, url: href })
+      })
+      return results
+    }, OC_URL)
 
+    console.log(`Found ${cards.length} TRI Pointe MIR listings, ${communities.length} communities`)
+
+    for (const card of cards) {
+      const communityName = card.communityName || "TRI Pointe OC"
+      const communityUrl = card.href ? card.href.split("/").slice(0, 7).join("/") : OC_URL
+      allListings.push({
+        communityName,
+        communityUrl,
+        address: card.address,
+        sqft: card.sqft,
+        beds: card.beds,
+        baths: card.baths,
+        price: card.price,
+        pricePerSqft: card.price && card.sqft ? Math.round(card.price / card.sqft) : undefined,
+        propertyType: "Detached",
+        moveInDate: card.status,
+        sourceUrl: card.href || OC_URL,
+      })
+    }
+
+    const coveredUrls = new Set(allListings.map((l) => l.communityUrl))
     for (const comm of communities) {
-      console.log(`  Scraping TRI Pointe: ${comm.name}`)
-      try {
-        await page.goto(comm.url, { waitUntil: "domcontentloaded", timeout: 30000 })
-        await page.waitForTimeout(3000)
-        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-        await page.waitForTimeout(1500)
-
-        const data = await page.evaluate((url) => {
-          const body = (document.body as HTMLElement).innerText || ""
-          const results: { address: string; price?: number; beds?: number; baths?: number; sqft?: number; floorPlan?: string; sourceUrl: string }[] = []
-
-          // Try to find individual home/lot cards
-          const homeCards = document.querySelectorAll("[class*='HomeCard'], [class*='home-card'], [class*='lot'], [class*='qmi'], [class*='plan']")
-          homeCards.forEach((card) => {
-            const el = card as HTMLElement
-            const text = el.innerText || ""
-            if (text.length < 10) return
-            const priceM = text.match(/\$\s*([\d,]+)/)
-            const bedM = text.match(/(\d+)\s*(?:bd|bed)/i)
-            const bathM = text.match(/(\d+(?:\.\d+)?)\s*(?:ba|bath)/i)
-            const sqftM = text.match(/([\d,]+)\s*(?:sq\.?\s*ft|sf)/i)
-            const addrM = text.match(/\d+\s+[A-Z][a-z]/)
-            const linkEl = el.querySelector("a") as HTMLAnchorElement | null
-            results.push({
-              address: addrM?.[0] || (el.querySelector("h3, h4") as HTMLElement)?.innerText?.trim() || "Plan Available",
-              price: priceM ? parseInt(priceM[1].replace(/,/g, ""), 10) : undefined,
-              beds: bedM ? parseFloat(bedM[1]) : undefined,
-              baths: bathM ? parseFloat(bathM[1]) : undefined,
-              sqft: sqftM ? parseInt(sqftM[1].replace(/,/g, ""), 10) : undefined,
-              sourceUrl: linkEl?.href || url,
-            })
-          })
-
-          if (results.length === 0) {
-            // Community-level data
-            const priceM = body.match(/(?:from|starting|priced from)\s*\$\s*([\d,]+)/i) || body.match(/\$\s*([\d,]+)/)
-            const bedM = body.match(/(\d+)\s*[-–]\s*(\d+)\s*(?:bed|BD)/i) || body.match(/(\d+)\s*(?:bed|BD)/i)
-            const bathM = body.match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)\s*(?:bath|BA)/i) || body.match(/(\d+(?:\.\d+)?)\s*(?:bath|BA)/i)
-            const sqftM = body.match(/([\d,]+)\s*[-–]\s*([\d,]+)\s*(?:sq\.?\s*ft|SF)/i) || body.match(/([\d,]+)\s*(?:sq\.?\s*ft|SF)/i)
-            const h1 = (document.querySelector("h1") as HTMLElement)?.innerText?.trim() || ""
-            results.push({
-              address: h1 || "Plans Available",
-              price: priceM ? parseInt(priceM[1].replace(/,/g, ""), 10) : undefined,
-              beds: bedM ? parseFloat(bedM[1]) : undefined,
-              baths: bathM ? parseFloat(bathM[1]) : undefined,
-              sqft: sqftM ? parseInt(sqftM[1].replace(/,/g, ""), 10) : undefined,
-              sourceUrl: url,
-            })
-          }
-          return results
-        }, comm.url)
-
-        for (const home of data) {
-          const price = home.price && home.price > 100000 ? home.price : undefined
-          allListings.push({
-            communityName: comm.name,
-            communityUrl: comm.url,
-            address: home.address,
-            floorPlan: home.floorPlan,
-            sqft: home.sqft,
-            beds: home.beds,
-            baths: home.baths,
-            price,
-            pricePerSqft: price && home.sqft ? Math.round(price / home.sqft) : undefined,
-            propertyType: /townhome|townhouse|attached/i.test(comm.name) ? "Attached" : "Detached",
-            sourceUrl: home.sourceUrl,
-          })
-        }
-      } catch (err) {
-        console.log(`  Error scraping TRI Pointe ${comm.name}:`, err)
+      if (!coveredUrls.has(comm.url)) {
+        allListings.push({
+          communityName: comm.name,
+          communityUrl: comm.url,
+          address: `${comm.name} - Plans Available`,
+          propertyType: "Detached",
+          sourceUrl: comm.url,
+        })
       }
-      await page.waitForTimeout(1000)
     }
   } finally {
     await browser.close()

@@ -1,90 +1,99 @@
 /**
  * Risewell Homes scraper (formerly Landsea Homes / NWHM).
- * Both landseahomes.com and nwhm.com redirect to risewellhomes.com.
- * Uses the OC-specific page which filters via Algolia masterplan filter.
+ * Uses the proxied Algolia API with OC masterplan filter.
  */
-import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
 
-const OC_URL = "https://risewellhomes.com/southern-california/orange-county-new-homes"
+const BASE_URL = "https://risewellhomes.com"
+// Base64 of: {"index":"wp_posts_neighborhoods","query":"Orange County","options":{"filters":"masterplan.id = 49004"}}
+const OC_QUERY_B64 = "eyJpbmRleCI6IndwX3Bvc3RzX25laWdoYm9yaG9vZHMiLCJxdWVyeSI6Ik9yYW5nZSBDb3VudHkiLCJvcHRpb25zIjp7ImZpbHRlcnMiOiJtYXN0ZXJwbGFuLmlkID0gNDkwMDQifX0="
+
+interface RisewellHit {
+  name?: string
+  status?: string
+  isFutureCommunity?: boolean
+  homeTypes?: string[]
+  url?: string
+  permalink?: string
+  city?: string
+  state?: string
+  minPrice?: number
+  maxPrice?: number
+  priceLabel?: string
+  minBedrooms?: number
+  maxBedrooms?: number
+  minBathrooms?: number
+  maxBathrooms?: number
+  minSqFt?: number
+  maxSqFt?: number
+  minSqft?: number
+  maxSqft?: number
+}
+
+function parseTextPrice(text: string): number | undefined {
+  // Handle "Low $1 million", "High $900s", "Mid $800,000s"
+  const mDollarNum = text.match(/\$\s*([\d,]+)/)
+  if (mDollarNum) {
+    const n = parseInt(mDollarNum[1].replace(/,/g, ""), 10)
+    if (!isNaN(n) && n > 10000) return n
+    if (!isNaN(n)) return n * 1000 // e.g. "$1" from "$1 million" → 1000
+  }
+  const mMillion = text.match(/\$([\d.]+)\s*million/i)
+  if (mMillion) return Math.round(parseFloat(mMillion[1]) * 1_000_000)
+  return undefined
+}
 
 export async function scrapeRisewellOC(): Promise<ScrapedListing[]> {
-  const browser = await chromium.launch({ headless: true })
-  const context = await browser.newContext({
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  })
+  console.log("Fetching Risewell Homes OC communities via API...")
   const allListings: ScrapedListing[] = []
 
   try {
-    const page = await context.newPage()
-    console.log("Loading Risewell Homes OC page...")
-    await page.goto(OC_URL, { waitUntil: "networkidle", timeout: 60000 })
-    await page.waitForTimeout(5000)
-
-    // Scroll to trigger Algolia lazy load
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-    await page.waitForTimeout(2000)
-
-    const communities = await page.evaluate(() => {
-      const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; status?: string }[] = []
-
-      // Algolia InstantSearch renders .ais-Hits-item elements
-      document.querySelectorAll(".ais-Hits-item").forEach((item) => {
-        const el = item as HTMLElement
-        const text = el.innerText || ""
-
-        const nameEl = el.querySelector("h1, h2, h3, h4, h5") as HTMLElement | null
-        const name = nameEl?.innerText?.trim() || ""
-        if (!name) return
-
-        const linkEl = el.querySelector("a[href]") as HTMLAnchorElement | null
-        const url = linkEl?.href || ""
-
-        const priceM = text.match(/(?:starting from|from)\s*\$\s*([\d,]+)/i) || text.match(/\$\s*([\d,]+)/)
-        const bedM = text.match(/(\d+)\s*(?:BEDROOMS?|BD|BED)/i)
-        const bathM = text.match(/(\d+(?:\.\d+)?)\s*(?:BATHS?|BA)/i)
-        const sqftM = text.match(/([\d,]+)\s*(?:SQUARE FEET|SQ\.?\s*FT|SF)/i)
-        const cityM = text.match(/([A-Za-z\s]+),\s*CA/)
-
-        // Status badge (e.g. "NOW SELLING", "FINAL OPPORTUNITY")
-        const badgeEl = el.querySelector("[class*='badge'], [class*='status'], [class*='tag']") as HTMLElement | null
-        const status = badgeEl?.innerText?.trim()
-
-        results.push({
-          name,
-          url,
-          city: cityM?.[1]?.trim() || "",
-          price: priceM ? parseInt(priceM[1].replace(/,/g, ""), 10) : undefined,
-          beds: bedM ? parseFloat(bedM[1]) : undefined,
-          baths: bathM ? parseFloat(bathM[1]) : undefined,
-          sqft: sqftM ? parseInt(sqftM[1].replace(/,/g, ""), 10) : undefined,
-          status,
-        })
-      })
-
-      return results
+    const apiUrl = `${BASE_URL}/api/algolia/search?query=${OC_QUERY_B64}`
+    const res = await fetch(apiUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+        "Referer": `${BASE_URL}/southern-california/orange-county-new-homes`,
+      },
     })
 
-    console.log(`Found ${communities.length} Risewell OC communities`)
+    if (!res.ok) {
+      console.log(`  Risewell API returned ${res.status}`)
+      return []
+    }
 
-    for (const comm of communities) {
-      if (!comm.name) continue
-      const price = comm.price && comm.price > 100000 ? comm.price : undefined
+    const data = await res.json()
+    const hits: RisewellHit[] = data?.hits || data?.results || []
+    console.log(`Found ${hits.length} Risewell OC communities`)
+
+    for (const hit of hits) {
+      if (!hit.name) continue
+      if (hit.isFutureCommunity) continue
+
+      const relUrl = hit.url || hit.permalink || ""
+      const communityUrl = relUrl.startsWith("http") ? relUrl : `${BASE_URL}${relUrl}`
+
+      const price = hit.minPrice || parseTextPrice(hit.priceLabel || "")
+      const sqft = hit.minSqFt || hit.minSqft
+      const propertyType = /townhome|townhouse|attached|condo/i.test((hit.homeTypes || []).join(" "))
+        ? "Attached"
+        : "Detached"
+
       allListings.push({
-        communityName: comm.name,
-        communityUrl: comm.url || OC_URL,
-        address: `${comm.name} - Plans Available`,
-        sqft: comm.sqft,
-        beds: comm.beds,
-        baths: comm.baths,
-        price,
-        pricePerSqft: price && comm.sqft ? Math.round(price / comm.sqft) : undefined,
-        propertyType: "Detached",
-        sourceUrl: comm.url || OC_URL,
+        communityName: hit.name,
+        communityUrl,
+        address: `${hit.name} - Plans Available`,
+        sqft,
+        beds: hit.minBedrooms,
+        baths: hit.minBathrooms,
+        price: price && price > 100000 ? price : undefined,
+        pricePerSqft: price && sqft && price > 100000 ? Math.round(price / sqft) : undefined,
+        propertyType,
+        sourceUrl: communityUrl,
       })
     }
-  } finally {
-    await browser.close()
+  } catch (err) {
+    console.error("Risewell API error:", err)
   }
 
   return allListings

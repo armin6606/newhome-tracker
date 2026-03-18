@@ -132,6 +132,22 @@ const BUILDERS: BuilderConfig[] = [
   },
 ]
 
+async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (err: unknown) {
+    const msg = String(err)
+    if (msg.includes("P1017") || msg.includes("connection") || msg.includes("closed")) {
+      console.log("  Reconnecting to database...")
+      await prisma.$disconnect()
+      await new Promise((r) => setTimeout(r, 2000))
+      await prisma.$connect()
+      return await fn()
+    }
+    throw err
+  }
+}
+
 export async function runScraper() {
   console.log(`[${new Date().toISOString()}] Starting scrape...`)
 
@@ -140,11 +156,15 @@ export async function runScraper() {
   for (const config of BUILDERS) {
     console.log(`\n--- ${config.name} ---`)
 
-    const builder = await prisma.builder.upsert({
+    // Reconnect before each builder to avoid stale connections
+    await prisma.$disconnect().catch(() => {})
+    await prisma.$connect().catch(() => {})
+
+    const builder = await withReconnect(() => prisma.builder.upsert({
       where: { name: config.name },
       update: {},
       create: { name: config.name, websiteUrl: config.websiteUrl },
-    })
+    }))
 
     let scrapedListings: ScrapedListing[]
     try {
@@ -175,7 +195,7 @@ export async function runScraper() {
     for (const [communityName, listings] of byCommunity.entries()) {
       const communityUrl = listings[0].communityUrl
 
-      const community = await prisma.community.upsert({
+      const community = await withReconnect(() => prisma.community.upsert({
         where: { builderId_name: { builderId: builder.id, name: communityName } },
         update: { url: communityUrl },
         create: {
@@ -185,7 +205,7 @@ export async function runScraper() {
           state: config.state,
           url: communityUrl,
         },
-      })
+      }))
 
       const stats = await detectAndApplyChanges(listings, community.id)
       totalStats.added += stats.added
