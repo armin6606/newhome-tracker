@@ -157,16 +157,23 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-6 text-center">
-          <Link href="/">
-            <img src="/logo.png" alt="NewKey.us" className="h-14 w-auto mx-auto" />
-          </Link>
+    <div className="min-h-screen flex items-start justify-center bg-gray-50 px-4 pt-16">
+      <div className="w-full max-w-md relative">
+        {/* Large watermark logo behind the card */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none -top-10">
+          <img src="/logo.png" alt="" className="h-72 w-auto opacity-[0.07]" />
         </div>
-        <Suspense fallback={<div className="h-64 bg-white rounded-2xl border border-gray-200 animate-pulse" />}>
-          <LoginForm />
-        </Suspense>
+        {/* Login card */}
+        <div className="relative z-10">
+          <div className="mb-6 text-center">
+            <Link href="/">
+              <img src="/logo.png" alt="NewKey.us" className="h-14 w-auto mx-auto" />
+            </Link>
+          </div>
+          <Suspense fallback={<div className="h-64 bg-white rounded-2xl border border-gray-200 animate-pulse" />}>
+            <LoginForm />
+          </Suspense>
+        </div>
       </div>
     </div>
   )
