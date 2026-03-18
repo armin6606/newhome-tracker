@@ -45,7 +45,7 @@ export function NavActions() {
   return (
     <Link
       href="/auth/login"
-      className="flex items-center gap-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg transition-colors"
+      className="flex items-center gap-1.5 text-sm bg-amber-400 hover:bg-amber-500 text-white px-3.5 py-1.5 rounded-lg transition-colors"
     >
       <LogIn className="h-4 w-4" />
       Sign In
