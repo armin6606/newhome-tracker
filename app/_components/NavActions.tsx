@@ -26,14 +26,14 @@ export function NavActions() {
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard"
-          className="flex items-center gap-1.5 text-sm text-gray-300 hover:text-white transition-colors"
+          className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-blue-700 transition-colors"
         >
           <LayoutDashboard className="h-4 w-4" />
           Dashboard
         </Link>
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-1.5 text-sm text-gray-300 hover:text-white transition-colors"
+          className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-blue-700 transition-colors"
         >
           <LogOut className="h-4 w-4" />
           Sign Out
@@ -45,7 +45,7 @@ export function NavActions() {
   return (
     <Link
       href="/auth/login"
-      className="flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 text-white px-3.5 py-1.5 rounded-lg transition-colors"
+      className="flex items-center gap-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg transition-colors"
     >
       <LogIn className="h-4 w-4" />
       Sign In
