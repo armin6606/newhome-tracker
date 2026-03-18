@@ -206,7 +206,7 @@ export default function AnalyticsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis type="number" dataKey="sqft" name="Sqft"
                     domain={[1000, "auto"]}
-                    tickFormatter={(v) => v.toLocaleString()}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`}
                     tick={{ fontSize: 11 }}
                     label={{ value: "Sq Ft", position: "insideBottomRight", offset: -4, fontSize: 11, fill: "#78716c" }} />
                   <YAxis type="number" dataKey="price" name="Price"

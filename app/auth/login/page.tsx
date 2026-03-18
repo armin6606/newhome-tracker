@@ -156,7 +156,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium rounded-lg transition-colors mt-2"
+            className="w-full py-2.5 px-4 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-all mt-2"
           >
             {loading
               ? tab === "login"
@@ -192,7 +192,7 @@ export default function LoginPage() {
         <div className="relative z-10">
           <div className="mb-6 text-center">
             <Link href="/">
-              <img src="/logo.png" alt="NewKey.us" className="h-28 w-auto mx-auto mix-blend-multiply" />
+              <img src="/logo.png" alt="NewKey.us" className="h-28 w-auto mx-auto" style={{ mixBlendMode: "multiply" }} />
             </Link>
           </div>
           <Suspense fallback={<div className="h-64 bg-white rounded-2xl border border-gray-200 animate-pulse" />}>
