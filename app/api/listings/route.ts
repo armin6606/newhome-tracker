@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { getSheetLookup, resolveSheetRow } from "@/lib/sheets"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -34,12 +35,29 @@ export async function GET(req: NextRequest) {
   const validSortFields = ["currentPrice", "firstDetected", "sqft", "beds", "pricePerSqft", "floors"]
   const orderByField = validSortFields.includes(sortBy) ? sortBy : "firstDetected"
 
-  const listings = await prisma.listing.findMany({
-    where,
-    include: { community: { select: { name: true, city: true, state: true, builder: { select: { name: true } } } } },
-    orderBy: { [orderByField]: sortDir },
-    take: 500,
+  const [listings, sheetLookup] = await Promise.all([
+    prisma.listing.findMany({
+      where,
+      include: { community: { select: { name: true, city: true, state: true, builder: { select: { name: true } } } } },
+      orderBy: { [orderByField]: sortDir },
+      take: 500,
+    }),
+    getSheetLookup(),
+  ])
+
+  // Overlay sheet values (property type, HOA, taxes) on top of DB values
+  const merged = listings.map((l) => {
+    const sheet = resolveSheetRow(sheetLookup, l.community.name, l.floorPlan)
+    if (!sheet) return l
+    return {
+      ...l,
+      propertyType: sheet.propertyType || l.propertyType,
+      hoaFees: sheet.hoa ?? l.hoaFees,
+      taxes: (sheet.taxRate && l.currentPrice)
+        ? Math.round(l.currentPrice * sheet.taxRate / 100)
+        : sheet.annualTax ?? l.taxes,
+    }
   })
 
-  return NextResponse.json(listings)
+  return NextResponse.json(merged)
 }

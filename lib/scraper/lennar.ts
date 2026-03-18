@@ -110,12 +110,13 @@ function communityUrlFromHref(href: string): string {
   return href
 }
 
-/** Visit a Lennar homesite detail page to extract floors, HOA, move-in date, and taxes */
+/** Visit a Lennar homesite detail page to extract floors, HOA, move-in date, taxes, and incentives */
 async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
   floors?: number
   hoaFees?: number
   taxes?: number
   moveInDate?: string
+  incentives?: string
 }> {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
@@ -136,7 +137,9 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
       else if (/move[-\s]?in\s*ready/i.test(body)) moveInDate = "Move-In Ready"
       // Also check dedicated date elements
       const dateEl = document.querySelector('[class*="Availability_label"], [class*="moveIn"], [class*="availability"]') as HTMLElement | null
-      if (!moveInDate && dateEl?.innerText?.trim()) moveInDate = dateEl.innerText.trim()
+      if (!moveInDate && dateEl?.innerText?.trim()) {
+        moveInDate = dateEl.innerText.trim().replace(/^quick\s+move[-\s]?in\s*/i, "").trim() || dateEl.innerText.trim()
+      }
 
       // --- HOA ---
       let hoaFees: number | undefined
@@ -165,7 +168,36 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
         if (tm) { const n = parseInt(tm[1].replace(/,/g, ""), 10); if (!isNaN(n) && n > 0 && n < 50000) { taxes = n; break } }
       }
 
-      return { floors, hoaFees, taxes, moveInDate: moveInDate || undefined }
+      // --- Incentives ---
+      let incentives: string | undefined
+      const incentiveSelectors = [
+        '[class*="incentive"]', '[class*="Incentive"]',
+        '[class*="promotion"]', '[class*="Promotion"]',
+        '[class*="offer"]', '[class*="specialOffer"]',
+        '[class*="closing"]', '[class*="buydown"]',
+        '[class*="HomesiteCard_newDescription"]',
+      ]
+      for (const sel of incentiveSelectors) {
+        const el = document.querySelector(sel) as HTMLElement | null
+        const txt = el?.innerText?.trim()
+        if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+      }
+      if (!incentives) {
+        const incPatterns = [
+          /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[- ]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+(?:credit|allowance)|builder\s+incentive|special\s+offer|limited[\s-]time\s+offer|\$[\d,]+\s+(?:credit|savings?))\s*[:\-–]?\s*([^\n.]{0,120})/gi,
+        ]
+        const matches: string[] = []
+        for (const pat of incPatterns) {
+          let m: RegExpExecArray | null
+          while ((m = pat.exec(body)) !== null) {
+            matches.push(m[0].trim())
+            if (matches.length >= 3) break
+          }
+        }
+        if (matches.length) incentives = matches.join(" · ")
+      }
+
+      return { floors, hoaFees, taxes, moveInDate: moveInDate || undefined, incentives }
     })
   } catch {
     return {}
@@ -249,10 +281,11 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
           ? raw.statusText
           : undefined
 
-      // Visit detail page to get floors, HOA, taxes, and specific move-in date
+      // Visit detail page to get floors, HOA, taxes, move-in date, and incentives
       let detailFloors: number | undefined
       let detailHoa: number | undefined
       let detailTaxes: number | undefined
+      let detailIncentives: string | undefined
       if (raw.href) {
         console.log(`  Fetching Lennar detail: ${raw.href}`)
         const detail = await scrapeLennarDetailPage(page, raw.href)
@@ -260,6 +293,7 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
         detailHoa = detail.hoaFees
         detailTaxes = detail.taxes
         moveInDate = moveInDate || detail.moveInDate
+        detailIncentives = detail.incentives
         await page.waitForTimeout(800)
       }
 
@@ -276,11 +310,12 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
         floors: lennarPlanFloors(planName) ?? detailFloors ?? parseFloors(planName),
         price,
         pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
+        propertyType: /townhome|townhouse|attached/i.test(communityName) ? "Attached" : "Detached",
         hoaFees: detailHoa,
         taxes: detailTaxes,
         moveInDate,
         schools: undefined,
-        incentives: undefined,
+        incentives: detailIncentives,
         sourceUrl: raw.href,
       })
     }

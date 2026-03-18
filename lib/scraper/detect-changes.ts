@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import type { ScrapedListing } from "./toll-brothers"
+import { notifyPriceChange, notifyNewListings } from "./notifications"
 
 export async function detectAndApplyChanges(
   scrapedListings: ScrapedListing[],
@@ -14,6 +15,7 @@ export async function detectAndApplyChanges(
   const scrapedAddresses = new Set(scrapedListings.map((l) => normalizeAddress(l.address)))
 
   const stats = { added: 0, priceChanges: 0, removed: 0, unchanged: 0 }
+  const newListingIds: number[] = []
 
   // Process each scraped listing
   for (const scraped of scrapedListings) {
@@ -36,6 +38,7 @@ export async function detectAndApplyChanges(
           floors: scraped.floors,
           currentPrice: scraped.price,
           pricePerSqft: scraped.pricePerSqft,
+          propertyType: scraped.propertyType,
           hoaFees: scraped.hoaFees,
           taxes: scraped.taxes,
           moveInDate: scraped.moveInDate,
@@ -54,6 +57,7 @@ export async function detectAndApplyChanges(
           })
         }
       }
+      newListingIds.push(listing.id)
       stats.added++
     } else {
       // Existing listing — check for price change
@@ -66,6 +70,7 @@ export async function detectAndApplyChanges(
         garages: scraped.garages ?? existing.garages,
         floors: scraped.floors ?? existing.floors,
         pricePerSqft: scraped.pricePerSqft ?? existing.pricePerSqft,
+        propertyType: scraped.propertyType ?? existing.propertyType,
         hoaFees: scraped.hoaFees ?? existing.hoaFees,
         taxes: scraped.taxes ?? existing.taxes,
         moveInDate: scraped.moveInDate ?? existing.moveInDate,
@@ -86,6 +91,17 @@ export async function detectAndApplyChanges(
         await prisma.priceHistory.create({
           data: { listingId: existing.id, price: scraped.price, changeType },
         })
+
+        // Send price change notification (fire-and-forget)
+        if (changeType === "increase" || changeType === "decrease") {
+          notifyPriceChange({
+            listingId: existing.id,
+            oldPrice: existing.currentPrice!,
+            newPrice: scraped.price,
+            changeType,
+          }).catch(console.error)
+        }
+
         stats.priceChanges++
       } else {
         stats.unchanged++
@@ -93,6 +109,11 @@ export async function detectAndApplyChanges(
 
       await prisma.listing.update({ where: { id: existing.id }, data: updates })
     }
+  }
+
+  // Send new listing notifications for followed communities
+  if (newListingIds.length > 0) {
+    notifyNewListings({ communityId, newListingIds }).catch(console.error)
   }
 
   // Mark listings no longer in scrape as removed

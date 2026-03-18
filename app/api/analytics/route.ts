@@ -1,86 +1,120 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 
-export async function GET() {
-  const [priceHistory, listings, communities] = await Promise.all([
-    prisma.priceHistory.findMany({
-      orderBy: { detectedAt: "asc" },
-      include: { listing: { select: { communityId: true, community: { select: { name: true } } } } },
-    }),
-    prisma.listing.findMany({
-      select: {
-        id: true,
-        status: true,
-        currentPrice: true,
-        pricePerSqft: true,
-        sqft: true,
-        firstDetected: true,
-        soldAt: true,
-        communityId: true,
-        community: { select: { name: true } },
-      },
-    }),
-    prisma.community.findMany({ select: { id: true, name: true } }),
-  ])
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const city      = searchParams.get("city")      || ""
+  const builder   = searchParams.get("builder")   || ""
+  const community = searchParams.get("community") || ""
 
-  // Homes sold over time (by month)
-  const soldByMonth: Record<string, number> = {}
-  listings
-    .filter((l) => l.soldAt)
-    .forEach((l) => {
-      const key = l.soldAt!.toISOString().slice(0, 7) // YYYY-MM
-      soldByMonth[key] = (soldByMonth[key] || 0) + 1
-    })
+  const communityWhere: Record<string, unknown> = {}
+  if (city)      communityWhere.city    = { contains: city,      mode: "insensitive" }
+  if (builder)   communityWhere.builder = { name: { contains: builder, mode: "insensitive" } }
+  if (community) communityWhere.name    = { contains: community, mode: "insensitive" }
 
-  // Inventory over time — approximate by tracking active counts per week (simplified: just current)
-  const activeByMonth: Record<string, number> = {}
-  listings.forEach((l) => {
-    const key = l.firstDetected.toISOString().slice(0, 7)
-    activeByMonth[key] = (activeByMonth[key] || 0) + 1
+  const where: Record<string, unknown> = {}
+  if (Object.keys(communityWhere).length) where.community = communityWhere
+
+  const listings = await prisma.listing.findMany({
+    where,
+    select: {
+      id: true, status: true, currentPrice: true, pricePerSqft: true,
+      sqft: true, beds: true, firstDetected: true, soldAt: true, communityId: true,
+      community: { select: { name: true, city: true, builder: { select: { name: true } } } },
+    },
   })
 
-  // Avg price per sqft by community
-  const ppsqftByCommunity: Record<string, { total: number; count: number }> = {}
-  listings
-    .filter((l) => l.pricePerSqft)
-    .forEach((l) => {
-      const name = l.community.name
-      if (!ppsqftByCommunity[name]) ppsqftByCommunity[name] = { total: 0, count: 0 }
-      ppsqftByCommunity[name].total += l.pricePerSqft!
-      ppsqftByCommunity[name].count++
-    })
+  // Active-only subset — used for price charts for accuracy
+  const active = listings.filter((l) => l.status === "active")
 
-  const avgPricePerSqftByCommunity = Object.entries(ppsqftByCommunity).map(([name, { total, count }]) => ({
-    community: name,
-    avgPricePerSqft: Math.round(total / count),
-  }))
+  // ── Scatter: price vs sqft (active only) ────────────────────────────────
+  const scatterData = active
+    .filter((l) => l.currentPrice && l.sqft)
+    .map((l) => ({ sqft: l.sqft!, price: l.currentPrice!, community: l.community.name }))
 
-  // Price trend over time (avg listing price by month)
-  const priceSumByMonth: Record<string, { total: number; count: number }> = {}
-  listings
-    .filter((l) => l.currentPrice)
-    .forEach((l) => {
-      const key = l.firstDetected.toISOString().slice(0, 7)
-      if (!priceSumByMonth[key]) priceSumByMonth[key] = { total: 0, count: 0 }
-      priceSumByMonth[key].total += l.currentPrice!
-      priceSumByMonth[key].count++
-    })
+  // ── Avg $/sqft by community (active only) ────────────────────────────────
+  const ppsqMap: Record<string, { total: number; count: number }> = {}
+  active.filter((l) => l.pricePerSqft).forEach((l) => {
+    const n = l.community.name
+    if (!ppsqMap[n]) ppsqMap[n] = { total: 0, count: 0 }
+    ppsqMap[n].total += l.pricePerSqft!
+    ppsqMap[n].count++
+  })
+  const avgPricePerSqftByCommunity = Object.entries(ppsqMap)
+    .map(([community, { total, count }]) => ({ community, avgPricePerSqft: Math.round(total / count) }))
+    .sort((a, b) => b.avgPricePerSqft - a.avgPricePerSqft)
 
-  const avgPriceByMonth = Object.entries(priceSumByMonth)
+  // ── Price range by community (active only) ───────────────────────────────
+  const priceRangeMap: Record<string, { min: number; max: number; total: number; count: number }> = {}
+  active.filter((l) => l.currentPrice).forEach((l) => {
+    const n = l.community.name
+    if (!priceRangeMap[n]) priceRangeMap[n] = { min: l.currentPrice!, max: l.currentPrice!, total: 0, count: 0 }
+    priceRangeMap[n].min   = Math.min(priceRangeMap[n].min, l.currentPrice!)
+    priceRangeMap[n].max   = Math.max(priceRangeMap[n].max, l.currentPrice!)
+    priceRangeMap[n].total += l.currentPrice!
+    priceRangeMap[n].count++
+  })
+  const priceRangeByCommunity = Object.entries(priceRangeMap)
+    .map(([community, { min, max, total, count }]) => ({
+      community, min, max, avg: Math.round(total / count), count,
+    }))
+    .sort((a, b) => a.avg - b.avg)
+
+  // ── Avg price over time (active only) ────────────────────────────────────
+  const priceByMonth: Record<string, { total: number; count: number }> = {}
+  active.filter((l) => l.currentPrice).forEach((l) => {
+    const key = l.firstDetected.toISOString().slice(0, 7)
+    if (!priceByMonth[key]) priceByMonth[key] = { total: 0, count: 0 }
+    priceByMonth[key].total += l.currentPrice!
+    priceByMonth[key].count++
+  })
+  const avgPriceByMonth = Object.entries(priceByMonth)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, { total, count }]) => ({ month, avgPrice: Math.round(total / count) }))
 
+  // ── Homes sold over time ─────────────────────────────────────────────────
+  const soldByMonth: Record<string, number> = {}
+  listings.filter((l) => l.soldAt).forEach((l) => {
+    const key = l.soldAt!.toISOString().slice(0, 7)
+    soldByMonth[key] = (soldByMonth[key] || 0) + 1
+  })
+
+  // ── Community summary ────────────────────────────────────────────────────
+  const communityMap: Record<string, {
+    name: string; builderName: string; active: number; sold: number;
+    prices: number[]; ppsqft: number[]; sqfts: number[]
+  }> = {}
+  listings.forEach((l) => {
+    const n = l.community.name
+    if (!communityMap[n]) communityMap[n] = {
+      name: n, builderName: l.community.builder.name,
+      active: 0, sold: 0, prices: [], ppsqft: [], sqfts: [],
+    }
+    if (l.status === "active") communityMap[n].active++
+    else communityMap[n].sold++
+    if (l.status === "active" && l.currentPrice) communityMap[n].prices.push(l.currentPrice)
+    if (l.status === "active" && l.pricePerSqft)  communityMap[n].ppsqft.push(l.pricePerSqft)
+    if (l.sqft) communityMap[n].sqfts.push(l.sqft)
+  })
+  const communitySummary = Object.values(communityMap).map((c) => ({
+    name: c.name, builderName: c.builderName,
+    active: c.active, sold: c.sold, total: c.active + c.sold,
+    avgPrice: c.prices.length ? Math.round(c.prices.reduce((a, b) => a + b, 0) / c.prices.length) : null,
+    minPrice: c.prices.length ? Math.min(...c.prices) : null,
+    maxPrice: c.prices.length ? Math.max(...c.prices) : null,
+    avgPpsqft: c.ppsqft.length ? Math.round(c.ppsqft.reduce((a, b) => a + b, 0) / c.ppsqft.length) : null,
+    avgSqft: c.sqfts.length ? Math.round(c.sqfts.reduce((a, b) => a + b, 0) / c.sqfts.length) : null,
+  })).sort((a, b) => b.total - a.total)
+
   return NextResponse.json({
-    soldByMonth: Object.entries(soldByMonth)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, count]) => ({ month, count })),
-    activeByMonth: Object.entries(activeByMonth)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, count]) => ({ month, count })),
+    scatterData,
     avgPricePerSqftByCommunity,
+    priceRangeByCommunity,
     avgPriceByMonth,
-    totalActive: listings.filter((l) => l.status === "active").length,
-    totalSold: listings.filter((l) => l.status !== "active").length,
+    soldByMonth: Object.entries(soldByMonth).sort(([a], [b]) => a.localeCompare(b)).map(([month, count]) => ({ month, count })),
+    communitySummary,
+    totalActive:   listings.filter((l) => l.status === "active").length,
+    totalSold:     listings.filter((l) => l.status !== "active").length,
     totalListings: listings.length,
   })
 }

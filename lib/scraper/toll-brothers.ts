@@ -13,6 +13,7 @@ export interface ScrapedListing {
   floors?: number
   price?: number
   pricePerSqft?: number
+  propertyType?: string
   hoaFees?: number
   taxes?: number
   moveInDate?: string
@@ -66,12 +67,13 @@ function parseModelDetails(text: string | null | undefined) {
   return { beds, baths, sqft, garages, floors }
 }
 
-/** Visit an individual homesite detail page and extract date, HOA, taxes, and floors */
+/** Visit an individual homesite detail page and extract date, HOA, taxes, floors, and incentives */
 async function scrapeDetailPage(page: Page, url: string): Promise<{
   moveInDate?: string
   hoaFees?: number
   taxes?: number
   floors?: number
+  incentives?: string
 }> {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
@@ -89,12 +91,16 @@ async function scrapeDetailPage(page: Page, url: string): Promise<{
       ]
       for (const sel of dateSelectors) {
         const txt = (document.querySelector(sel) as HTMLElement)?.innerText?.trim()
-        if (txt && txt.length > 2) { moveInDate = txt; break }
+        if (txt && txt.length > 2) {
+          // Strip "Quick Move-In " prefix, keep just the date or status
+          moveInDate = txt.replace(/^quick\s+move[-\s]?in\s*/i, "").trim() || txt
+          break
+        }
       }
       if (!moveInDate) {
-        const m = body.match(/Available\s+(\d{1,2}\/\d{4})/i)
-        if (m) moveInDate = `Available ${m[1]}`
-        else if (/quick\s*move[-\s]?in/i.test(body)) moveInDate = "Quick Move-In"
+        const m = body.match(/(?:quick\s+move[-\s]?in\s+)?(\d{1,2}\/\d{4})/i)
+        if (m) moveInDate = m[1]
+        else if (/move[-\s]?in\s*ready/i.test(body)) moveInDate = "Move-In Ready"
       }
 
       // --- HOA ---
@@ -137,7 +143,37 @@ async function scrapeDetailPage(page: Page, url: string): Promise<{
         }
       }
 
-      return { moveInDate: moveInDate || undefined, hoaFees, taxes, floors }
+      // --- Incentives ---
+      let incentives: string | undefined
+      const incentiveSelectors = [
+        '[class*="incentive"]', '[class*="Incentive"]',
+        '[class*="promotion"]', '[class*="Promotion"]',
+        '[class*="offer"]', '[class*="Offer"]',
+        '[class*="special"]', '[class*="Special"]',
+        '[class*="closing"]', '[class*="buydown"]',
+        '[class*="credit"]', '[class*="Credit"]',
+      ]
+      for (const sel of incentiveSelectors) {
+        const el = document.querySelector(sel) as HTMLElement | null
+        const txt = el?.innerText?.trim()
+        if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+      }
+      if (!incentives) {
+        const patterns = [
+          /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[- ]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[\s-]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+        ]
+        const matches: string[] = []
+        for (const pat of patterns) {
+          let m: RegExpExecArray | null
+          while ((m = pat.exec(body)) !== null) {
+            matches.push(m[0].trim())
+            if (matches.length >= 3) break
+          }
+        }
+        if (matches.length) incentives = matches.join(" · ")
+      }
+
+      return { moveInDate: moveInDate || undefined, hoaFees, taxes, floors, incentives }
     })
   } catch {
     return {}
@@ -159,8 +195,8 @@ export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
     await page.goto(CALIFORNIA_INDEX_URL, { waitUntil: "networkidle", timeout: 60000 })
 
     // Find all community links where the card itself contains "Irvine" (tight check)
-    const rawLinks: { name: string; url: string }[] = await page.evaluate(() => {
-      const results: { name: string; url: string }[] = []
+    const rawLinks: { name: string; url: string; propertyType: string }[] = await page.evaluate(() => {
+      const results: { name: string; url: string; propertyType: string }[] = []
       const seen = new Set<string>()
 
       document
@@ -173,7 +209,9 @@ export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
           if (!card || !card.textContent?.includes("Irvine")) return
 
           seen.add(href)
-          results.push({ name: (a.textContent || "").trim(), url: href })
+          const cardText = card.textContent || ""
+          const propertyType = /townhome|townhouse|attached/i.test(cardText) ? "Attached" : "Detached"
+          results.push({ name: (a.textContent || "").trim(), url: href, propertyType })
         })
 
       return results
@@ -187,7 +225,7 @@ export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
     for (const community of communityLinks) {
       console.log(`Scraping: ${community.name}`)
       try {
-        const listings = await scrapeCommunityPage(page, community.name, community.url)
+        const listings = await scrapeCommunityPage(page, community.name, community.url, community.propertyType)
         allListings.push(...listings)
         console.log(`  → ${listings.length} listings`)
       } catch (err) {
@@ -209,7 +247,8 @@ function toTitleCase(str: string): string {
 async function scrapeCommunityPage(
   page: Page,
   communityName: string,
-  communityUrl: string
+  communityUrl: string,
+  propertyType = "Detached"
 ): Promise<ScrapedListing[]> {
   await page.goto(communityUrl, { waitUntil: "networkidle", timeout: 60000 })
 
@@ -334,6 +373,7 @@ async function scrapeCommunityPage(
     let detailHoa: number | undefined
     let detailTaxes: number | undefined
     let detailFloors: number | undefined
+    let detailIncentives: string | undefined
     if (raw.sourceUrl && raw.sourceUrl !== communityUrl) {
       console.log(`    Fetching detail page: ${raw.sourceUrl}`)
       const detail = await scrapeDetailPage(page, raw.sourceUrl)
@@ -341,6 +381,7 @@ async function scrapeCommunityPage(
       detailHoa = detail.hoaFees
       detailTaxes = detail.taxes
       detailFloors = detail.floors
+      detailIncentives = detail.incentives
       await page.waitForTimeout(800)
     }
 
@@ -357,9 +398,11 @@ async function scrapeCommunityPage(
       floors: floorsFromDetails ?? detailFloors ?? parseFloors(raw.planName),
       price,
       pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
+      propertyType,
       hoaFees: detailHoa || communityHoa || undefined,
       taxes: detailTaxes,
       moveInDate,
+      incentives: detailIncentives,
       sourceUrl: raw.sourceUrl,
     })
   }

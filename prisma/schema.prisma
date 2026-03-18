@@ -17,16 +17,17 @@ model Builder {
 }
 
 model Community {
-  id            Int       @id @default(autoincrement())
+  id            Int               @id @default(autoincrement())
   builderId     Int
-  builder       Builder   @relation(fields: [builderId], references: [id])
+  builder       Builder           @relation(fields: [builderId], references: [id])
   name          String
   city          String
   state         String
   url           String
-  firstDetected DateTime  @default(now())
-  lastUpdated   DateTime  @updatedAt
+  firstDetected DateTime          @default(now())
+  lastUpdated   DateTime          @updatedAt
   listings      Listing[]
+  follows       CommunityFollow[]
 
   @@unique([builderId, name])
 }
@@ -45,6 +46,7 @@ model Listing {
   floors        Int?
   currentPrice  Int?
   pricePerSqft  Int?
+  propertyType  String?
   hoaFees       Int?
   taxes         Int?
   moveInDate    String?
@@ -56,6 +58,7 @@ model Listing {
   lastUpdated   DateTime       @updatedAt
   soldAt        DateTime?
   priceHistory  PriceHistory[]
+  favorites     UserFavorite[]
 
   @@unique([communityId, address])
 }
@@ -67,4 +70,40 @@ model PriceHistory {
   price      Int
   changeType String
   detectedAt DateTime @default(now())
+}
+
+model UserFavorite {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  listingId Int
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId])
+}
+
+model CommunityFollow {
+  id          Int       @id @default(autoincrement())
+  userId      String
+  communityId Int
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, communityId])
+  @@index([userId])
+}
+
+model NotificationLog {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  type        String
+  listingId   Int?
+  communityId Int?
+  sentAt      DateTime @default(now())
+  emailSentTo String
+
+  @@index([userId])
+  @@index([listingId])
+  @@index([communityId])
 }
