@@ -180,6 +180,16 @@ async function scrapeDetailPage(page: Page, url: string): Promise<{
   }
 }
 
+const OC_CITIES = [
+  "Irvine", "Newport Beach", "Laguna Niguel", "Laguna Beach", "Laguna Hills",
+  "Mission Viejo", "Lake Forest", "Rancho Santa Margarita", "San Clemente",
+  "San Juan Capistrano", "Aliso Viejo", "Dana Point", "Tustin", "Orange",
+  "Anaheim", "Yorba Linda", "Brea", "Placentia", "Fullerton", "Buena Park",
+  "Huntington Beach", "Fountain Valley", "Westminster", "Garden Grove",
+  "Santa Ana", "Seal Beach", "Los Alamitos", "Cypress", "Stanton", "La Habra",
+  "Villa Park", "Rancho Mission Viejo",
+]
+
 export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
@@ -190,12 +200,12 @@ export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
 
   try {
     const page = await context.newPage()
-    console.log("Finding Irvine communities from California index...")
+    console.log("Finding Toll Brothers OC communities from California index...")
 
     await page.goto(CALIFORNIA_INDEX_URL, { waitUntil: "networkidle", timeout: 60000 })
 
-    // Find all community links where the card itself contains "Irvine" (tight check)
-    const rawLinks: { name: string; url: string; propertyType: string }[] = await page.evaluate(() => {
+    // Find all community links in any OC city
+    const rawLinks: { name: string; url: string; propertyType: string }[] = await page.evaluate((ocCities) => {
       const results: { name: string; url: string; propertyType: string }[] = []
       const seen = new Set<string>()
 
@@ -206,21 +216,23 @@ export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
           if (!href || seen.has(href) || href.includes("#")) return
 
           const card = a.closest('[class*="SearchProductCard_master"]')
-          if (!card || !card.textContent?.includes("Irvine")) return
+          if (!card) return
+          const cardText = card.textContent || ""
+          const isOC = ocCities.some((city: string) => cardText.includes(city))
+          if (!isOC) return
 
           seen.add(href)
-          const cardText = card.textContent || ""
           const propertyType = /townhome|townhouse|attached/i.test(cardText) ? "Attached" : "Detached"
           results.push({ name: (a.textContent || "").trim(), url: href, propertyType })
         })
 
       return results
-    })
+    }, OC_CITIES)
 
     // rawLinks are already deduplicated by URL in the evaluate call
     const communityLinks = rawLinks
 
-    console.log(`Found ${communityLinks.length} Irvine community links`)
+    console.log(`Found ${communityLinks.length} Toll Brothers OC community links`)
 
     for (const community of communityLinks) {
       console.log(`Scraping: ${community.name}`)

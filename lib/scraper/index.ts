@@ -1,6 +1,18 @@
 import { prisma } from "@/lib/db"
 import { scrapeTollBrothersIrvine } from "./toll-brothers"
 import { scrapeLennarIrvine } from "./lennar"
+import { scrapeKBHomeOC } from "./kb-home"
+import { scrapeTriPointeOC } from "./tri-pointe"
+import { scrapeaSheaHomesOC } from "./shea-homes"
+import { scrapePulteOC, scrapeDelWebbOC } from "./pulte"
+import { scrapeTaylorMorrisonOC } from "./taylor-morrison"
+import { scrapeRisewellOC } from "./risewell"
+import { scrapeMeliaHomesOC } from "./melia"
+import { scrapeBrookfieldOC } from "./brookfield"
+import { scrapeCityVenturesOC } from "./city-ventures"
+import { scrapeBrandywineOC } from "./brandywine"
+import { scrapeOlsonHomesOC } from "./olson-homes"
+import { scrapeBonanniOC } from "./bonanni"
 import { detectAndApplyChanges } from "./detect-changes"
 import type { ScrapedListing } from "./toll-brothers"
 
@@ -14,18 +26,109 @@ interface BuilderConfig {
 
 const BUILDERS: BuilderConfig[] = [
   {
+    name: "Lennar",
+    websiteUrl: "https://www.lennar.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeLennarIrvine,
+  },
+  {
     name: "Toll Brothers",
     websiteUrl: "https://www.tollbrothers.com",
-    city: "Irvine",
+    city: "Orange County",
     state: "CA",
     scrape: scrapeTollBrothersIrvine,
   },
   {
-    name: "Lennar",
-    websiteUrl: "https://www.lennar.com",
-    city: "Irvine",
+    name: "KB Home",
+    websiteUrl: "https://www.kbhome.com",
+    city: "Orange County",
     state: "CA",
-    scrape: scrapeLennarIrvine,
+    scrape: scrapeKBHomeOC,
+  },
+  {
+    name: "TRI Pointe Homes",
+    websiteUrl: "https://www.tripointehomes.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeTriPointeOC,
+  },
+  {
+    name: "Shea Homes",
+    websiteUrl: "https://www.sheahomes.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeaSheaHomesOC,
+  },
+  {
+    name: "Pulte Homes",
+    websiteUrl: "https://www.pulte.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapePulteOC,
+  },
+  {
+    name: "Del Webb",
+    websiteUrl: "https://www.delwebb.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeDelWebbOC,
+  },
+  {
+    name: "Taylor Morrison",
+    websiteUrl: "https://www.taylormorrison.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeTaylorMorrisonOC,
+  },
+  {
+    name: "Risewell Homes",
+    websiteUrl: "https://risewellhomes.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeRisewellOC,
+  },
+  {
+    name: "Melia Homes",
+    websiteUrl: "https://meliahomes.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeMeliaHomesOC,
+  },
+  {
+    name: "Brookfield Residential",
+    websiteUrl: "https://www.brookfieldresidential.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeBrookfieldOC,
+  },
+  {
+    name: "City Ventures",
+    websiteUrl: "https://cityventures.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeCityVenturesOC,
+  },
+  {
+    name: "Brandywine Homes",
+    websiteUrl: "https://www.brandywine-homes.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeBrandywineOC,
+  },
+  {
+    name: "Olson Homes",
+    websiteUrl: "https://www.olsonhomes.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeOlsonHomesOC,
+  },
+  {
+    name: "Bonanni Development",
+    websiteUrl: "https://www.bonannidevelopment.com",
+    city: "Orange County",
+    state: "CA",
+    scrape: scrapeBonanniOC,
   },
 ]
 
@@ -52,7 +155,7 @@ export async function runScraper() {
       continue
     }
 
-    // Deduplicate by sourceUrl (same listing can appear in parent + sub-community pages)
+    // Deduplicate by sourceUrl
     const seenUrls = new Set<string>()
     const dedupedListings = scrapedListings.filter((l) => {
       if (seenUrls.has(l.sourceUrl)) return false
