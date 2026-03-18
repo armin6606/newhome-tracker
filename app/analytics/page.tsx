@@ -205,7 +205,8 @@ export default function AnalyticsPage() {
                 <ScatterChart margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis type="number" dataKey="sqft" name="Sqft"
-                    tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`}
+                    domain={[1000, "auto"]}
+                    tickFormatter={(v) => v.toLocaleString()}
                     tick={{ fontSize: 11 }}
                     label={{ value: "Sq Ft", position: "insideBottomRight", offset: -4, fontSize: 11, fill: "#78716c" }} />
                   <YAxis type="number" dataKey="price" name="Price"
@@ -249,7 +250,7 @@ export default function AnalyticsPage() {
                   data={data.avgPricePerSqftByCommunity.map((d) => ({ ...d, community: shortName(d.community) }))}
                   layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                  <XAxis type="number" domain={[1200, "auto"]} tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 11 }} />
+                  <XAxis type="number" domain={[500, "auto"]} tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="community" tick={{ fontSize: 11 }} width={130} interval={0} />
                   <Tooltip formatter={(v) => `$${Number(v).toLocaleString()}/sqft`} />
                   <Bar dataKey="avgPricePerSqft" name="$/sqft" radius={[0, 4, 4, 0]}>
