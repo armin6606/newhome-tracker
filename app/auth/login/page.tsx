@@ -159,10 +159,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-start justify-center bg-gray-50 px-4 pt-16">
       <div className="w-full max-w-md relative">
-        {/* Large watermark logo behind the card */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none -top-10">
-          <img src="/logo.png" alt="" className="h-72 w-auto opacity-[0.07]" />
-        </div>
         {/* Login card */}
         <div className="relative z-10">
           <div className="mb-6 text-center">
