@@ -137,6 +137,7 @@ export default function HomePage() {
   const [citySearch, setCitySearch] = useState("")
   const [moveInOnly, setMoveInOnly] = useState(false)
   const [typeFilter, setTypeFilter] = useState("")
+  const [builderFilter, setBuilderFilter] = useState("")
 
   // Compare
   const [compareIds, setCompareIds] = useState<number[]>([])
@@ -194,10 +195,16 @@ export default function HomePage() {
     return arr.findIndex((x) => x.address.toLowerCase().trim() === norm) === idx
   })
 
+  // Builders that have at least one listing (for dropdown)
+  const buildersWithListings = Array.from(
+    new Set(listings.map((l) => l.community.builder.name))
+  ).sort()
+
   const displayed = deduped.filter((l) => {
     if (citySearch && !l.community.city.toLowerCase().includes(citySearch.toLowerCase())) return false
     if (moveInOnly && !isReady(l.moveInDate)) return false
     if (typeFilter && l.propertyType !== typeFilter) return false
+    if (builderFilter && l.community.builder.name !== builderFilter) return false
     return true
   })
 
@@ -235,6 +242,7 @@ export default function HomePage() {
     setFloors("")
     setMoveInOnly(false)
     setTypeFilter("")
+    setBuilderFilter("")
   }
 
   const inputCls = "border border-stone-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
@@ -328,6 +336,17 @@ export default function HomePage() {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">City</label>
             <input type="text" placeholder="e.g. Irvine" value={citySearch} onChange={(e) => setCitySearch(e.target.value)} className={`${inputCls} w-28`} />
+          </div>
+
+          {/* Builder */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Builder</label>
+            <select value={builderFilter} onChange={(e) => setBuilderFilter(e.target.value)} className={`${selectCls} w-40`}>
+              <option value="">All Builders</option>
+              {buildersWithListings.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
           </div>
 
           {/* Price */}
