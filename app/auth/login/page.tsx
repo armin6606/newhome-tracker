@@ -167,7 +167,7 @@ export default function LoginPage() {
         <div className="relative z-10">
           <div className="mb-6 text-center">
             <Link href="/">
-              <img src="/logo.png" alt="NewKey.us" className="h-14 w-auto mx-auto" />
+              <img src="/logo.png" alt="NewKey.us" className="h-28 w-auto mx-auto" />
             </Link>
           </div>
           <Suspense fallback={<div className="h-64 bg-white rounded-2xl border border-gray-200 animate-pulse" />}>
