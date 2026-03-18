@@ -57,7 +57,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white/60 backdrop-blur-md rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden">
       {/* Tabs */}
       <div className="flex border-b border-gray-200">
         <button
