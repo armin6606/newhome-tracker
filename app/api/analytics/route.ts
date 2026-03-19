@@ -7,13 +7,16 @@ export async function GET(req: NextRequest) {
   const builder   = searchParams.get("builder")   || ""
   const community = searchParams.get("community") || ""
 
-  const communityWhere: Record<string, unknown> = {}
+  const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures"]
+
+  const communityWhere: Record<string, unknown> = {
+    builder: { name: { notIn: EXCLUDED_BUILDERS } }
+  }
   if (city)      communityWhere.city    = { contains: city,      mode: "insensitive" }
   if (builder)   communityWhere.builder = { name: { contains: builder, mode: "insensitive" } }
   if (community) communityWhere.name    = { contains: community, mode: "insensitive" }
 
-  const where: Record<string, unknown> = {}
-  if (Object.keys(communityWhere).length) where.community = communityWhere
+  const where: Record<string, unknown> = { community: communityWhere }
 
   const listings = await prisma.listing.findMany({
     where,

@@ -16,7 +16,11 @@ export async function GET(req: NextRequest) {
   const sortBy = searchParams.get("sortBy") || "firstDetected"
   const sortDir = searchParams.get("sortDir") === "asc" ? "asc" : "desc"
 
-  const where: Record<string, unknown> = {}
+  const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures"]
+
+  const where: Record<string, unknown> = {
+    community: { builder: { name: { notIn: EXCLUDED_BUILDERS } } }
+  }
   if (status !== "all") where.status = status
   if (minPrice || maxPrice) {
     where.currentPrice = {}

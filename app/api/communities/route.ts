@@ -2,7 +2,10 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 
 export async function GET() {
+  const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures"]
+
   const communities = await prisma.community.findMany({
+    where: { builder: { name: { notIn: EXCLUDED_BUILDERS } } },
     include: {
       builder: { select: { name: true } },
       listings: {
