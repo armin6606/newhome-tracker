@@ -94,6 +94,15 @@ model CommunityFollow {
   @@index([userId])
 }
 
+model SchoolRating {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  state     String   @default("CA")
+  rating    Int?
+  gsUrl     String?
+  cachedAt  DateTime @default(now())
+}
+
 model NotificationLog {
   id          Int      @id @default(autoincrement())
   userId      String

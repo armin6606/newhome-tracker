@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { formatPrice } from "@/lib/utils"
+import { getBuilderColor } from "@/lib/builder-colors"
 import { FollowButton } from "@/app/_components/FollowButton"
 
 type Community = {
@@ -36,6 +37,8 @@ export default function CommunitiesPage() {
   const [communities, setCommunities] = useState<Community[]>([])
   const [loading, setLoading] = useState(true)
   const [followIds, setFollowIds] = useState<Set<number>>(new Set())
+  const [cityFilter, setCityFilter] = useState("")
+  const [builderFilter, setBuilderFilter] = useState("")
 
   useEffect(() => {
     fetch("/api/communities")
@@ -50,7 +53,18 @@ export default function CommunitiesPage() {
       .catch(() => {})
   }, [])
 
-  const maxSales = Math.max(...communities.map((c) => c.salesPerMonth), 1)
+  const citiesWithCommunities = Array.from(new Set(communities.map((c) => c.city).filter(Boolean))).sort()
+  const buildersWithCommunities = Array.from(new Set(communities.map((c) => c.builderName).filter(Boolean))).sort()
+
+  const displayed = communities.filter((c) => {
+    if (cityFilter && c.city !== cityFilter) return false
+    if (builderFilter && c.builderName !== builderFilter) return false
+    return true
+  })
+
+  const maxSales = Math.max(...displayed.map((c) => c.salesPerMonth), 1)
+
+  const selectCls = "border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
 
   return (
     <div>
@@ -70,18 +84,18 @@ export default function CommunitiesPage() {
           {!loading && (
             <div className="mt-4 flex gap-6">
               <div className="flex flex-col">
-                <span className="text-amber-400 font-bold text-lg leading-none">{communities.length}</span>
+                <span className="text-amber-400 font-bold text-lg leading-none">{displayed.length}</span>
                 <span className="text-stone-400 text-xs mt-0.5">Communities</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-amber-400 font-bold text-lg leading-none">
-                  {communities.reduce((s, c) => s + c.active, 0)}
+                  {displayed.reduce((s, c) => s + c.active, 0)}
                 </span>
                 <span className="text-stone-400 text-xs mt-0.5">Active Listings</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-amber-400 font-bold text-lg leading-none">
-                  {communities.reduce((s, c) => s + c.sold, 0)}
+                  {displayed.reduce((s, c) => s + c.sold, 0)}
                 </span>
                 <span className="text-stone-400 text-xs mt-0.5">Sold / Removed</span>
               </div>
@@ -90,14 +104,53 @@ export default function CommunitiesPage() {
         </div>
       </div>
 
+      {/* Filters */}
+      {!loading && communities.length > 0 && (
+        <div className="flex flex-wrap items-end gap-3 mb-5">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">City</label>
+            <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className={`${selectCls} w-44`}>
+              <option value="">All Cities</option>
+              {citiesWithCommunities.map((city) => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Builder</label>
+            <select value={builderFilter} onChange={(e) => setBuilderFilter(e.target.value)} className={`${selectCls} w-44`}>
+              <option value="">All Builders</option>
+              {buildersWithCommunities.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+          {(cityFilter || builderFilter) && (
+            <button
+              onClick={() => { setCityFilter(""); setBuilderFilter("") }}
+              className="text-xs text-gray-400 hover:text-gray-600 underline self-end pb-1.5"
+            >
+              Reset
+            </button>
+          )}
+          {(cityFilter || builderFilter) && (
+            <span className="text-xs text-gray-400 self-end pb-1.5">
+              {displayed.length} of {communities.length} communities
+            </span>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center text-gray-400 py-20">Loading...</div>
       ) : communities.length === 0 ? (
         <div className="text-center text-gray-400 py-20">No communities yet. Run the scraper first.</div>
+      ) : displayed.length === 0 ? (
+        <div className="text-center text-gray-400 py-20">No communities match the selected filters.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {communities.map((c) => (
-            <div key={c.id} className="bg-white rounded-xl border border-gray-200 p-5">
+          {displayed.map((c) => (
+            <div key={c.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-1 gap-2">
                 <h2 className="font-semibold text-gray-900 text-base leading-snug">{c.name}</h2>
                 <div className="flex items-center gap-2 shrink-0">
@@ -109,13 +162,7 @@ export default function CommunitiesPage() {
                 </div>
               </div>
               <p className="text-xs mb-4">
-                <span className={
-                  c.builderName.toLowerCase().includes("lennar")
-                    ? "font-semibold text-[#1B4FA8]"
-                    : c.builderName.toLowerCase().includes("toll")
-                    ? "font-semibold text-[#C9940A]"
-                    : "text-gray-400"
-                }>{c.builderName}</span>
+                <span className="font-semibold" style={{ color: getBuilderColor(c.builderName) }}>{c.builderName}</span>
                 <span className="text-gray-400"> · {c.city}, {c.state}</span>
               </p>
 

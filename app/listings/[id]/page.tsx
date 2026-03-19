@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { formatPrice, formatNumber, daysAgo } from "@/lib/utils"
+import { getBuilderColor } from "@/lib/builder-colors"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts"
@@ -265,11 +266,7 @@ export default function ListingDetailPage() {
     ? listing.schools.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
     : []
 
-  const builderCls = listing.community.builder.name.toLowerCase().includes("lennar")
-    ? "font-semibold text-[#1B4FA8]"
-    : listing.community.builder.name.toLowerCase().includes("toll")
-    ? "font-semibold text-[#C9940A]"
-    : "font-semibold text-stone-700"
+  const builderColor = getBuilderColor(listing.community.builder.name)
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -288,7 +285,7 @@ export default function ListingDetailPage() {
                 <h1 className="text-2xl font-bold text-stone-900">{listing.address}</h1>
                 <p className="text-stone-500 mt-0.5 text-sm">
                   {listing.community.name} ·{" "}
-                  <span className={builderCls}>{listing.community.builder.name}</span>
+                  <span className="font-semibold" style={{ color: builderColor }}>{listing.community.builder.name}</span>
                   {" "}· {listing.community.city}, {listing.community.state}
                 </p>
               </div>
@@ -318,7 +315,7 @@ export default function ListingDetailPage() {
                 { label: "Lot #",       value: listing.lotNumber || "—" },
                 { label: "Price/sqft",  value: listing.pricePerSqft ? `$${listing.pricePerSqft}` : "—" },
                 { label: "HOA/mo",      value: formatPrice(listing.hoaFees) },
-                { label: "Annual Tax",  value: listing.taxes ? formatPrice(listing.taxes) : "—" },
+                { label: "Tax Rate",    value: listing.taxes && listing.currentPrice ? `${((listing.taxes / listing.currentPrice) * 100).toFixed(2)}%` : "—" },
                 { label: "Move-In",     value: listing.moveInDate ? listing.moveInDate.replace(/^quick\s+move[-\s]?in\s*/i, "").trim() || listing.moveInDate : "—" },
                 { label: "Status",      value: listing.status === "removed" ? "Sold/Removed" : "Active" },
                 { label: "Days Listed", value: `${daysListed}d` },

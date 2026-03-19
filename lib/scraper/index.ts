@@ -194,14 +194,19 @@ export async function runScraper() {
 
     for (const [communityName, listings] of byCommunity.entries()) {
       const communityUrl = listings[0].communityUrl
+      const listingCity = listings[0].city || config.city
 
       const community = await withReconnect(() => prisma.community.upsert({
         where: { builderId_name: { builderId: builder.id, name: communityName } },
-        update: { url: communityUrl },
+        update: {
+          url: communityUrl,
+          // Update to real city if we now have one (scraper returns specific city)
+          ...(listingCity !== config.city ? { city: listingCity } : {}),
+        },
         create: {
           builderId: builder.id,
           name: communityName,
-          city: config.city,
+          city: listingCity,
           state: config.state,
           url: communityUrl,
         },

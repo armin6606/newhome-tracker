@@ -3,6 +3,7 @@ import { chromium, type Page } from "playwright"
 export interface ScrapedListing {
   communityName: string
   communityUrl: string
+  city?: string
   address: string
   lotNumber?: string
   floorPlan?: string

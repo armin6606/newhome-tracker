@@ -1,88 +1,42 @@
 import { chromium, type Page } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
 import { parseFloors } from "./toll-brothers"
+import { cleanAddress } from "./clean-address"
 
-/**
- * Known Lennar Irvine plan name → floor count.
- * Plan names don't encode stories so we maintain a lookup table.
- * Add new plans here as they are discovered.
- */
+const BASE_URL = "https://www.lennar.com"
+
+/** Lennar find-a-home search page scoped to Orange County bounding box */
+const SEARCH_URL = `${BASE_URL}/find-a-home?county=orange%20county&state=ca`
+
+/** OC cities to filter results (search bbox includes some non-OC areas) */
+const OC_CITIES = new Set([
+  "irvine", "newport beach", "laguna niguel", "laguna beach", "laguna hills",
+  "mission viejo", "lake forest", "rancho santa margarita", "san clemente",
+  "san juan capistrano", "aliso viejo", "dana point", "tustin", "orange",
+  "anaheim", "yorba linda", "brea", "placentia", "fullerton", "buena park",
+  "huntington beach", "fountain valley", "westminster", "garden grove",
+  "santa ana", "seal beach", "los alamitos", "cypress", "stanton", "la habra",
+  "villa park", "rancho mission viejo", "costa mesa", "ladera ranch",
+])
+
+/** Known plan → floor count (plans don't encode stories in their names) */
 const LENNAR_PLAN_FLOORS: Record<string, number> = {
-  // Great Park Neighborhoods
-  "isla":    3,
-  "rhea":    3,
-  "rhea 3":  3,
-  "rhea 2":  3,
-  "rhea 1":  3,
-  "isla 1":  3,
-  "isla 2":  3,
-  "isla 3":  3,
+  "isla": 3, "rhea": 3,
+  "rhea 3": 3, "rhea 2": 3, "rhea 1": 3,
+  "isla 1": 3, "isla 2": 3, "isla 3": 3,
 }
 
 function lennarPlanFloors(planName: string | undefined): number | undefined {
   if (!planName) return undefined
   const key = planName.toLowerCase().trim()
   if (LENNAR_PLAN_FLOORS[key] !== undefined) return LENNAR_PLAN_FLOORS[key]
-  // Check if any key is a prefix of the plan name (e.g. "Rhea 3 Plan A")
   for (const [k, v] of Object.entries(LENNAR_PLAN_FLOORS)) {
     if (key.startsWith(k)) return v
   }
   return undefined
 }
 
-const BASE_URL = "https://www.lennar.com"
-const IRVINE_URL = `${BASE_URL}/new-homes/california/orange-county/irvine`
-
-function parsePrice(text: string | null | undefined): number | undefined {
-  if (!text) return undefined
-  const cleaned = text.replace(/[^0-9]/g, "")
-  const n = parseInt(cleaned, 10)
-  return isNaN(n) ? undefined : n
-}
-
-function parseNumber(text: string): number | undefined {
-  const cleaned = text.replace(/[^0-9.]/g, "")
-  const n = parseFloat(cleaned)
-  return isNaN(n) ? undefined : n
-}
-
-/** "4 bd" → 4, "3 ba" → 3, "2,206 ft²" → 2206 */
-function parseMeta(items: string[]): { beds?: number; baths?: number; sqft?: number } {
-  let beds: number | undefined
-  let baths: number | undefined
-  let halfBaths = 0
-  let sqft: number | undefined
-
-  for (const item of items) {
-    const lower = item.toLowerCase()
-    if (lower.includes("half ba")) {
-      halfBaths = parseNumber(item) ?? 0
-    } else if (lower.includes("bd") || lower.includes("bed")) {
-      beds = parseNumber(item)
-    } else if (lower.includes("ba") || lower.includes("bath")) {
-      baths = parseNumber(item)
-    } else if (lower.includes("ft") || lower.includes("sq")) {
-      sqft = parseNumber(item)
-    }
-  }
-
-  // Add half baths as 0.5 each
-  if (baths != null && halfBaths > 0) {
-    baths = baths + halfBaths * 0.5
-  }
-
-  return { beds, baths, sqft }
-}
-
 /** "912 Chinon Irvine, CA" → "912 Chinon" */
-function cleanAddress(raw: string): string {
-  // Step 1: remove ", CA" (or " CA") at end
-  // Step 2: remove the trailing city word (e.g. "Irvine")
-  return raw
-    .replace(/,?\s*[A-Z]{2}$/, "")   // "912 Chinon Irvine"
-    .replace(/\s+\S+$/, "")           // "912 Chinon"
-    .trim()
-}
 
 /** "Homesite #0091" → "0091" */
 function parseLotNumber(raw: string): string | undefined {
@@ -97,24 +51,198 @@ function parsePlanAndCommunity(description: string): { planName: string; communi
   return { planName: "", communityName: description.trim() }
 }
 
+function parsePrice(text: string | null | undefined): number | undefined {
+  if (!text) return undefined
+  const cleaned = text.replace(/[^0-9]/g, "")
+  const n = parseInt(cleaned, 10)
+  return isNaN(n) ? undefined : n
+}
+
+function parseNumber(text: string): number | undefined {
+  const cleaned = text.replace(/[^0-9.]/g, "")
+  const n = parseFloat(cleaned)
+  return isNaN(n) ? undefined : n
+}
+
+function parseMeta(items: string[]): { beds?: number; baths?: number; sqft?: number } {
+  let beds: number | undefined
+  let baths: number | undefined
+  let halfBaths = 0
+  let sqft: number | undefined
+  for (const item of items) {
+    const lower = item.toLowerCase()
+    if (lower.includes("half ba")) {
+      halfBaths = parseNumber(item) ?? 0
+    } else if (lower.includes("bd") || lower.includes("bed")) {
+      beds = parseNumber(item)
+    } else if (lower.includes("ba") || lower.includes("bath")) {
+      baths = parseNumber(item)
+    } else if (lower.includes("ft") || lower.includes("sq")) {
+      sqft = parseNumber(item)
+    }
+  }
+  if (baths != null && halfBaths > 0) baths = baths + halfBaths * 0.5
+  return { beds, baths, sqft }
+}
+
 /** Extract community base URL from homesite URL */
 function communityUrlFromHref(href: string): string {
-  // href like /new-homes/california/orange-county/irvine/great-park-neighborhoods/sub/plan/id
-  const parts = href.split("/")
-  // Keep up to the community segment (index 5 from root, after city)
-  // /new-homes/california/orange-county/irvine/<community>
-  const communitySegmentIndex = 5
-  if (parts.length > communitySegmentIndex) {
-    return `${BASE_URL}/${parts.slice(1, communitySegmentIndex + 1).join("/")}`
+  const parts = href.replace(BASE_URL, "").split("/").filter(Boolean)
+  // /new-homes/california/orange-county/<city>/<community>
+  if (parts.length >= 5) {
+    return `${BASE_URL}/${parts.slice(0, 5).join("/")}`
   }
   return href
 }
 
-/** Visit a Lennar homesite detail page to extract floors, HOA, move-in date, taxes, and incentives */
-async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
+/** Derive city from a Lennar URL path */
+function cityFromUrl(url: string): string {
+  // /new-homes/california/orange-county/fullerton/... → "fullerton"
+  const parts = url.replace(BASE_URL, "").split("/").filter(Boolean)
+  // parts: ["new-homes", "california", "orange-county", "fullerton", ...]
+  return parts[3]?.replace(/-/g, " ") || ""
+}
+
+// ─── Property Details scraping ──────────────────────────────────────────
+
+/** Visit the /property-details page and extract all fields using DOM div-pair structure */
+async function scrapeLennarPropertyDetails(page: Page, listingUrl: string): Promise<{
+  lotNumber?: string
   floors?: number
   hoaFees?: number
-  taxes?: number
+  taxRate?: number
+  garages?: number
+  propertyType?: string
+  moveInDate?: string
+  sqft?: number
+  beds?: number
+  baths?: number
+  communityFromPD?: string
+  cityFromPD?: string
+  incentives?: string
+}> {
+  const pdUrl = listingUrl.endsWith("/property-details")
+    ? listingUrl
+    : `${listingUrl}/property-details`
+  try {
+    await page.goto(pdUrl, { waitUntil: "domcontentloaded", timeout: 30000 })
+    // Wait for property details content to appear
+    await page.waitForFunction(
+      () => document.body.innerText.includes("Tax rate") || document.body.innerText.includes("Homesite"),
+      { timeout: 15000 }
+    ).catch(() => {})
+    await page.waitForTimeout(500)
+
+    return await page.evaluate(() => {
+      // Lennar property-details page uses divs with exactly 2 children: label + value
+      const kv: Record<string, string> = {}
+      document.querySelectorAll("div, li").forEach(el => {
+        const children = el.children
+        if (children.length !== 2) return
+        const k = (children[0] as HTMLElement).innerText?.trim()
+        const v = (children[1] as HTMLElement).innerText?.trim()
+        if (k && v && k.length < 80 && !k.includes("\n") && !kv[k]) {
+          kv[k] = v
+        }
+      })
+
+      function get(...keys: string[]): string | undefined {
+        for (const searchKey of keys) {
+          const found = Object.keys(kv).find(k => k.toLowerCase().includes(searchKey.toLowerCase()))
+          if (found) return kv[found]
+        }
+        return undefined
+      }
+
+      // Lot number
+      const lotRaw = get("Homesite")
+      const lotNumber = lotRaw?.replace(/[^0-9]/g, "") || undefined
+
+      // Property type
+      const propertyType = get("Property type") || undefined
+
+      // Neighborhood → community name + city
+      const neighborhoodRaw = get("Neighborhood")
+      let communityFromPD: string | undefined
+      let cityFromPD: string | undefined
+      if (neighborhoodRaw) {
+        const parts = neighborhoodRaw.split("\n").map(s => s.trim()).filter(Boolean)
+        communityFromPD = parts[0] || undefined
+        cityFromPD = (parts[1] || "").replace(/,\s*CA\s*\d*$/, "").trim() || undefined
+      }
+
+      // Home size → sqft
+      let sqft: number | undefined
+      const sizeRaw = get("Home size")
+      if (sizeRaw) {
+        const m = sizeRaw.match(/([\d,]+)/)
+        if (m) sqft = parseInt(m[1].replace(/,/g, ""), 10)
+      }
+
+      // Stories → floors
+      let floors: number | undefined
+      const storiesRaw = get("Stories")
+      if (storiesRaw) floors = parseInt(storiesRaw.trim(), 10) || undefined
+
+      // Rooms → beds + baths
+      let beds: number | undefined
+      let baths: number | undefined
+      const roomsRaw = get("Rooms")
+      if (roomsRaw) {
+        const bedsM = roomsRaw.match(/(\d+)\s*bedroom/i)
+        if (bedsM) beds = parseInt(bedsM[1], 10)
+        const bathsM = roomsRaw.match(/(\d+)\s*bathroom/i)
+        const halfM = roomsRaw.match(/(\d+)\s*half\s*bath/i)
+        const fullBaths = bathsM ? parseInt(bathsM[1], 10) : 0
+        const halfBaths = halfM ? parseInt(halfM[1], 10) : 0
+        if (fullBaths || halfBaths) baths = fullBaths + halfBaths * 0.5
+      }
+
+      // Parking → garages
+      let garages: number | undefined
+      const parkingRaw = get("Parking")
+      if (parkingRaw) {
+        const m = parkingRaw.match(/(\d+)/)
+        if (m) garages = parseInt(m[1], 10)
+      }
+
+      // Tax rate
+      let taxRate: number | undefined
+      const taxRaw = get("Tax rate")
+      if (taxRaw) {
+        const m = taxRaw.match(/([\d.]+)/)
+        if (m) taxRate = parseFloat(m[1])
+      }
+
+      // Special assessment / HOA fee
+      let hoaFees: number | undefined
+      const hoaRaw = get("Special assessment", "HOA", "Association fee", "Community fee")
+      if (hoaRaw) {
+        const m = hoaRaw.match(/\$?([\d,]+(?:\.\d+)?)/)
+        if (m) hoaFees = Math.round(parseFloat(m[1].replace(/,/g, "")))
+      }
+
+      // Listing status → moveInDate
+      let moveInDate: string | undefined
+      const statusRaw = get("Listing status")
+      if (statusRaw) {
+        const s = statusRaw.toLowerCase()
+        if (s.includes("move-in ready") || s.includes("move in ready") || s.includes("quick")) moveInDate = "Move-In Ready"
+        else if (s.includes("under construction")) moveInDate = "Under Construction"
+        else if (s.includes("coming soon")) moveInDate = "Coming Soon"
+        else if (s.includes("for sale")) moveInDate = "For Sale"
+      }
+
+      return { lotNumber, floors, hoaFees, taxRate, garages, propertyType, moveInDate, sqft, beds, baths, communityFromPD, cityFromPD }
+    })
+  } catch {
+    return {}
+  }
+}
+
+/** Visit the main listing page for floors (SlashMenu tabs), move-in date, and incentives */
+async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
+  floors?: number
   moveInDate?: string
   incentives?: string
 }> {
@@ -125,56 +253,24 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
     return await page.evaluate(() => {
       const body = (document.body as HTMLElement).innerText || ""
 
-      // --- Floors: count SlashMenu floor tabs ---
       const floorTabs = document.querySelectorAll('[class*="SlashMenu_label"]')
       const floors = floorTabs.length > 0 ? floorTabs.length : undefined
 
-      // --- Move-in date ---
       let moveInDate: string | undefined
       const m = body.match(/Available\s+(\d{1,2}\/\d{4})/i)
       if (m) moveInDate = `Available ${m[1]}`
       else if (/quick\s*move[-\s]?in/i.test(body)) moveInDate = "Quick Move-In"
       else if (/move[-\s]?in\s*ready/i.test(body)) moveInDate = "Move-In Ready"
-      // Also check dedicated date elements
       const dateEl = document.querySelector('[class*="Availability_label"], [class*="moveIn"], [class*="availability"]') as HTMLElement | null
       if (!moveInDate && dateEl?.innerText?.trim()) {
         moveInDate = dateEl.innerText.trim().replace(/^quick\s+move[-\s]?in\s*/i, "").trim() || dateEl.innerText.trim()
       }
 
-      // --- HOA ---
-      let hoaFees: number | undefined
-      const hoaPatterns = [
-        /HOA\s*(?:Fee|Dues|Fees)?\s*:?\s*\$\s*([\d,]+)/i,
-        /\$\s*([\d,]+)\s*\/\s*(?:mo\.?|month)\s*HOA/i,
-        /Monthly\s+(?:HOA|Association)\s*(?:Fee)?\s*:?\s*\$\s*([\d,]+)/i,
-        /Association\s+(?:Fee|Dues)\s*:?\s*\$\s*([\d,]+)/i,
-        /Community\s+(?:Fee|Dues)\s*:?\s*\$\s*([\d,]+)/i,
-      ]
-      for (const pat of hoaPatterns) {
-        const hm = body.match(pat)
-        if (hm) { const n = parseInt(hm[1].replace(/,/g, ""), 10); if (!isNaN(n) && n > 0 && n < 5000) { hoaFees = n; break } }
-      }
-
-      // --- Taxes ---
-      let taxes: number | undefined
-      const taxPatterns = [
-        /(?:Property\s+)?Tax(?:es)?\s*:?\s*\$\s*([\d,]+)\s*\/\s*(?:mo|month)/i,
-        /\$\s*([\d,]+)\s*\/\s*(?:mo|month)\s*(?:in\s+)?tax/i,
-        /Mello[- ]Roos\s*:?\s*\$\s*([\d,]+)/i,
-        /CFD\s*:?\s*\$\s*([\d,]+)/i,
-      ]
-      for (const pat of taxPatterns) {
-        const tm = body.match(pat)
-        if (tm) { const n = parseInt(tm[1].replace(/,/g, ""), 10); if (!isNaN(n) && n > 0 && n < 50000) { taxes = n; break } }
-      }
-
-      // --- Incentives ---
       let incentives: string | undefined
       const incentiveSelectors = [
         '[class*="incentive"]', '[class*="Incentive"]',
         '[class*="promotion"]', '[class*="Promotion"]',
         '[class*="offer"]', '[class*="specialOffer"]',
-        '[class*="closing"]', '[class*="buydown"]',
         '[class*="HomesiteCard_newDescription"]',
       ]
       for (const sel of incentiveSelectors) {
@@ -182,26 +278,132 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
         const txt = el?.innerText?.trim()
         if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
       }
-      if (!incentives) {
-        const incPatterns = [
-          /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[- ]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+(?:credit|allowance)|builder\s+incentive|special\s+offer|limited[\s-]time\s+offer|\$[\d,]+\s+(?:credit|savings?))\s*[:\-–]?\s*([^\n.]{0,120})/gi,
-        ]
-        const matches: string[] = []
-        for (const pat of incPatterns) {
-          let m: RegExpExecArray | null
-          while ((m = pat.exec(body)) !== null) {
-            matches.push(m[0].trim())
-            if (matches.length >= 3) break
-          }
-        }
-        if (matches.length) incentives = matches.join(" · ")
-      }
 
-      return { floors, hoaFees, taxes, moveInDate: moveInDate || undefined, incentives }
+      return { floors, moveInDate, incentives }
     })
   } catch {
     return {}
   }
+}
+
+// ─── Main scraper ───────────────────────────────────────────────────────
+
+type ApolloHomesite = {
+  href: string
+  price: number
+  address: string
+  city: string
+  beds: number
+  baths: number
+  halfBaths: number
+  sqft: number
+  planName: string
+  communityName: string
+  mpcName: string
+  lotNumber: string
+  lotId: string
+  status: string
+}
+
+/** Extract all homesites from __NEXT_DATA__ Apollo state */
+async function extractApolloHomesites(page: Page): Promise<ApolloHomesite[]> {
+  return await page.evaluate(() => {
+    const results: Array<{
+      href: string; price: number; address: string; city: string;
+      beds: number; baths: number; halfBaths: number; sqft: number;
+      planName: string; communityName: string; mpcName: string;
+      lotNumber: string; lotId: string; status: string;
+    }> = []
+
+    const nextDataEl = document.getElementById("__NEXT_DATA__")
+    if (!nextDataEl) return results
+
+    try {
+      const nextData = JSON.parse(nextDataEl.textContent || "")
+      const state = nextData?.props?.pageProps?.initialApolloState
+        || nextData?.props?.pageProps?.apolloState
+        || {}
+
+      // Build lookup maps
+      const plans: Record<string, { name: string; communityRef: string }> = {}
+      const communities: Record<string, { name: string; mpcRef: string; cityRef: string }> = {}
+      const mpcs: Record<string, string> = {}
+      const cities: Record<string, string> = {}
+
+      for (const [key, val] of Object.entries(state)) {
+        const v = val as Record<string, unknown>
+        if (key.startsWith("PlanType:")) {
+          plans[key] = {
+            name: (v.name as string) || (v.planName as string) || "",
+            communityRef: (v.community as Record<string, string>)?.__ref || "",
+          }
+        } else if (key.startsWith("CommunityType:")) {
+          communities[key] = {
+            name: (v.name as string) || "",
+            mpcRef: (v.mpc as Record<string, string>)?.__ref || "",
+            cityRef: (v.city as Record<string, string>)?.__ref || "",
+          }
+        } else if (key.startsWith("MpcType:")) {
+          mpcs[key] = (v.name as string) || ""
+        } else if (key.startsWith("CityType:")) {
+          cities[key] = (v.name as string) || ""
+        }
+      }
+
+      for (const [key, val] of Object.entries(state)) {
+        const v = val as Record<string, unknown>
+        if (!key.startsWith("HomesiteType:")) continue
+        const price = v.price as number
+        const address = v.address as string
+        if (!price || !address) continue
+
+        const planRef = (v.plan as Record<string, string>)?.__ref || ""
+        const plan = plans[planRef]
+        const comm = plan?.communityRef ? communities[plan.communityRef] : undefined
+        const communityName = comm?.name || ""
+        const mpcName = comm?.mpcRef ? (mpcs[comm.mpcRef] || "") : ""
+        const cityName = comm?.cityRef ? (cities[comm.cityRef] || "") : ""
+
+        results.push({
+          href: (v.url as string) || "",
+          price,
+          address,
+          city: cityName,
+          beds: (v.beds as number) || 0,
+          baths: (v.baths as number) || 0,
+          halfBaths: (v.halfBaths as number) || 0,
+          sqft: (v.sqft as number) || 0,
+          planName: plan?.name || "",
+          communityName,
+          mpcName,
+          lotNumber: (v.number as string) || "",
+          lotId: (v.lotid as string) || "",
+          status: (v.status as string) || "",
+        })
+      }
+    } catch {
+      // skip
+    }
+
+    return results
+  })
+}
+
+/** Build the full community name: "MPC - Collection" or just "Collection" */
+function buildCommunityName(mpcName: string, collectionName: string): string {
+  if (mpcName && collectionName && mpcName !== collectionName) {
+    return `${mpcName} - ${collectionName}`
+  }
+  return collectionName || mpcName || "Unknown"
+}
+
+/** Build a listing detail URL from its URL path parts */
+function buildDetailUrl(raw: ApolloHomesite): string {
+  // If the homesite has a full URL, use it
+  if (raw.href && raw.href.startsWith("http")) return raw.href
+  if (raw.href && raw.href.startsWith("/")) return `${BASE_URL}${raw.href}`
+  // Otherwise, we can't build a URL
+  return ""
 }
 
 export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
@@ -212,111 +414,245 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
   })
 
   const allListings: ScrapedListing[] = []
+  const seenAddresses = new Set<string>()
 
   try {
     const page = await context.newPage()
-    console.log("Loading Lennar Irvine page...")
-    await page.goto(IRVINE_URL, { waitUntil: "domcontentloaded", timeout: 90000 })
 
-    // Wait for homesite cards to appear
-    await page.waitForSelector('[class*="HomesiteCard_link"]', { timeout: 30000 }).catch(() => {
-      console.log("HomesiteCard_link selector not found, trying fallback wait...")
-    })
-    await page.waitForTimeout(3000)
+    // ── Step 1: Scrape the find-a-home search page for all OC listings ──
+    console.log("Loading Lennar find-a-home search page...")
+    await page.goto(SEARCH_URL, { waitUntil: "domcontentloaded", timeout: 90000 })
+    await page.waitForTimeout(5000)
 
-    // Scroll to bottom to trigger lazy-loaded cards
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-    await page.waitForTimeout(2000)
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-    await page.waitForTimeout(2000)
+    const searchHomesites = await extractApolloHomesites(page)
+    console.log(`Found ${searchHomesites.length} listings from find-a-home search`)
 
-    const rawCards = await page.evaluate(() => {
-      const results: Array<{
-        href: string
-        priceText: string
-        metaItems: string[]
-        addressText: string
-        lotText: string
-        descriptionText: string
-        statusText: string
-      }> = []
-
-      document.querySelectorAll('[class*="HomesiteCard_link"]').forEach((card) => {
-        const href = (card as HTMLAnchorElement).href || ""
-        if (!href) return
-
-        const metaItems = Array.from(
-          card.querySelectorAll('[class*="MetaDetails_baseItem"]')
-        ).map((e) => (e as HTMLElement).innerText?.trim() || "")
-
-        results.push({
-          href,
-          priceText: (card.querySelector('[class*="headline4New"]') as HTMLElement)?.innerText?.trim() || "",
-          metaItems,
-          addressText: (card.querySelector('[class*="HomesiteCard_addressWrapper"]') as HTMLElement)?.innerText?.trim() || "",
-          lotText: (card.querySelector('[class*="HomesiteCard_lotId"]') as HTMLElement)?.innerText?.trim() || "",
-          descriptionText: (card.querySelector('[class*="HomesiteCard_newDescription"]') as HTMLElement)?.innerText?.trim() || "",
-          statusText: (card.querySelector('[class*="Availability_label"]') as HTMLElement)?.innerText?.trim() || "",
-        })
-      })
-
-      return results
+    // Filter to OC cities and active listings
+    const ocListings = searchHomesites.filter(h => {
+      const city = h.city.toLowerCase().trim()
+      // Also try to derive city from address (e.g., "1724 Lychee St" won't have city in Apollo on search page)
+      const statusUpper = h.status.toUpperCase()
+      if (statusUpper === "SOLD" || statusUpper === "CLOSED") return false
+      if (city && OC_CITIES.has(city)) return true
+      // If city is empty, check the address for OC city names
+      const addrLower = h.address.toLowerCase()
+      for (const oc of Array.from(OC_CITIES)) {
+        if (addrLower.includes(oc)) return true
+      }
+      return false
     })
 
-    console.log(`Found ${rawCards.length} Lennar Irvine listings`)
+    console.log(`  ${ocListings.length} OC listings after filtering`)
 
-    for (const raw of rawCards) {
-      const { planName, communityName } = parsePlanAndCommunity(raw.descriptionText)
-      if (!communityName || !raw.addressText) continue
+    // ── Step 2: Also scrape individual community pages for comprehensive data ──
+    // The search page may only show ~50 listings. Community pages show all lots.
+    const COMMUNITY_URLS = [
+      `${BASE_URL}/new-homes/california/orange-county/irvine`,
+      `${BASE_URL}/new-homes/california/orange-county/fullerton/pineridge/torrey`,
+      `${BASE_URL}/new-homes/california/orange-county/yorba-linda`,
+      `${BASE_URL}/new-homes/california/orange-county/rancho-mission-viejo`,
+    ]
 
-      const { beds, baths, sqft } = parseMeta(raw.metaItems)
-      const price = parsePrice(raw.priceText)
-      const address = cleanAddress(raw.addressText)
-      if (!address) continue
+    const allHomesites: ApolloHomesite[] = [...ocListings]
 
-      // Card-level status text
-      const statusLower = raw.statusText.toLowerCase()
-      let moveInDate: string | undefined =
-        statusLower.includes("move-in") || statusLower.includes("quick") || statusLower.includes("ready")
-          ? raw.statusText
-          : undefined
+    for (const communityUrl of COMMUNITY_URLS) {
+      console.log(`Loading community page: ${communityUrl}`)
+      try {
+        await page.goto(communityUrl, { waitUntil: "domcontentloaded", timeout: 60000 })
 
-      // Visit detail page to get floors, HOA, taxes, move-in date, and incentives
-      let detailFloors: number | undefined
-      let detailHoa: number | undefined
-      let detailTaxes: number | undefined
-      let detailIncentives: string | undefined
-      if (raw.href) {
-        console.log(`  Fetching Lennar detail: ${raw.href}`)
-        const detail = await scrapeLennarDetailPage(page, raw.href)
-        detailFloors = detail.floors
-        detailHoa = detail.hoaFees
-        detailTaxes = detail.taxes
-        moveInDate = moveInDate || detail.moveInDate
-        detailIncentives = detail.incentives
-        await page.waitForTimeout(800)
+        // Check for HomesiteCard format first (Irvine city page)
+        const hasCards = await page.waitForSelector('[class*="HomesiteCard_link"]', { timeout: 10000 }).catch(() => null)
+
+        if (hasCards) {
+          // Irvine city page uses HomesiteCard format - scrape via DOM
+          await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+          await page.waitForTimeout(2000)
+          await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+          await page.waitForTimeout(2000)
+
+          const rawCards = await page.evaluate(() => {
+            const results: Array<{
+              href: string; priceText: string; metaItems: string[];
+              addressText: string; lotText: string; descriptionText: string; statusText: string;
+            }> = []
+            document.querySelectorAll('[class*="HomesiteCard_link"]').forEach((card) => {
+              const href = (card as HTMLAnchorElement).href || ""
+              if (!href) return
+              results.push({
+                href,
+                priceText: (card.querySelector('[class*="headline4New"]') as HTMLElement)?.innerText?.trim() || "",
+                metaItems: Array.from(card.querySelectorAll('[class*="MetaDetails_baseItem"]')).map((e) => (e as HTMLElement).innerText?.trim() || ""),
+                addressText: (card.querySelector('[class*="HomesiteCard_addressWrapper"]') as HTMLElement)?.innerText?.trim() || "",
+                lotText: (card.querySelector('[class*="HomesiteCard_lotId"]') as HTMLElement)?.innerText?.trim() || "",
+                descriptionText: (card.querySelector('[class*="HomesiteCard_newDescription"]') as HTMLElement)?.innerText?.trim() || "",
+                statusText: (card.querySelector('[class*="Availability_label"]') as HTMLElement)?.innerText?.trim() || "",
+              })
+            })
+            return results
+          })
+
+          console.log(`  Found ${rawCards.length} listings (card format)`)
+
+          for (const raw of rawCards) {
+            const { planName, communityName } = parsePlanAndCommunity(raw.descriptionText)
+            if (!communityName || !raw.addressText) continue
+            const { beds, baths, sqft } = parseMeta(raw.metaItems)
+            const price = parsePrice(raw.priceText)
+            const address = cleanAddress(raw.addressText)
+            if (!address || seenAddresses.has(address)) continue
+            seenAddresses.add(address)
+
+            const statusLower = raw.statusText.toLowerCase()
+            let moveInDate: string | undefined =
+              statusLower.includes("move-in") || statusLower.includes("quick") || statusLower.includes("ready")
+                ? raw.statusText : undefined
+
+            // Visit property-details page for HOA, tax rate, garage, floors
+            console.log(`  Fetching property details: ${raw.href}`)
+            const pd = await scrapeLennarPropertyDetails(page, raw.href)
+            const detail = await scrapeLennarDetailPage(page, raw.href)
+            moveInDate = moveInDate || pd.moveInDate || detail.moveInDate
+            await page.waitForTimeout(500)
+
+            const finalSqft = pd.sqft || sqft
+            const finalBeds = pd.beds || beds
+            const finalBaths = pd.baths || baths
+            const finalCommunity = pd.communityFromPD
+              ? pd.communityFromPD.replace(/\s*\|\s*/g, " - ")
+              : communityName
+            const finalCity = pd.cityFromPD || cityFromUrl(raw.href)
+            const taxes = pd.taxRate && price ? Math.round(price * pd.taxRate / 100) : undefined
+
+            allListings.push({
+              communityName: finalCommunity,
+              communityUrl: communityUrlFromHref(raw.href),
+              city: finalCity,
+              address,
+              lotNumber: pd.lotNumber || parseLotNumber(raw.lotText),
+              floorPlan: planName || undefined,
+              sqft: finalSqft,
+              beds: finalBeds,
+              baths: finalBaths,
+              garages: pd.garages,
+              floors: lennarPlanFloors(planName) ?? pd.floors ?? detail.floors ?? parseFloors(planName),
+              price,
+              pricePerSqft: price && finalSqft ? Math.round(price / finalSqft) : undefined,
+              propertyType: pd.propertyType || (/townhome|townhouse|attached/i.test(finalCommunity) ? "Attached" : "Detached"),
+              hoaFees: pd.hoaFees,
+              taxes,
+              moveInDate,
+              schools: undefined,
+              incentives: detail.incentives,
+              sourceUrl: raw.href,
+            })
+          }
+        } else {
+          // Apollo state format - extract all homesites
+          await page.waitForTimeout(3000)
+          const homesites = await extractApolloHomesites(page)
+          const active = homesites.filter(h => {
+            const s = h.status.toUpperCase()
+            return s !== "SOLD" && s !== "CLOSED"
+          })
+          console.log(`  Found ${homesites.length} total, ${active.length} active (Apollo format)`)
+          // Add new ones not already in allHomesites
+          for (const h of active) {
+            if (!allHomesites.some(e => e.lotId === h.lotId && e.lotId)) {
+              allHomesites.push(h)
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`  Error loading ${communityUrl}:`, err)
+      }
+    }
+
+    // ── Step 3: Process Apollo-sourced listings (search + community pages) ──
+    console.log(`\nProcessing ${allHomesites.length} Apollo-sourced listings...`)
+
+    for (const raw of allHomesites) {
+      const addr = cleanAddress(raw.address)
+      if (!addr || seenAddresses.has(addr)) continue
+      seenAddresses.add(addr)
+
+      const baths = raw.baths + raw.halfBaths * 0.5
+      const communityName = buildCommunityName(raw.mpcName, raw.communityName)
+
+      // Build detail URL
+      const collectionSlug = raw.communityName.toLowerCase().replace(/\s+/g, "-")
+      const planSlug = raw.planName.toLowerCase().replace(/\s+/g, "-")
+      const citySlug = raw.city.toLowerCase().replace(/\s+/g, "-")
+      const mpcSlug = raw.mpcName.toLowerCase().replace(/\s+/g, "-")
+
+      let detailUrl = buildDetailUrl(raw)
+      if (!detailUrl && raw.lotId && citySlug && mpcSlug) {
+        detailUrl = `${BASE_URL}/new-homes/california/orange-county/${citySlug}/${mpcSlug}/${collectionSlug}/${planSlug}/${raw.lotId}`
       }
 
+      const communityUrl = citySlug && mpcSlug
+        ? `${BASE_URL}/new-homes/california/orange-county/${citySlug}/${mpcSlug}/${collectionSlug}`
+        : detailUrl ? communityUrlFromHref(detailUrl) : ""
+
+      // Determine status from Apollo data
+      let moveInDate: string | undefined
+      const statusUpper = raw.status.toUpperCase()
+      if (statusUpper === "MOVE_IN_READY" || statusUpper.includes("READY")) {
+        moveInDate = "Move-In Ready"
+      } else if (statusUpper.includes("CONSTRUCTION")) {
+        moveInDate = "Under Construction"
+      } else if (statusUpper === "COMING_SOON" || statusUpper.includes("COMING")) {
+        moveInDate = "Coming Soon"
+      }
+
+      // Visit property-details page for detailed info
+      let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
+      let pdIncentives: string | undefined
+
+      if (detailUrl) {
+        console.log(`  Fetching property details: ${detailUrl}`)
+        pd = await scrapeLennarPropertyDetails(page, detailUrl)
+        moveInDate = moveInDate || pd.moveInDate
+        pdIncentives = pd.incentives
+
+        if (!pdIncentives) {
+          const detail = await scrapeLennarDetailPage(page, detailUrl)
+          pdIncentives = detail.incentives
+          moveInDate = moveInDate || detail.moveInDate
+          pd.floors = pd.floors || detail.floors
+        }
+        await page.waitForTimeout(500)
+      }
+
+      const finalCommunity = pd.communityFromPD
+        ? pd.communityFromPD.replace(/\s*\|\s*/g, " - ")
+        : communityName
+      const finalCity = pd.cityFromPD || raw.city || cityFromUrl(detailUrl)
+      const finalSqft = pd.sqft || raw.sqft || undefined
+      const finalBeds = pd.beds || raw.beds || undefined
+      const finalBaths = pd.baths || baths || undefined
+      const taxes = pd.taxRate && raw.price ? Math.round(raw.price * pd.taxRate / 100) : undefined
+
       allListings.push({
-        communityName,
-        communityUrl: communityUrlFromHref(raw.href),
-        address,
-        lotNumber: parseLotNumber(raw.lotText),
-        floorPlan: planName || undefined,
-        sqft,
-        beds,
-        baths,
-        garages: undefined,
-        floors: lennarPlanFloors(planName) ?? detailFloors ?? parseFloors(planName),
-        price,
-        pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
-        propertyType: /townhome|townhouse|attached/i.test(communityName) ? "Attached" : "Detached",
-        hoaFees: detailHoa,
-        taxes: detailTaxes,
+        communityName: finalCommunity,
+        communityUrl: communityUrl || detailUrl,
+        city: finalCity,
+        address: addr,
+        lotNumber: pd.lotNumber || raw.lotNumber || undefined,
+        floorPlan: raw.planName || undefined,
+        sqft: finalSqft,
+        beds: finalBeds,
+        baths: finalBaths,
+        garages: pd.garages,
+        floors: lennarPlanFloors(raw.planName) ?? pd.floors ?? parseFloors(raw.planName),
+        price: raw.price,
+        pricePerSqft: raw.price && finalSqft ? Math.round(raw.price / finalSqft) : undefined,
+        propertyType: pd.propertyType || (/townhome|townhouse|attached/i.test(finalCommunity) ? "Attached" : "Detached"),
+        hoaFees: pd.hoaFees,
+        taxes,
         moveInDate,
         schools: undefined,
-        incentives: detailIncentives,
-        sourceUrl: raw.href,
+        incentives: pdIncentives,
+        sourceUrl: detailUrl || "",
       })
     }
   } finally {

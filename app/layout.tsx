@@ -3,12 +3,16 @@ import { Nunito } from "next/font/google"
 import "./globals.css"
 import Link from "next/link"
 import { NavActions } from "@/app/_components/NavActions"
+import { MobileNav } from "@/app/_components/MobileNav"
 
 const nunito = Nunito({ variable: "--font-nunito", subsets: ["latin"], weight: ["400", "600", "700", "800"] })
 
 export const metadata: Metadata = {
   title: "NewKey.us — New Construction Homes",
   description: "Track new construction homes, price history, and sales velocity in Irvine",
+  icons: {
+    icon: "/logo.png",
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -21,13 +25,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/" className="flex items-center">
                 <img src="/logo.png" alt="NewKey.us" className="h-20 w-auto" />
               </Link>
-              <div className="flex items-center gap-6 text-sm font-semibold text-gray-600">
-                <Link href="/" className="hover:text-blue-700 transition-colors">Listings</Link>
+              {/* Desktop nav */}
+              <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-gray-600">
+                <Link href="/" className="hover:text-blue-700 transition-colors">Home</Link>
                 <Link href="/communities" className="hover:text-blue-700 transition-colors">Communities</Link>
                 <Link href="/incentives" className="hover:text-blue-700 transition-colors">Incentives</Link>
                 <Link href="/analytics" className="hover:text-blue-700 transition-colors">Analytics</Link>
                 <NavActions />
               </div>
+              {/* Mobile hamburger */}
+              <MobileNav />
             </div>
           </div>
         </nav>

@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { formatPrice, formatNumber } from "@/lib/utils"
 import { HeartButton } from "@/app/_components/HeartButton"
+import { getBuilderColor } from "@/lib/builder-colors"
 
 type Listing = {
   id: number
@@ -138,6 +139,27 @@ export default function HomePage() {
   const [moveInOnly, setMoveInOnly] = useState(false)
   const [typeFilter, setTypeFilter] = useState("")
   const [builderFilter, setBuilderFilter] = useState("")
+
+  // Table horizontal scroll
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  useEffect(() => {
+    const el = tableScrollRef.current
+    if (!el) return
+    const update = () => {
+      setCanScrollLeft(el.scrollLeft > 2)
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2)
+    }
+    el.addEventListener("scroll", update, { passive: true })
+    const t = setTimeout(update, 400)
+    return () => { el.removeEventListener("scroll", update); clearTimeout(t) }
+  }, [listings])
+
+  function scrollTable(dir: number) {
+    tableScrollRef.current?.scrollBy({ left: dir * 350, behavior: "smooth" })
+  }
 
   // Compare
   const [compareIds, setCompareIds] = useState<number[]>([])
@@ -286,7 +308,7 @@ export default function HomePage() {
       </div>
 
       {/* Quick Nav Cards */}
-      <div className="flex gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           {
             href: "/communities",
@@ -310,7 +332,7 @@ export default function HomePage() {
             stat: activeListings.length > 0 ? `${activeListings.length} homes tracked` : null,
           },
         ].map(({ href, title, desc, photo, stat }) => (
-          <Link key={href} href={href} className="group w-[290px] flex-none rounded-xl overflow-hidden border border-stone-200 shadow-sm hover:shadow-md transition-all bg-white">
+          <Link key={href} href={href} className="group rounded-xl overflow-hidden border border-stone-200 shadow-sm hover:shadow-md transition-all bg-white">
             <div className="relative h-44 overflow-hidden">
               <div
                 className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
@@ -425,16 +447,61 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div className="ml-auto self-end text-sm text-stone-400 whitespace-nowrap pb-0.5">
-            {loading ? "Loading..." : `${displayed.length} listing${displayed.length !== 1 ? "s" : ""}`}
-          </div>
+        </div>
+        <div className="mt-2 text-sm text-stone-400 text-right">
+          {loading ? "Loading..." : `${displayed.length} listing${displayed.length !== 1 ? "s" : ""}`}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      {/* Mobile listing cards (hidden on md+) */}
+      <div className="md:hidden flex flex-col gap-3">
+        {loading ? (
+          <div className="text-center text-stone-400 py-12">Loading listings...</div>
+        ) : displayed.length === 0 ? (
+          <div className="text-center text-stone-400 py-12">No listings found.</div>
+        ) : (
+          displayed.map((l) => (
+            <Link key={l.id} href={`/listings/${l.id}`} className="bg-white rounded-xl border border-stone-200 p-4 shadow-sm hover:shadow-md transition-shadow block">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-stone-900 text-sm truncate">{l.address}</p>
+                  <p className="text-xs text-stone-500 truncate">{cleanCommunityName(l.community.name)} · {l.community.city}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-bold text-stone-900 text-sm">{formatPrice(l.currentPrice)}</p>
+                  {l.pricePerSqft && (
+                    <p className={`text-xs ${ppsqColor(l.pricePerSqft, ppsqThresholds)}`}>${l.pricePerSqft.toLocaleString()}/sqft</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500 mb-2">
+                {l.beds != null && <span>{l.beds} bd</span>}
+                {l.baths != null && <span>{l.baths} ba</span>}
+                {l.sqft && <span>{formatNumber(l.sqft)} sqft</span>}
+                {l.floors && <span>{l.floors}fl</span>}
+                {l.propertyType && (
+                  <span className={`px-1.5 py-0.5 rounded font-medium ${l.propertyType === "Attached" ? "bg-purple-100 text-purple-700" : "bg-sky-100 text-sky-700"}`}>
+                    {l.propertyType}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold" style={{ color: getBuilderColor(l.community.builder.name) }}>{l.community.builder.name}</span>
+                {isReady(l.moveInDate) ? (
+                  <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Ready</span>
+                ) : (
+                  <span className="text-stone-400">{formatMoveIn(l.moveInDate)}</span>
+                )}
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+
+      {/* Table (desktop only) */}
+      <div className="hidden md:block bg-white rounded-xl border border-stone-200 shadow-sm">
+        <div ref={tableScrollRef} className="overflow-x-auto rounded-xl">
+          <table className="min-w-max w-full text-sm">
             <thead>
               <tr className="bg-stone-50 border-b border-stone-200">
                 {[
@@ -488,13 +555,7 @@ export default function HomePage() {
                     </td>
                     <td className="px-4 py-3 text-stone-500 whitespace-nowrap text-center">{l.community.city}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
-                      <span className={
-                        l.community.builder.name.toLowerCase().includes("lennar")
-                          ? "font-semibold text-[#1B4FA8]"
-                          : l.community.builder.name.toLowerCase().includes("toll")
-                          ? "font-semibold text-[#C9940A]"
-                          : "text-stone-500"
-                      }>
+                      <span className="font-semibold" style={{ color: getBuilderColor(l.community.builder.name) }}>
                         {l.community.builder.name}
                       </span>
                     </td>
@@ -550,6 +611,24 @@ export default function HomePage() {
           </table>
         </div>
       </div>
+
+      {/* Floating table scroll arrows (desktop only) */}
+      {(canScrollLeft || canScrollRight) && (
+        <div className="hidden md:flex fixed bottom-6 right-6 z-40 gap-2">
+          <button
+            onClick={() => scrollTable(-1)}
+            disabled={!canScrollLeft}
+            className="w-9 h-9 rounded-full bg-white border border-stone-200 shadow-lg flex items-center justify-center text-stone-600 hover:bg-stone-50 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+            title="Scroll table left"
+          >‹</button>
+          <button
+            onClick={() => scrollTable(1)}
+            disabled={!canScrollRight}
+            className="w-9 h-9 rounded-full bg-white border border-stone-200 shadow-lg flex items-center justify-center text-stone-600 hover:bg-stone-50 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+            title="Scroll table right"
+          >›</button>
+        </div>
+      )}
 
       {/* Compare bar */}
       {compareIds.length > 0 && (
@@ -612,9 +691,7 @@ export default function HomePage() {
         const ppsqRanks    = rankAmong(cmpListings.map((l) => l.pricePerSqft))
 
         function builderCls(name: string) {
-          if (name.toLowerCase().includes("lennar")) return "font-semibold text-[#1B4FA8]"
-          if (name.toLowerCase().includes("toll")) return "font-semibold text-[#C9940A]"
-          return "text-stone-800"
+          return { className: "font-semibold", style: { color: getBuilderColor(name) } }
         }
 
         const labelCls = "px-3 py-2.5 text-xs font-semibold text-stone-500 uppercase tracking-wide w-32 border-r border-stone-300"
@@ -681,9 +758,10 @@ export default function HomePage() {
                     {/* Builder */}
                     <tr className="bg-white">
                       <td className={labelCls}>Builder</td>
-                      {cmpListings.map((l) => (
-                        <td key={l.id} className={`${cellCls} ${builderCls(l.community.builder.name)}`}>{l.community.builder.name}</td>
-                      ))}
+                      {cmpListings.map((l) => {
+                        const bc = builderCls(l.community.builder.name)
+                        return <td key={l.id} className={`${cellCls} ${bc.className}`} style={bc.style}>{l.community.builder.name}</td>
+                      })}
                     </tr>
                     {/* Type */}
                     <tr className="bg-stone-100">

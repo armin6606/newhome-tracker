@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npx tsx:*)",
+      "WebFetch(domain:www.lennar.com)",
+      "Bash(npm run:*)",
+      "Bash(find /c/newhome-tracker/components -type f -name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js)",
+      "Bash(grep -r \"Builder Intel\\\\|BuilderIntel\\\\|ControlCenter\" /c/newhome-tracker --include=*.tsx --include=*.ts --include=*.jsx --include=*.js)",
+      "Bash(find /c/newhome-tracker -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\) ! -path */node_modules/* ! -path */.next/* ! -path */app/*)",
+      "Bash(grep -r \"Control\\\\|Intel\" /c/newhome-tracker --include=*.tsx --include=*.ts --exclude-dir=node_modules --exclude-dir=.next)",
+      "Bash(grep:*)",
+      "WebFetch(domain:docs.google.com)"
+    ]
+  }
+}
