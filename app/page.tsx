@@ -283,8 +283,8 @@ export default function HomePage() {
 
   // Deduplicate by address (keep first occurrence = lowest id)
   const deduped = listings.filter((l, idx, arr) => {
-    const norm = l.address.toLowerCase().trim()
-    return arr.findIndex((x) => x.address.toLowerCase().trim() === norm) === idx
+    const key = `${l.community.city.toLowerCase()}__${l.address.toLowerCase().trim()}`
+    return arr.findIndex((x) => `${x.community.city.toLowerCase()}__${x.address.toLowerCase().trim()}` === key) === idx
   })
 
   // Builders and cities that have at least one listing (for dropdowns)
