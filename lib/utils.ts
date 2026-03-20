@@ -36,9 +36,8 @@ export function cleanCommunityName(name: string): string {
   n = n.replace(/great park neighborhoods/i, "Great Park")
   // Strip " at <Location>" suffix
   n = n.replace(/\s+at\s+[\w\s]+$/i, "")
-  // Strip "Collection" word
-  n = n.replace(/\s*[-–]?\s*\w+\s+Collection\b/gi, "")
-  n = n.replace(/\bCollection\b/gi, "")
+  // Strip the word "Collection" (keep the collection sub-name like "Elm", "Birch")
+  n = n.replace(/\s+Collection\b/gi, "")
   // Strip dangling prepositions/conjunctions left behind
   n = n.replace(/\s+(by|at|in|of|the|a|and)\s*$/i, "")
   // Collapse whitespace and clean up dashes
