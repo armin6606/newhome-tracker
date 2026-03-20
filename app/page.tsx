@@ -465,7 +465,7 @@ export default function HomePage() {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="min-w-0">
                   <p className="font-semibold text-stone-900 text-sm truncate">{l.address}</p>
-                  <p className="text-xs text-stone-500 truncate">{cleanCommunityName(l.community.name)} · {l.community.city}</p>
+                  <p className="text-xs text-stone-500 truncate" title={l.community.name}>{cleanCommunityName(l.community.name)} · {l.community.city}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-bold text-stone-900 text-sm">{formatPrice(l.currentPrice)}</p>
@@ -551,7 +551,7 @@ export default function HomePage() {
                       />
                     </td>
                     <td className="px-4 py-3 max-w-[160px] text-center">
-                      <span className="block truncate text-stone-800 font-medium">{cleanCommunityName(l.community.name)}</span>
+                      <span className="block truncate text-stone-800 font-medium" title={l.community.name}>{cleanCommunityName(l.community.name)}</span>
                     </td>
                     <td className="px-4 py-3 text-stone-500 whitespace-nowrap text-center">{l.community.city}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
