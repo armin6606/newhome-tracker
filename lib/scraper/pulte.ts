@@ -14,6 +14,13 @@ interface PulteMarker {
   StartingFromPrice?: number
   CommunityLink?: string
   IsCommunitySoldOut?: boolean
+  Incentive?: string
+  IncentiveMessage?: string
+  PromotionText?: string
+  SpecialOffer?: string
+  HasIncentive?: boolean
+  IncentiveTitle?: string
+  IncentiveDescription?: string
 }
 
 async function fetchPulteMarkers(brand: string, brandHost: string): Promise<PulteMarker[]> {
@@ -31,6 +38,23 @@ async function fetchPulteMarkers(brand: string, brandHost: string): Promise<Pult
   return res.json()
 }
 
+function extractIncentiveFromMarker(m: PulteMarker): string | undefined {
+  // Check all possible incentive fields from the API response
+  const candidates = [
+    m.Incentive,
+    m.IncentiveMessage,
+    m.IncentiveTitle,
+    m.IncentiveDescription,
+    m.PromotionText,
+    m.SpecialOffer,
+  ].filter(Boolean) as string[]
+
+  if (candidates.length > 0) {
+    return candidates.join(" | ").trim()
+  }
+  return undefined
+}
+
 function markersToListings(markers: PulteMarker[], websiteBase: string): ScrapedListing[] {
   const listings: ScrapedListing[] = []
   for (const m of markers) {
@@ -42,6 +66,8 @@ function markersToListings(markers: PulteMarker[], websiteBase: string): Scraped
       ? `${m.Address.Street1}, ${m.Address.City || ""}, CA`.trim()
       : `${m.Name} - Plans Available`
 
+    const incentives = extractIncentiveFromMarker(m)
+
     listings.push({
       communityName: m.Name,
       communityUrl,
@@ -51,6 +77,7 @@ function markersToListings(markers: PulteMarker[], websiteBase: string): Scraped
       garages: m.MinGarage,
       price,
       propertyType: "Detached",
+      incentives,
       sourceUrl: communityUrl,
     })
   }

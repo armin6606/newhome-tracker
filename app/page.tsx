@@ -110,6 +110,82 @@ function SchoolRatingBadge({ name, state }: { name: string; state: string }) {
   )
 }
 
+function NewsletterCard() {
+  const [email, setEmail] = useState("")
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [msg, setMsg] = useState("")
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email) return
+    setStatus("loading")
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setStatus("success")
+        setMsg(data.message)
+        setEmail("")
+      } else {
+        setStatus("error")
+        setMsg(data.error || "Something went wrong")
+      }
+    } catch {
+      setStatus("error")
+      setMsg("Something went wrong")
+    }
+  }
+
+  return (
+    <div className="group rounded-xl overflow-hidden border border-stone-200 shadow-sm hover:shadow-md transition-all bg-white">
+      <div className="relative h-44 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
+          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=800&q=80')" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-900/75 via-stone-900/20 to-transparent" />
+        <div className="absolute bottom-0 left-0 px-4 py-3">
+          <p className="text-white font-bold text-xl leading-tight drop-shadow">Weekly Newsletter</p>
+        </div>
+      </div>
+      <div className="px-4 py-3">
+        <p className="text-amber-600 text-xs font-semibold mb-1">Free weekly updates</p>
+        {status === "success" ? (
+          <p className="text-emerald-600 text-sm font-medium">{msg}</p>
+        ) : (
+          <>
+            <p className="text-stone-500 text-sm leading-snug mb-2">
+              Get new listings, price drops, and market insights delivered to your inbox every week.
+            </p>
+            <form onSubmit={handleSubmit} className="flex gap-1.5">
+              <input
+                type="email"
+                placeholder="you@email.com"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setStatus("idle") }}
+                className="flex-1 min-w-0 border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                required
+              />
+              <button
+                type="submit"
+                disabled={status === "loading"}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50 whitespace-nowrap"
+              >
+                {status === "loading" ? "..." : "Subscribe"}
+              </button>
+            </form>
+            {status === "error" && <p className="text-red-500 text-xs mt-1">{msg}</p>}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function HomePage() {
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
@@ -304,7 +380,7 @@ export default function HomePage() {
       </div>
 
       {/* Quick Nav Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
           {
             href: "/communities",
@@ -345,6 +421,8 @@ export default function HomePage() {
             </div>
           </Link>
         ))}
+        {/* Newsletter Signup Card */}
+        <NewsletterCard />
       </div>
 
       {/* Filter Bar */}

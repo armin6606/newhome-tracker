@@ -163,10 +163,11 @@ function buildAuthClient() {
 async function ensureHeaderRow(sheets) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: `${SHEET_NAME}!A1:A1`,
+    range: `${SHEET_NAME}!A1:${colLetter(TOTAL_COLS - 1)}1`,
   })
-  const val = res.data.values?.[0]?.[0] ?? ""
-  if (val !== "Listing ID") {
+  const currentHeader = res.data.values?.[0] ?? []
+  // Rewrite header if missing or if column count has changed (e.g. new columns added)
+  if (currentHeader[0] !== "Listing ID" || currentHeader.length < TOTAL_COLS) {
     console.log("  Writing header row…")
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,

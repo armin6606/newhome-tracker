@@ -60,7 +60,7 @@ export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
     }
 
     const communities = await page.evaluate(() => {
-      const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; propertyType?: string }[] = []
+      const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; propertyType?: string; incentives?: string }[] = []
 
       document.querySelectorAll("div.card, .card.border-0").forEach((card) => {
         const el = card as HTMLElement
@@ -91,6 +91,39 @@ export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
         const sqftM = text.match(/([\d,]+)\s*(?:sq\.?\s*ft|SF)/i)
         const typeM = text.match(/(townhome|townhouse|condo|detached|single.family|flat)/i)
 
+        // Check for incentive text within the card
+        let incentives: string | undefined
+        const incentiveSelectors = [
+          '[class*="incentive"]', '[class*="Incentive"]',
+          '[class*="promotion"]', '[class*="Promotion"]',
+          '[class*="offer"]', '[class*="Offer"]',
+          '[class*="special"]', '[class*="Special"]',
+          '[class*="closing"]', '[class*="buydown"]',
+          '[class*="credit"]', '[class*="Credit"]',
+          '[class*="savings"]', '[class*="Savings"]',
+        ]
+        for (const sel of incentiveSelectors) {
+          const incEl = el.querySelector(sel) as HTMLElement | null
+          const txt = incEl?.innerText?.trim()
+          if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+        }
+
+        // Regex fallback on card text
+        if (!incentives) {
+          const incPatterns = [
+            /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+          ]
+          const matches: string[] = []
+          for (const pat of incPatterns) {
+            let m: RegExpExecArray | null
+            while ((m = pat.exec(text)) !== null) {
+              matches.push(m[0].trim())
+              if (matches.length >= 3) break
+            }
+          }
+          if (matches.length) incentives = matches.join(" | ")
+        }
+
         results.push({
           name,
           url,
@@ -100,6 +133,7 @@ export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
           baths: bathM ? parseFloat(bathM[1]) : undefined,
           sqft: sqftM ? parseInt(sqftM[1].replace(/,/g, ""), 10) : undefined,
           propertyType: typeM ? typeM[1].replace(/\b\w/g, (c) => c.toUpperCase()) : undefined,
+          incentives,
         })
       })
 
@@ -121,6 +155,7 @@ export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
         price,
         pricePerSqft: price && comm.sqft ? Math.round(price / comm.sqft) : undefined,
         propertyType: comm.propertyType || "Attached",
+        incentives: comm.incentives,
         sourceUrl: comm.url || LISTING_URL,
       })
     }

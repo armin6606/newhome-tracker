@@ -21,7 +21,7 @@ export async function scrapeBrookfieldOC(): Promise<ScrapedListing[]> {
     await page.waitForTimeout(3000)
 
     const communities = await page.evaluate(() => {
-      const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; status?: string }[] = []
+      const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; status?: string; incentives?: string }[] = []
 
       // Try __NEXT_DATA__ first
       const nextDataEl = document.getElementById("__NEXT_DATA__")
@@ -37,6 +37,15 @@ export async function scrapeBrookfieldOC(): Promise<ScrapedListing[]> {
             if (Array.isArray(items) && items.length > 0) {
               items.forEach((c: any) => {
                 const url = c.community_url ? `https://www.brookfieldresidential.com${c.community_url}` : ""
+
+                // Extract incentive data from API response if available
+                const incentiveParts = [
+                  c.incentive, c.incentiveText, c.promotion,
+                  c.promotionText, c.specialOffer, c.promoLabel,
+                  c.community_incentive, c.community_promotion,
+                ].filter(Boolean) as string[]
+                const incentives = incentiveParts.length > 0 ? incentiveParts.join(" | ").trim() : undefined
+
                 results.push({
                   name: c.community_name || c.name || "",
                   url,
@@ -46,6 +55,7 @@ export async function scrapeBrookfieldOC(): Promise<ScrapedListing[]> {
                   baths: c.minimumtotalbaths || undefined,
                   sqft: c.minimumsquarefootage || undefined,
                   status: c.community_status || "",
+                  incentives,
                 })
               })
               if (results.length > 0) break
@@ -72,6 +82,39 @@ export async function scrapeBrookfieldOC(): Promise<ScrapedListing[]> {
           const bathM = text.match(/(\d+(?:\.\d+)?)\s*[-–]\s*[\d.]+\s*(?:bath|BA)/i) || text.match(/(\d+(?:\.\d+)?)\s*(?:bath|BA)/i)
           const sqftM = text.match(/([\d,]+)\s*[-–]\s*([\d,]+)\s*(?:sq\.?\s*ft|SF)/i) || text.match(/([\d,]+)\s*(?:sq\.?\s*ft|SF)/i)
 
+          // Check for incentive elements in DOM card
+          let incentives: string | undefined
+          const incentiveSelectors = [
+            '[class*="incentive"]', '[class*="Incentive"]',
+            '[class*="promotion"]', '[class*="Promotion"]',
+            '[class*="offer"]', '[class*="Offer"]',
+            '[class*="special"]', '[class*="Special"]',
+            '[class*="closing"]', '[class*="buydown"]',
+            '[class*="credit"]', '[class*="Credit"]',
+            '[class*="savings"]', '[class*="Savings"]',
+          ]
+          for (const sel of incentiveSelectors) {
+            const incEl = el.querySelector(sel) as HTMLElement | null
+            const txt = incEl?.innerText?.trim()
+            if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+          }
+
+          // Regex fallback on card text
+          if (!incentives) {
+            const incPatterns = [
+              /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+            ]
+            const matches: string[] = []
+            for (const pat of incPatterns) {
+              let m: RegExpExecArray | null
+              while ((m = pat.exec(text)) !== null) {
+                matches.push(m[0].trim())
+                if (matches.length >= 3) break
+              }
+            }
+            if (matches.length) incentives = matches.join(" | ")
+          }
+
           results.push({
             name,
             url,
@@ -80,6 +123,7 @@ export async function scrapeBrookfieldOC(): Promise<ScrapedListing[]> {
             beds: bedM ? parseFloat(bedM[1]) : undefined,
             baths: bathM ? parseFloat(bathM[1]) : undefined,
             sqft: sqftM ? parseInt(sqftM[1].replace(/,/g, ""), 10) : undefined,
+            incentives,
           })
         })
       }
@@ -104,6 +148,7 @@ export async function scrapeBrookfieldOC(): Promise<ScrapedListing[]> {
         price,
         pricePerSqft: price && comm.sqft ? Math.round(price / comm.sqft) : undefined,
         propertyType: "Detached",
+        incentives: comm.incentives,
         sourceUrl: comm.url || OC_URL,
       })
     }

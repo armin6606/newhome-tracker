@@ -27,6 +27,7 @@ export async function scrapeTriPointeOC(): Promise<ScrapedListing[]> {
       const results: {
         address: string; href: string; price?: number; beds?: number
         baths?: number; sqft?: number; communityName?: string; status?: string
+        incentives?: string
       }[] = []
 
       document.querySelectorAll('[class*="container-listing"]').forEach((el) => {
@@ -47,6 +48,39 @@ export async function scrapeTriPointeOC(): Promise<ScrapedListing[]> {
 
         if (!href && !addrLine) return
 
+        // Check for incentive text within the card
+        let incentives: string | undefined
+        const incentiveSelectors = [
+          '[class*="incentive"]', '[class*="Incentive"]',
+          '[class*="promotion"]', '[class*="Promotion"]',
+          '[class*="offer"]', '[class*="Offer"]',
+          '[class*="special"]', '[class*="Special"]',
+          '[class*="closing"]', '[class*="buydown"]',
+          '[class*="credit"]', '[class*="Credit"]',
+          '[class*="savings"]', '[class*="Savings"]',
+        ]
+        for (const sel of incentiveSelectors) {
+          const incEl = el.querySelector(sel) as HTMLElement | null
+          const txt = incEl?.innerText?.trim()
+          if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+        }
+
+        // Regex fallback on card text
+        if (!incentives) {
+          const incPatterns = [
+            /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+          ]
+          const matches: string[] = []
+          for (const pat of incPatterns) {
+            let m: RegExpExecArray | null
+            while ((m = pat.exec(text)) !== null) {
+              matches.push(m[0].trim())
+              if (matches.length >= 3) break
+            }
+          }
+          if (matches.length) incentives = matches.join(" | ")
+        }
+
         results.push({
           address: addrLine || lines[1] || "Plan Available",
           href,
@@ -56,6 +90,7 @@ export async function scrapeTriPointeOC(): Promise<ScrapedListing[]> {
           sqft: sqftM ? parseInt(sqftM[1].replace(/,/g, ""), 10) : undefined,
           communityName: commM?.[1]?.trim().split("\n")[0],
           status: /move.in.ready/i.test(lines[0] || "") ? "Move-In Ready" : undefined,
+          incentives,
         })
       })
 
@@ -81,6 +116,36 @@ export async function scrapeTriPointeOC(): Promise<ScrapedListing[]> {
 
     console.log(`Found ${cards.length} TRI Pointe MIR listings, ${communities.length} communities`)
 
+    // Also extract page-level incentive text for communities without card-level incentives
+    const pageIncentives = await page.evaluate(() => {
+      const body = (document.body as HTMLElement).innerText || ""
+      const selectors = [
+        '[class*="incentive"]', '[class*="Incentive"]',
+        '[class*="promotion"]', '[class*="Promotion"]',
+        '[class*="offer"]', '[class*="Offer"]',
+        '[class*="special"]', '[class*="Special"]',
+        '[class*="savings"]', '[class*="Savings"]',
+      ]
+      for (const sel of selectors) {
+        const el = document.querySelector(sel) as HTMLElement | null
+        const txt = el?.innerText?.trim()
+        if (txt && txt.length > 5 && txt.length < 500) return txt
+      }
+      const patterns = [
+        /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+      ]
+      const matches: string[] = []
+      for (const pat of patterns) {
+        let m: RegExpExecArray | null
+        while ((m = pat.exec(body)) !== null) {
+          matches.push(m[0].trim())
+          if (matches.length >= 3) break
+        }
+      }
+      if (matches.length) return matches.join(" | ")
+      return undefined
+    })
+
     for (const card of cards) {
       const communityName = card.communityName || "TRI Pointe OC"
       const communityUrl = card.href ? card.href.split("/").slice(0, 7).join("/") : OC_URL
@@ -95,6 +160,7 @@ export async function scrapeTriPointeOC(): Promise<ScrapedListing[]> {
         pricePerSqft: card.price && card.sqft ? Math.round(card.price / card.sqft) : undefined,
         propertyType: "Detached",
         moveInDate: card.status,
+        incentives: card.incentives || pageIncentives,
         sourceUrl: card.href || OC_URL,
       })
     }

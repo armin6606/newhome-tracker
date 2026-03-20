@@ -31,6 +31,7 @@ export default function CommunitiesPage() {
   const [followIds, setFollowIds] = useState<Set<number>>(new Set())
   const [cityFilter, setCityFilter] = useState("")
   const [builderFilter, setBuilderFilter] = useState("")
+  const [communitySearch, setCommunitySearch] = useState("")
 
   useEffect(() => {
     fetch("/api/communities")
@@ -51,6 +52,7 @@ export default function CommunitiesPage() {
   const displayed = communities.filter((c) => {
     if (cityFilter && c.city !== cityFilter) return false
     if (builderFilter && c.builderName !== builderFilter) return false
+    if (communitySearch && !cleanCommunityName(c.name).toLowerCase().includes(communitySearch.toLowerCase())) return false
     return true
   })
 
@@ -98,6 +100,16 @@ export default function CommunitiesPage() {
       {!loading && communities.length > 0 && (
         <div className="flex flex-wrap items-end gap-3 mb-5">
           <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Community</label>
+            <input
+              type="text"
+              placeholder="Search communities..."
+              value={communitySearch}
+              onChange={(e) => setCommunitySearch(e.target.value)}
+              className={`${selectCls} w-48`}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">City</label>
             <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className={`${selectCls} w-44`}>
               <option value="">All Cities</option>
@@ -115,15 +127,15 @@ export default function CommunitiesPage() {
               ))}
             </select>
           </div>
-          {(cityFilter || builderFilter) && (
+          {(cityFilter || builderFilter || communitySearch) && (
             <button
-              onClick={() => { setCityFilter(""); setBuilderFilter("") }}
+              onClick={() => { setCityFilter(""); setBuilderFilter(""); setCommunitySearch("") }}
               className="text-xs text-gray-400 hover:text-gray-600 underline self-end pb-1.5"
             >
               Reset
             </button>
           )}
-          {(cityFilter || builderFilter) && (
+          {(cityFilter || builderFilter || communitySearch) && (
             <span className="text-xs text-gray-400 self-end pb-1.5">
               {displayed.length} of {communities.length} communities
             </span>
@@ -183,11 +195,11 @@ export default function CommunitiesPage() {
                   <span className="font-semibold text-gray-800">{c.salesPerMonth}/mo pace</span>
                 </div>
                 {c.salesByWeek.some((w) => w.sold > 0) ? (
-                  <ResponsiveContainer width="100%" height={70}>
-                    <BarChart data={c.salesByWeek} margin={{ top: 2, right: 4, bottom: 0, left: -16 }} barCategoryGap="20%">
+                  <ResponsiveContainer width="100%" height={80}>
+                    <BarChart data={c.salesByWeek} margin={{ top: 2, right: 4, bottom: 0, left: -12 }} barCategoryGap="20%">
                       <XAxis dataKey="week" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false}
                         interval={Math.max(0, Math.floor(c.salesByWeek.length / 4) - 1)} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} width={24} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 9, fill: "#6b7280" }} tickLine={false} axisLine={{ stroke: "#d1d5db" }} width={28} />
                       <Tooltip
                         cursor={{ fill: "#f3f4f6" }}
                         contentStyle={{ fontSize: 11, padding: "2px 8px", borderRadius: 6 }}

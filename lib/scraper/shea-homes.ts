@@ -58,6 +58,52 @@ export async function scrapeaSheaHomesOC(): Promise<ScrapedListing[]> {
         ? "Attached"
         : "Detached"
 
+      // Scrape incentives from community page
+      let incentives: string | undefined
+      try {
+        console.log(`  Checking incentives: ${c.Name}`)
+        await page.goto(communityUrl, { waitUntil: "domcontentloaded", timeout: 30000 })
+        await page.waitForTimeout(2000)
+
+        incentives = await page.evaluate(() => {
+          const body = (document.body as HTMLElement).innerText || ""
+
+          // Try CSS selectors for incentive elements
+          const selectors = [
+            '[class*="incentive"]', '[class*="Incentive"]',
+            '[class*="promotion"]', '[class*="Promotion"]',
+            '[class*="offer"]', '[class*="Offer"]',
+            '[class*="special"]', '[class*="Special"]',
+            '[class*="closing"]', '[class*="buydown"]',
+            '[class*="credit"]', '[class*="Credit"]',
+            '[class*="savings"]', '[class*="Savings"]',
+          ]
+          for (const sel of selectors) {
+            const el = document.querySelector(sel) as HTMLElement | null
+            const txt = el?.innerText?.trim()
+            if (txt && txt.length > 5 && txt.length < 500) return txt
+          }
+
+          // Regex fallback on page text
+          const patterns = [
+            /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+          ]
+          const matches: string[] = []
+          for (const pat of patterns) {
+            let m: RegExpExecArray | null
+            while ((m = pat.exec(body)) !== null) {
+              matches.push(m[0].trim())
+              if (matches.length >= 3) break
+            }
+          }
+          if (matches.length) return matches.join(" | ")
+
+          return undefined
+        })
+      } catch {
+        // Continue without incentives
+      }
+
       allListings.push({
         communityName: c.Name,
         communityUrl,
@@ -68,6 +114,7 @@ export async function scrapeaSheaHomesOC(): Promise<ScrapedListing[]> {
         price,
         pricePerSqft: price && c.SqFtMin ? Math.round(price / c.SqFtMin) : undefined,
         propertyType,
+        incentives,
         sourceUrl: communityUrl,
       })
     }

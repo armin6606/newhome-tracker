@@ -102,10 +102,44 @@ export async function scrapeBonanniOC(): Promise<ScrapedListing[]> {
           // Get price if shown
           const priceM = body.match(/(?:starting|from|priced from)\s*\$\s*([\d,]+)/i) || body.match(/\$\s*([\d,]+(?:,\d{3})*)/)
 
+          // Check for incentive text on the community page
+          let incentives: string | undefined
+          const incentiveSelectors = [
+            '[class*="incentive"]', '[class*="Incentive"]',
+            '[class*="promotion"]', '[class*="Promotion"]',
+            '[class*="offer"]', '[class*="Offer"]',
+            '[class*="special"]', '[class*="Special"]',
+            '[class*="closing"]', '[class*="buydown"]',
+            '[class*="credit"]', '[class*="Credit"]',
+            '[class*="savings"]', '[class*="Savings"]',
+          ]
+          for (const sel of incentiveSelectors) {
+            const el = document.querySelector(sel) as HTMLElement | null
+            const txt = el?.innerText?.trim()
+            if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+          }
+
+          // Regex fallback on page text
+          if (!incentives) {
+            const incPatterns = [
+              /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+            ]
+            const matches: string[] = []
+            for (const pat of incPatterns) {
+              let m2: RegExpExecArray | null
+              while ((m2 = pat.exec(body)) !== null) {
+                matches.push(m2[0].trim())
+                if (matches.length >= 3) break
+              }
+            }
+            if (matches.length) incentives = matches.join(" | ")
+          }
+
           return {
             plans: results,
             address,
             price: priceM ? parseInt(priceM[1].replace(/,/g, ""), 10) : undefined,
+            incentives,
           }
         }, homesUrl)
 
@@ -125,6 +159,7 @@ export async function scrapeBonanniOC(): Promise<ScrapedListing[]> {
               price: basePrice,
               pricePerSqft: basePrice && plan.sqft ? Math.round(basePrice / plan.sqft) : undefined,
               propertyType: "Attached",
+              incentives: data.incentives,
               sourceUrl: homesUrl,
             })
           }
@@ -135,6 +170,7 @@ export async function scrapeBonanniOC(): Promise<ScrapedListing[]> {
             address: baseAddress,
             price: basePrice,
             propertyType: "Attached",
+            incentives: data.incentives,
             sourceUrl: homesUrl,
           })
         }

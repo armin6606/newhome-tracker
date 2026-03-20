@@ -3,17 +3,21 @@
 import { useState, useEffect, useCallback } from "react"
 import { formatPrice } from "@/lib/utils"
 
-type IncentiveCommunity = {
+type CommunityEntry = {
   id: number
   name: string
   city: string
   state: string
   url: string
-  builder: { name: string }
-  incentives: string
   activeCount: number
   minPrice: number | null
   maxPrice: number | null
+}
+
+type GroupedOffer = {
+  offerText: string
+  builder: string
+  communities: CommunityEntry[]
 }
 
 function cleanCommunityName(name: string): string {
@@ -25,51 +29,62 @@ function cleanCommunityName(name: string): string {
 }
 
 function builderColor(name: string): string {
-  if (name.toLowerCase().includes("lennar")) return "font-semibold text-[#1B4FA8]"
-  if (name.toLowerCase().includes("toll")) return "font-semibold text-[#C9940A]"
+  if (name.toLowerCase().includes("lennar")) return "text-[#1B4FA8]"
+  if (name.toLowerCase().includes("toll")) return "text-[#C9940A]"
+  if (name.toLowerCase().includes("kb")) return "text-red-600"
+  if (name.toLowerCase().includes("tri pointe")) return "text-emerald-700"
+  if (name.toLowerCase().includes("shea")) return "text-sky-600"
+  if (name.toLowerCase().includes("pulte") || name.toLowerCase().includes("del webb")) return "text-violet-600"
+  if (name.toLowerCase().includes("taylor")) return "text-orange-600"
   return "text-stone-600"
 }
 
 function builderBadgeColor(name: string): string {
   if (name.toLowerCase().includes("lennar")) return "bg-blue-50 text-blue-700 border-blue-200"
   if (name.toLowerCase().includes("toll")) return "bg-amber-50 text-amber-700 border-amber-200"
+  if (name.toLowerCase().includes("kb")) return "bg-red-50 text-red-700 border-red-200"
+  if (name.toLowerCase().includes("tri pointe")) return "bg-emerald-50 text-emerald-700 border-emerald-200"
+  if (name.toLowerCase().includes("shea")) return "bg-sky-50 text-sky-700 border-sky-200"
+  if (name.toLowerCase().includes("pulte") || name.toLowerCase().includes("del webb")) return "bg-violet-50 text-violet-700 border-violet-200"
+  if (name.toLowerCase().includes("taylor")) return "bg-orange-50 text-orange-700 border-orange-200"
   return "bg-stone-100 text-stone-600 border-stone-200"
 }
 
 export default function IncentivesPage() {
-  const [communities, setCommunities] = useState<IncentiveCommunity[]>([])
+  const [offers, setOffers] = useState<GroupedOffer[]>([])
   const [loading, setLoading] = useState(true)
-  const [sortBy, setSortBy] = useState("community")
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
   const [citySearch, setCitySearch] = useState("")
   const [builderSearch, setBuilderSearch] = useState("")
+  const [expandedOffers, setExpandedOffers] = useState<Set<number>>(new Set())
 
   const fetchIncentives = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({ sortBy, sortDir })
+    const params = new URLSearchParams()
     if (citySearch) params.set("city", citySearch)
     if (builderSearch) params.set("builder", builderSearch)
     const res = await fetch(`/api/incentives?${params}`)
     const data = await res.json()
-    setCommunities(data)
+    setOffers(data)
+    // Expand all by default
+    setExpandedOffers(new Set(data.map((_: GroupedOffer, i: number) => i)))
     setLoading(false)
-  }, [sortBy, sortDir, citySearch, builderSearch])
+  }, [citySearch, builderSearch])
 
   useEffect(() => { fetchIncentives() }, [fetchIncentives])
 
-  function handleSort(field: string) {
-    if (sortBy === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-    else { setSortBy(field); setSortDir("asc") }
-  }
-
-  function SortIcon({ field }: { field: string }) {
-    if (sortBy !== field) return <span className="text-gray-300 ml-1">↕</span>
-    return <span className="text-amber-500 ml-1">{sortDir === "asc" ? "↑" : "↓"}</span>
+  function toggleExpand(idx: number) {
+    setExpandedOffers(prev => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
   }
 
   const inputCls = "border border-stone-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-  const totalOffers = communities.length
-  const uniqueBuilders = new Set(communities.map((c) => c.builder.name)).size
+  const totalCommunities = offers.reduce((s, o) => s + o.communities.length, 0)
+  const uniqueBuilders = new Set(offers.map((o) => o.builder)).size
+  const totalListings = offers.reduce((s, o) => s + o.communities.reduce((cs, c) => cs + c.activeCount, 0), 0)
 
   return (
     <div>
@@ -89,17 +104,19 @@ export default function IncentivesPage() {
           {!loading && (
             <div className="mt-4 flex gap-6">
               <div className="flex flex-col">
-                <span className="text-amber-400 font-bold text-lg leading-none">{totalOffers}</span>
-                <span className="text-stone-400 text-xs mt-0.5">Communities with Offers</span>
+                <span className="text-amber-400 font-bold text-lg leading-none">{offers.length}</span>
+                <span className="text-stone-400 text-xs mt-0.5">Unique Offers</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-amber-400 font-bold text-lg leading-none">{totalCommunities}</span>
+                <span className="text-stone-400 text-xs mt-0.5">Eligible Communities</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-amber-400 font-bold text-lg leading-none">{uniqueBuilders}</span>
                 <span className="text-stone-400 text-xs mt-0.5">Builders</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-amber-400 font-bold text-lg leading-none">
-                  {communities.reduce((s, c) => s + c.activeCount, 0)}
-                </span>
+                <span className="text-amber-400 font-bold text-lg leading-none">{totalListings}</span>
                 <span className="text-stone-400 text-xs mt-0.5">Active Listings</span>
               </div>
             </div>
@@ -128,86 +145,83 @@ export default function IncentivesPage() {
             </button>
           </div>
           <div className="ml-auto self-end text-sm text-stone-400 whitespace-nowrap pb-0.5">
-            {loading ? "Loading..." : `${totalOffers} offer${totalOffers !== 1 ? "s" : ""}`}
+            {loading ? "Loading..." : `${offers.length} offer${offers.length !== 1 ? "s" : ""} across ${totalCommunities} communities`}
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-stone-50 border-b border-stone-200">
-                {[
-                  { label: "Community", field: "community" },
-                  { label: "City", field: "city" },
-                  { label: "Builder", field: "builder" },
-                  { label: "Listings", field: null },
-                  { label: "Price Range", field: null },
-                  { label: "Current Offer / Incentive", field: null },
-                ].map(({ label, field }) => (
-                  <th key={label}
-                    className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-stone-500 ${field ? "cursor-pointer hover:text-stone-700" : ""}`}
-                    onClick={field ? () => handleSort(field) : undefined}>
-                    {label}{field && <SortIcon field={field} />}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-stone-400">Loading incentives...</td></tr>
-              ) : communities.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-stone-400">
-                  No active incentives found. Run the incentive scraper to populate.
-                </td></tr>
-              ) : (
-                communities.map((c, idx) => (
-                  <tr key={c.id} className={`hover:bg-amber-50/40 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-stone-50/50"}`}>
-                    {/* Community */}
-                    <td className="px-4 py-4 max-w-[200px]">
-                      <a href={c.url} target="_blank" rel="noopener noreferrer"
-                        className="font-semibold text-stone-800 hover:text-amber-700 hover:underline leading-tight block truncate">
-                        {cleanCommunityName(c.name)}
-                      </a>
-                    </td>
-                    {/* City */}
-                    <td className="px-4 py-4 text-stone-500 whitespace-nowrap">{c.city}, {c.state}</td>
-                    {/* Builder */}
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs border ${builderBadgeColor(c.builder.name)}`}>
-                        <span className={builderColor(c.builder.name)}>{c.builder.name}</span>
-                      </span>
-                    </td>
-                    {/* Listing count */}
-                    <td className="px-4 py-4 text-stone-500 text-center whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-stone-100 text-stone-600 text-xs font-semibold">
-                        {c.activeCount}
-                      </span>
-                    </td>
-                    {/* Price range */}
-                    <td className="px-4 py-4 whitespace-nowrap text-stone-700 font-medium">
-                      {c.minPrice && c.maxPrice ? (
-                        c.minPrice === c.maxPrice
-                          ? formatPrice(c.minPrice)
-                          : <>{formatPrice(c.minPrice)}<span className="text-stone-400 font-normal mx-1">–</span>{formatPrice(c.maxPrice)}</>
-                      ) : "—"}
-                    </td>
-                    {/* Incentive */}
-                    <td className="px-4 py-4 max-w-sm">
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 flex-none w-2 h-2 rounded-full bg-amber-400" />
-                        <span className="text-stone-700 leading-snug">{c.incentives}</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Offers list */}
+      {loading ? (
+        <div className="bg-white rounded-xl border border-stone-200 shadow-sm px-4 py-12 text-center text-stone-400">
+          Loading incentives...
         </div>
-      </div>
+      ) : offers.length === 0 ? (
+        <div className="bg-white rounded-xl border border-stone-200 shadow-sm px-4 py-12 text-center text-stone-400">
+          No active incentives found. Run the incentive scraper to populate.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {offers.map((offer, idx) => (
+            <div key={idx} className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+              {/* Offer header */}
+              <button
+                onClick={() => toggleExpand(idx)}
+                className="w-full px-5 py-4 flex items-start gap-4 hover:bg-stone-50/50 transition-colors text-left"
+              >
+                <span className="mt-1 flex-none w-2.5 h-2.5 rounded-full bg-amber-400" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs border font-semibold ${builderBadgeColor(offer.builder)}`}>
+                      {offer.builder}
+                    </span>
+                    <span className="text-xs text-stone-400">
+                      {offer.communities.length} communit{offer.communities.length === 1 ? "y" : "ies"}
+                    </span>
+                  </div>
+                  <p className="text-stone-800 leading-snug text-sm whitespace-pre-line">
+                    {offer.offerText}
+                  </p>
+                </div>
+                <span className="mt-1 text-stone-400 text-sm flex-none">
+                  {expandedOffers.has(idx) ? "▾" : "▸"}
+                </span>
+              </button>
+
+              {/* Eligible communities */}
+              {expandedOffers.has(idx) && (
+                <div className="border-t border-stone-100">
+                  <div className="px-5 py-2 bg-stone-50/50">
+                    <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">
+                      Eligible Communities
+                    </span>
+                  </div>
+                  <div className="divide-y divide-stone-100">
+                    {offer.communities.map((c) => (
+                      <div key={c.id} className="px-5 py-2.5 flex items-center gap-4 hover:bg-amber-50/30 transition-colors">
+                        <a href={c.url} target="_blank" rel="noopener noreferrer"
+                          className={`font-medium hover:underline text-sm min-w-0 truncate ${builderColor(offer.builder)}`}>
+                          {cleanCommunityName(c.name)}
+                        </a>
+                        <span className="text-xs text-stone-400 whitespace-nowrap">{c.city}, {c.state}</span>
+                        <span className="text-xs text-stone-400 whitespace-nowrap">
+                          {c.activeCount} listing{c.activeCount !== 1 ? "s" : ""}
+                        </span>
+                        <span className="ml-auto text-sm text-stone-700 font-medium whitespace-nowrap">
+                          {c.minPrice && c.maxPrice ? (
+                            c.minPrice === c.maxPrice
+                              ? formatPrice(c.minPrice)
+                              : `${formatPrice(c.minPrice)} – ${formatPrice(c.maxPrice)}`
+                          ) : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <p className="mt-4 text-xs text-stone-400 text-right">
         Incentives sourced directly from builder websites. Offers subject to change — verify with builder for current terms.

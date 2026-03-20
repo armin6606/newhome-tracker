@@ -24,7 +24,7 @@ export async function scrapeBrandywineOC(): Promise<ScrapedListing[]> {
     await page.waitForTimeout(3000)
 
     const communities = await page.evaluate((ocCities) => {
-      const results: { name: string; url: string; city: string; price?: number; beds?: number; sqft?: number; status?: string; propertyType?: string }[] = []
+      const results: { name: string; url: string; city: string; price?: number; beds?: number; sqft?: number; status?: string; propertyType?: string; incentives?: string }[] = []
 
       document.querySelectorAll(".list-item").forEach((card) => {
         const el = card as HTMLElement
@@ -58,6 +58,40 @@ export async function scrapeBrandywineOC(): Promise<ScrapedListing[]> {
         const linkEl = el.querySelector(".list-text a[href]") as HTMLAnchorElement | null
         const url = linkEl?.href || ""
 
+        // Check for incentive text within the card
+        let incentives: string | undefined
+        const incentiveSelectors = [
+          '[class*="incentive"]', '[class*="Incentive"]',
+          '[class*="promotion"]', '[class*="Promotion"]',
+          '[class*="offer"]', '[class*="Offer"]',
+          '[class*="special"]', '[class*="Special"]',
+          '[class*="closing"]', '[class*="buydown"]',
+          '[class*="credit"]', '[class*="Credit"]',
+          '[class*="savings"]', '[class*="Savings"]',
+        ]
+        for (const sel of incentiveSelectors) {
+          const incEl = el.querySelector(sel) as HTMLElement | null
+          const txt = incEl?.innerText?.trim()
+          if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+        }
+
+        // Regex fallback on card text
+        if (!incentives) {
+          const fullText = (el as HTMLElement).innerText || ""
+          const incPatterns = [
+            /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+          ]
+          const matches: string[] = []
+          for (const pat of incPatterns) {
+            let m: RegExpExecArray | null
+            while ((m = pat.exec(fullText)) !== null) {
+              matches.push(m[0].trim())
+              if (matches.length >= 3) break
+            }
+          }
+          if (matches.length) incentives = matches.join(" | ")
+        }
+
         results.push({
           name,
           url,
@@ -67,6 +101,7 @@ export async function scrapeBrandywineOC(): Promise<ScrapedListing[]> {
           sqft: sqftM ? parseInt(sqftM[1].replace(/,/g, ""), 10) : undefined,
           status,
           propertyType: typeM ? typeM[1] : "Attached",
+          incentives,
         })
       })
 
@@ -86,6 +121,7 @@ export async function scrapeBrandywineOC(): Promise<ScrapedListing[]> {
         price: comm.price,
         pricePerSqft: comm.price && comm.sqft ? Math.round(comm.price / comm.sqft) : undefined,
         propertyType: comm.propertyType || "Attached",
+        incentives: comm.incentives,
         sourceUrl: comm.url || LISTING_URL,
       })
     }

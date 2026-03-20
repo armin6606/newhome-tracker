@@ -42,6 +42,52 @@ interface KBCommunity {
   ComingSoon?: boolean
 }
 
+/** Extract incentive text from a KB Home community page */
+async function scrapeKBIncentives(page: import("playwright").Page, url: string): Promise<string | undefined> {
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
+    await page.waitForTimeout(3000)
+
+    return await page.evaluate(() => {
+      const body = (document.body as HTMLElement).innerText || ""
+
+      // Try CSS selectors for incentive elements
+      const selectors = [
+        '[class*="incentive"]', '[class*="Incentive"]',
+        '[class*="promotion"]', '[class*="Promotion"]',
+        '[class*="offer"]', '[class*="Offer"]',
+        '[class*="special"]', '[class*="Special"]',
+        '[class*="closing"]', '[class*="buydown"]',
+        '[class*="credit"]', '[class*="Credit"]',
+        '[class*="savings"]', '[class*="Savings"]',
+      ]
+      for (const sel of selectors) {
+        const el = document.querySelector(sel) as HTMLElement | null
+        const txt = el?.innerText?.trim()
+        if (txt && txt.length > 5 && txt.length < 500) return txt
+      }
+
+      // Regex fallback on page text
+      const patterns = [
+        /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+      ]
+      const matches: string[] = []
+      for (const pat of patterns) {
+        let m: RegExpExecArray | null
+        while ((m = pat.exec(body)) !== null) {
+          matches.push(m[0].trim())
+          if (matches.length >= 3) break
+        }
+      }
+      if (matches.length) return matches.join(" | ")
+
+      return undefined
+    })
+  } catch {
+    return undefined
+  }
+}
+
 export async function scrapeKBHomeOC(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
@@ -80,6 +126,11 @@ export async function scrapeKBHomeOC(): Promise<ScrapedListing[]> {
 
       const propertyType = /multi-family|condo|townhome|attached/i.test(c.Style || "") ? "Attached" : "Detached"
 
+      // Scrape incentives from community page
+      console.log(`  Checking incentives: ${c.CommunityName}`)
+      const incentives = await scrapeKBIncentives(page, communityUrl)
+      await page.waitForTimeout(500)
+
       allListings.push({
         communityName: c.CommunityName,
         communityUrl,
@@ -92,6 +143,7 @@ export async function scrapeKBHomeOC(): Promise<ScrapedListing[]> {
         price,
         pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
         propertyType,
+        incentives,
         sourceUrl: communityUrl,
       })
     }

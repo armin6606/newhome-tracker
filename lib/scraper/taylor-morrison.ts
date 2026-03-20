@@ -35,7 +35,7 @@ export async function scrapeTaylorMorrisonOC(): Promise<ScrapedListing[]> {
     await page.waitForTimeout(2000)
 
     const communities = await page.evaluate((ocCities) => {
-      const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; garages?: number; status?: string }[] = []
+      const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; garages?: number; status?: string; incentives?: string }[] = []
       const seen = new Set<string>()
 
       document.querySelectorAll("[class*='community-card']").forEach((card) => {
@@ -64,6 +64,39 @@ export async function scrapeTaylorMorrisonOC(): Promise<ScrapedListing[]> {
         const garM = text.match(/(\d+)\s*Garage/i)
         const statusM = lines.find((l) => /models? open|coming soon|now selling|move.in/i.test(l))
 
+        // Check for incentive text within the card
+        let incentives: string | undefined
+        const incentiveSelectors = [
+          '[class*="incentive"]', '[class*="Incentive"]',
+          '[class*="promotion"]', '[class*="Promotion"]',
+          '[class*="offer"]', '[class*="Offer"]',
+          '[class*="special"]', '[class*="Special"]',
+          '[class*="closing"]', '[class*="buydown"]',
+          '[class*="credit"]', '[class*="Credit"]',
+          '[class*="savings"]', '[class*="Savings"]',
+        ]
+        for (const sel of incentiveSelectors) {
+          const incEl = el.querySelector(sel) as HTMLElement | null
+          const txt = incEl?.innerText?.trim()
+          if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+        }
+
+        // Regex fallback on card text
+        if (!incentives) {
+          const incPatterns = [
+            /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+          ]
+          const matches: string[] = []
+          for (const pat of incPatterns) {
+            let m: RegExpExecArray | null
+            while ((m = pat.exec(text)) !== null) {
+              matches.push(m[0].trim())
+              if (matches.length >= 3) break
+            }
+          }
+          if (matches.length) incentives = matches.join(" | ")
+        }
+
         results.push({
           name,
           url: href,
@@ -74,6 +107,7 @@ export async function scrapeTaylorMorrisonOC(): Promise<ScrapedListing[]> {
           sqft: sqftM ? parseInt(sqftM[1].replace(/,/g, ""), 10) : undefined,
           garages: garM ? parseInt(garM[1], 10) : undefined,
           status: statusM,
+          incentives,
         })
       })
 
@@ -97,6 +131,7 @@ export async function scrapeTaylorMorrisonOC(): Promise<ScrapedListing[]> {
         price,
         pricePerSqft: price && c.sqft ? Math.round(price / c.sqft) : undefined,
         propertyType: "Detached",
+        incentives: c.incentives,
         sourceUrl: communityUrl,
       })
     }

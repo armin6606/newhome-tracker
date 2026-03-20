@@ -22,7 +22,7 @@ export async function scrapeCityVenturesOC(): Promise<ScrapedListing[]> {
     await page.waitForTimeout(3000)
 
     const communities = await page.evaluate(() => {
-      const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; status?: string }[] = []
+      const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; status?: string; incentives?: string }[] = []
 
       // Filter to OC cards using data-county or city matching
       const ocCities = ["santa ana", "anaheim", "orange", "fullerton", "irvine", "laguna", "newport", "garden grove", "huntington beach", "westminster", "stanton", "cypress", "seal beach", "fountain valley", "buena park", "la habra", "yorba linda", "placentia", "tustin", "san clemente", "san juan capistrano", "mission viejo", "lake forest", "rancho santa margarita"]
@@ -54,6 +54,40 @@ export async function scrapeCityVenturesOC(): Promise<ScrapedListing[]> {
         const cityMatch = text.match(/([a-z\s]+),\s*ca/)
         const cityEl = el.querySelector(".text-uppercase, [class*='city']") as HTMLElement | null
 
+        // Check for incentive text within the card
+        let incentives: string | undefined
+        const incentiveSelectors = [
+          '[class*="incentive"]', '[class*="Incentive"]',
+          '[class*="promotion"]', '[class*="Promotion"]',
+          '[class*="offer"]', '[class*="Offer"]',
+          '[class*="special"]', '[class*="Special"]',
+          '[class*="closing"]', '[class*="buydown"]',
+          '[class*="credit"]', '[class*="Credit"]',
+          '[class*="savings"]', '[class*="Savings"]',
+        ]
+        for (const sel of incentiveSelectors) {
+          const incEl = el.querySelector(sel) as HTMLElement | null
+          const txt = incEl?.innerText?.trim()
+          if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+        }
+
+        // Regex fallback on card text (use original case text for matching)
+        if (!incentives) {
+          const fullText = (el as HTMLElement).innerText || ""
+          const incPatterns = [
+            /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
+          ]
+          const matches: string[] = []
+          for (const pat of incPatterns) {
+            let m: RegExpExecArray | null
+            while ((m = pat.exec(fullText)) !== null) {
+              matches.push(m[0].trim())
+              if (matches.length >= 3) break
+            }
+          }
+          if (matches.length) incentives = matches.join(" | ")
+        }
+
         results.push({
           name,
           url,
@@ -62,6 +96,7 @@ export async function scrapeCityVenturesOC(): Promise<ScrapedListing[]> {
           beds: bedM ? parseFloat(bedM[1]) : undefined,
           baths: bathM ? parseFloat(bathM[1]) : undefined,
           sqft: typeof sqftM === "number" && sqftM > 0 ? sqftM : undefined,
+          incentives,
         })
       })
 
@@ -83,6 +118,7 @@ export async function scrapeCityVenturesOC(): Promise<ScrapedListing[]> {
         price,
         pricePerSqft: price && comm.sqft ? Math.round(price / comm.sqft) : undefined,
         propertyType: "Attached",
+        incentives: comm.incentives,
         sourceUrl: comm.url || LISTING_URL,
       })
     }

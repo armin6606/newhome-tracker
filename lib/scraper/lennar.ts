@@ -250,7 +250,7 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
     await page.waitForTimeout(2000)
 
-    return await page.evaluate(() => {
+    const basicResult = await page.evaluate(() => {
       const body = (document.body as HTMLElement).innerText || ""
 
       const floorTabs = document.querySelectorAll('[class*="SlashMenu_label"]')
@@ -266,7 +266,21 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
         moveInDate = dateEl.innerText.trim().replace(/^quick\s+move[-\s]?in\s*/i, "").trim() || dateEl.innerText.trim()
       }
 
-      let incentives: string | undefined
+      // Find offer link to click through for details
+      let offerHref: string | undefined
+      const offerSelectors = [
+        '[class*="incentive"] a', '[class*="Incentive"] a',
+        '[class*="promotion"] a', '[class*="Promotion"] a',
+        '[class*="offer"] a', '[class*="specialOffer"] a',
+        'a[href*="offer"]', 'a[href*="incentive"]', 'a[href*="promotion"]',
+      ]
+      for (const sel of offerSelectors) {
+        const link = document.querySelector(sel) as HTMLAnchorElement | null
+        if (link?.href) { offerHref = link.href; break }
+      }
+
+      // Also grab the teaser text as a fallback
+      let teaserText: string | undefined
       const incentiveSelectors = [
         '[class*="incentive"]', '[class*="Incentive"]',
         '[class*="promotion"]', '[class*="Promotion"]',
@@ -276,13 +290,95 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
       for (const sel of incentiveSelectors) {
         const el = document.querySelector(sel) as HTMLElement | null
         const txt = el?.innerText?.trim()
-        if (txt && txt.length > 5 && txt.length < 500) { incentives = txt; break }
+        if (txt && txt.length > 5 && txt.length < 500) { teaserText = txt; break }
       }
 
-      return { floors, moveInDate, incentives }
+      return { floors, moveInDate, offerHref, teaserText }
     })
+
+    // If we found an offer link, navigate to it and extract full details
+    let incentives: string | undefined
+    if (basicResult.offerHref) {
+      try {
+        incentives = await scrapeLennarOfferPage(page, basicResult.offerHref)
+      } catch {
+        // Fall back to teaser text
+      }
+    }
+
+    // Fall back to teaser text (strip "View offer" suffix)
+    if (!incentives && basicResult.teaserText) {
+      incentives = basicResult.teaserText
+        .replace(/\n?\s*view\s+offer\s*$/i, "")
+        .trim() || basicResult.teaserText
+    }
+
+    return { floors: basicResult.floors, moveInDate: basicResult.moveInDate, incentives }
   } catch {
     return {}
+  }
+}
+
+/** Navigate to a Lennar offer/promotion page and extract the full offer details */
+async function scrapeLennarOfferPage(page: Page, offerUrl: string): Promise<string | undefined> {
+  try {
+    await page.goto(offerUrl, { waitUntil: "domcontentloaded", timeout: 30000 })
+    await page.waitForTimeout(2000)
+
+    return await page.evaluate(() => {
+      const body = document.body as HTMLElement
+      const bodyText = body.innerText || ""
+
+      // Try to find structured offer content
+      const detailSelectors = [
+        '[class*="offerDetail"]', '[class*="OfferDetail"]',
+        '[class*="promotionDetail"]', '[class*="PromotionDetail"]',
+        '[class*="incentiveDetail"]', '[class*="IncentiveDetail"]',
+        '[class*="offerContent"]', '[class*="OfferContent"]',
+        '[class*="promoContent"]', '[class*="PromoContent"]',
+        'article', '[class*="content"]',
+        'main',
+      ]
+
+      for (const sel of detailSelectors) {
+        const el = document.querySelector(sel) as HTMLElement | null
+        const txt = el?.innerText?.trim()
+        if (txt && txt.length > 20 && txt.length < 2000) {
+          // Clean up: remove excessive whitespace, nav items, etc.
+          const cleaned = txt
+            .replace(/\n{3,}/g, "\n\n")
+            .replace(/\t+/g, " ")
+            .trim()
+          if (cleaned.length > 20) return cleaned
+        }
+      }
+
+      // Try regex patterns on full page text for common Lennar offer formats
+      const patterns = [
+        /(?:save|get|receive|earn|up to)\s+\$[\d,]+[^\n]*(?:\n[^\n]{5,120}){0,3}/gi,
+        /(?:closing\s+cost|rate\s+buy[-\s]?down|design\s+credit|upgrade|flex\s+cash)[^\n]*(?:\n[^\n]{5,120}){0,3}/gi,
+        /(?:limited[- ]time|special\s+offer|exclusive)[^\n]*(?:\n[^\n]{5,120}){0,3}/gi,
+      ]
+
+      const found: string[] = []
+      for (const pat of patterns) {
+        const matches = bodyText.match(pat)
+        if (matches) {
+          for (const m of matches) {
+            const cleaned = m.trim()
+            if (cleaned.length > 15 && cleaned.length < 500 && !found.includes(cleaned)) {
+              found.push(cleaned)
+            }
+          }
+        }
+      }
+
+      if (found.length > 0) return found.join(" | ")
+
+      return undefined
+    })
+  } catch {
+    return undefined
   }
 }
 

@@ -28,6 +28,13 @@ interface RisewellHit {
   maxSqFt?: number
   minSqft?: number
   maxSqft?: number
+  incentive?: string
+  incentiveText?: string
+  promotion?: string
+  promotionText?: string
+  specialOffer?: string
+  offerText?: string
+  promoLabel?: string
 }
 
 function parseTextPrice(text: string): number | undefined {
@@ -79,6 +86,13 @@ export async function scrapeRisewellOC(): Promise<ScrapedListing[]> {
         ? "Attached"
         : "Detached"
 
+      // Extract incentive data from API response fields
+      const incentiveParts = [
+        hit.incentive, hit.incentiveText, hit.promotion,
+        hit.promotionText, hit.specialOffer, hit.offerText, hit.promoLabel,
+      ].filter(Boolean) as string[]
+      const incentives = incentiveParts.length > 0 ? incentiveParts.join(" | ").trim() : undefined
+
       allListings.push({
         communityName: hit.name,
         communityUrl,
@@ -89,6 +103,7 @@ export async function scrapeRisewellOC(): Promise<ScrapedListing[]> {
         price: price && price > 100000 ? price : undefined,
         pricePerSqft: price && sqft && price > 100000 ? Math.round(price / sqft) : undefined,
         propertyType,
+        incentives,
         sourceUrl: communityUrl,
       })
     }
