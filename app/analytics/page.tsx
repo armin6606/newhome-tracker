@@ -40,10 +40,11 @@ type MetaData = {
 function shortName(name: string): string {
   return name
     .replace(/^toll brothers\s+(at|in|by|of)\s+/i, "")
-    .replace(/\s+by\s+toll brothers$/i, "")
+    .replace(/\s+by\s+toll\s+brothers/i, "")
     .replace(/^toll brothers\s+/i, "")
     .replace(/great park neighborhoods/i, "Great Park")
     .replace(/\s+at\s+[\w\s]+$/i, "")
+    .replace(/\s+/g, " ")
     .trim()
 }
 
