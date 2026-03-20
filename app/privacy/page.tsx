@@ -1,4 +1,11 @@
-export const metadata = { title: "Privacy Policy — NewKey.us" }
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description: "Learn how NewKey.us collects, uses, and protects your personal information when you use our new construction home tracking platform.",
+  alternates: { canonical: "https://www.newkey.us/privacy" },
+  robots: { index: true, follow: true },
+}
 
 export default function PrivacyPage() {
   return (

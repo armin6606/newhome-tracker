@@ -7,11 +7,65 @@ import { MobileNav } from "@/app/_components/MobileNav"
 
 const nunito = Nunito({ variable: "--font-nunito", subsets: ["latin"], weight: ["400", "600", "700", "800"] })
 
+const siteUrl = "https://www.newkey.us"
+
 export const metadata: Metadata = {
-  title: "NewKey.us — New Construction Homes",
-  description: "Track new construction homes, price history, and sales velocity in Irvine",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "NewKey.us — New Construction Homes in Orange County",
+    template: "%s | NewKey.us",
+  },
+  description:
+    "Browse and track new construction homes in Orange County, CA. Compare prices, floor plans, move-in dates, and sales velocity across all major builders.",
+  keywords: [
+    "new construction homes Orange County",
+    "new homes Irvine CA",
+    "new build homes OC",
+    "Toll Brothers Irvine",
+    "Lennar new homes",
+    "KB Home Orange County",
+    "Taylor Morrison OC",
+    "new home tracker",
+  ],
+  authors: [{ name: "NewKey.us" }],
+  creator: "NewKey.us",
+  publisher: "NewKey.us",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  alternates: {
+    canonical: siteUrl,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName: "NewKey.us",
+    title: "NewKey.us — New Construction Homes in Orange County",
+    description:
+      "Browse and track new construction homes in Orange County, CA. Compare prices, floor plans, move-in dates, and sales velocity across all major builders.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "NewKey.us — New Construction Homes in Orange County",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NewKey.us — New Construction Homes in Orange County",
+    description:
+      "Browse and track new construction homes in Orange County, CA. Compare prices, floor plans, move-in dates, and sales velocity.",
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: "/logo.png",
+    shortcut: "/favicon.ico",
+    apple: "/logo.png",
   },
 }
 
@@ -38,6 +92,41 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </nav>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "NewKey.us",
+              url: "https://www.newkey.us",
+              description:
+                "Browse and track new construction homes in Orange County, CA.",
+              publisher: {
+                "@type": "Organization",
+                name: "NewKey.us",
+                url: "https://www.newkey.us",
+                logo: {
+                  "@type": "ImageObject",
+                  url: "https://www.newkey.us/logo.png",
+                },
+                contactPoint: {
+                  "@type": "ContactPoint",
+                  email: "info@newkey.us",
+                  contactType: "customer service",
+                },
+              },
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate: "https://www.newkey.us/?q={search_term_string}",
+                },
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
         <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </main>

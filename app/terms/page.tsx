@@ -1,4 +1,11 @@
-export const metadata = { title: "Terms of Use — NewKey.us" }
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Terms of Use",
+  description: "Read the Terms of Use for NewKey.us. By using this site you agree to these terms governing access to our new construction home data.",
+  alternates: { canonical: "https://www.newkey.us/terms" },
+  robots: { index: true, follow: true },
+}
 
 export default function TermsPage() {
   return (

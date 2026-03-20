@@ -1,4 +1,11 @@
-export const metadata = { title: "Data Accuracy Policy — NewKey.us" }
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Data Accuracy Policy",
+  description: "Understand the limitations of listing data on NewKey.us. Prices, availability, and details may not be current — always verify with the builder.",
+  alternates: { canonical: "https://www.newkey.us/data-accuracy" },
+  robots: { index: true, follow: true },
+}
 
 export default function DataAccuracyPage() {
   return (
