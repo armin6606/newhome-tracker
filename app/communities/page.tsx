@@ -187,7 +187,7 @@ export default function CommunitiesPage() {
                       <Tooltip
                         cursor={{ fill: "#f3f4f6" }}
                         contentStyle={{ fontSize: 11, padding: "2px 8px", borderRadius: 6 }}
-                        formatter={(v: number) => [`${v} sold`, "Sales"]}
+                        formatter={(v) => [`${v} sold`, "Sales"]}
                       />
                       <Bar dataKey="sold" radius={[3, 3, 0, 0]} maxBarSize={16}>
                         {c.salesByWeek.map((entry, i) => (
