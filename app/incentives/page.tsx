@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { formatPrice } from "@/lib/utils"
+import { formatPrice, cleanCommunityName } from "@/lib/utils"
 import { ContentGate } from "@/app/_components/ContentGate"
 
 type CommunityEntry = {
@@ -19,14 +19,6 @@ type GroupedOffer = {
   offerText: string
   builder: string
   communities: CommunityEntry[]
-}
-
-function cleanCommunityName(name: string): string {
-  return name
-    .replace(/^toll brothers\s+(at|in|by|of)\s+/i, "")
-    .replace(/\s+by\s+toll brothers$/i, "")
-    .replace(/^toll brothers\s+/i, "")
-    .trim()
 }
 
 function builderColor(name: string): string {
