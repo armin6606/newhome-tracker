@@ -311,13 +311,71 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
       return { floors, moveInDate, offerHref, teaserText }
     })
 
-    // If we found an offer link, navigate to it and extract full details
+    // Try clicking "View offer" button to open modal and read details
     let incentives: string | undefined
+
     if (basicResult.offerHref) {
       try {
         incentives = await scrapeLennarOfferPage(page, basicResult.offerHref)
       } catch {
-        // Fall back to teaser text
+        // Fall back to click approach
+      }
+    }
+
+    if (!incentives) {
+      try {
+        // Try clicking "View offer" link/button to open a modal
+        const offerBtn = await page.$('a:has-text("View offer"), button:has-text("View offer"), [class*="offer"] a, [class*="offer"] button')
+        if (offerBtn) {
+          await offerBtn.click()
+          await page.waitForTimeout(2000)
+
+          // Read modal/overlay content
+          incentives = await page.evaluate(() => {
+            // Look for modal/dialog/overlay that appeared
+            const modalSelectors = [
+              '[class*="modal"]', '[class*="Modal"]',
+              '[class*="dialog"]', '[class*="Dialog"]',
+              '[class*="overlay"]', '[class*="Overlay"]',
+              '[class*="popup"]', '[class*="Popup"]',
+              '[role="dialog"]', '[role="alertdialog"]',
+            ]
+            for (const sel of modalSelectors) {
+              const modal = document.querySelector(sel) as HTMLElement | null
+              const txt = modal?.innerText?.trim()
+              if (txt && txt.length > 30 && txt.length < 3000) {
+                return txt.replace(/\n{3,}/g, "\n\n").trim()
+              }
+            }
+
+            // If no modal, check if the page content changed — look for offer detail text
+            const body = document.body.innerText || ""
+            const patterns = [
+              /(?:save|get|receive|up to)\s+\$[\d,]+[^\n]*(?:\n[^\n]{5,200}){0,5}/gi,
+              /(?:closing\s+cost|rate\s+buy[-\s]?down|design\s+credit|upgrade|flex\s+cash|interest\s+rate)[^\n]*(?:\n[^\n]{5,200}){0,5}/gi,
+            ]
+            const found: string[] = []
+            for (const pat of patterns) {
+              const matches = body.match(pat)
+              if (matches) {
+                for (const m of matches) {
+                  const cleaned = m.trim()
+                  if (cleaned.length > 15 && cleaned.length < 500 && !found.includes(cleaned)) {
+                    found.push(cleaned)
+                  }
+                }
+              }
+            }
+            if (found.length > 0) return found.join(" | ")
+            return undefined
+          })
+
+          // Try to close modal
+          const closeBtn = await page.$('[class*="close"], [class*="Close"], button[aria-label="Close"], [class*="modal"] button')
+          if (closeBtn) await closeBtn.click().catch(() => {})
+        }
+      } catch {
+        // Ignore click errors
       }
     }
 
