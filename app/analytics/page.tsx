@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
-import { formatPrice } from "@/lib/utils"
+import { formatPrice, cleanCommunityName } from "@/lib/utils"
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis, ComposedChart, Area,
@@ -37,16 +37,7 @@ type MetaData = {
   communities: string[]
 }
 
-function shortName(name: string): string {
-  return name
-    .replace(/^toll brothers\s+(at|in|by|of)\s+/i, "")
-    .replace(/\s+by\s+toll\s+brothers/i, "")
-    .replace(/^toll brothers\s+/i, "")
-    .replace(/great park neighborhoods/i, "Great Park")
-    .replace(/\s+at\s+[\w\s]+$/i, "")
-    .replace(/\s+/g, " ")
-    .trim()
-}
+const shortName = cleanCommunityName
 
 function builderColor(name: string): string {
   if (name.toLowerCase().includes("lennar")) return "text-[#1B4FA8] font-semibold"

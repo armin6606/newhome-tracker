@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { formatPrice } from "@/lib/utils"
+import { formatPrice, cleanCommunityName } from "@/lib/utils"
 import { getBuilderColor } from "@/lib/builder-colors"
 import { FollowButton } from "@/app/_components/FollowButton"
 
@@ -152,7 +152,7 @@ export default function CommunitiesPage() {
           {displayed.map((c) => (
             <div key={c.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-1 gap-2">
-                <h2 className="font-semibold text-gray-900 text-base leading-snug">{c.name}</h2>
+                <h2 className="font-semibold text-gray-900 text-base leading-snug">{cleanCommunityName(c.name)}</h2>
                 <div className="flex items-center gap-2 shrink-0">
                   <FollowButton communityId={c.id} initialFollowing={followIds.has(c.id)} />
                   <a href={c.url} target="_blank" rel="noopener noreferrer"

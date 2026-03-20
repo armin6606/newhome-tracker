@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
-import { formatPrice, formatNumber } from "@/lib/utils"
+import { formatPrice, formatNumber, cleanCommunityName } from "@/lib/utils"
 import { HeartButton } from "@/app/_components/HeartButton"
 import { getBuilderColor } from "@/lib/builder-colors"
 
@@ -83,16 +83,6 @@ function cleanPlanName(name: string | null): string {
   return name.replace(EXTERIOR_STYLES, " ").trim() || name.trim()
 }
 
-function cleanCommunityName(name: string): string {
-  return name
-    .replace(/^toll brothers\s+(at|in|by|of)\s+/i, "")
-    .replace(/\s+by\s+toll\s+brothers/i, "")
-    .replace(/^toll brothers\s+/i, "")
-    .replace(/great park neighborhoods/i, "Great Park")
-    .replace(/\s+at\s+[\w\s]+$/i, "")
-    .replace(/\s+/g, " ")
-    .trim()
-}
 
 function SchoolRatingBadge({ name, state }: { name: string; state: string }) {
   const [info, setInfo] = useState<{ rating: number | null; url: string } | null>(null)
@@ -476,7 +466,7 @@ export default function HomePage() {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="min-w-0">
                   <p className="font-semibold text-stone-900 text-sm truncate">{l.address}</p>
-                  <p className="text-xs text-stone-500 truncate" title={l.community.name}>{cleanCommunityName(l.community.name)} · {l.community.city}</p>
+                  <p className="text-xs text-stone-500 truncate" title={cleanCommunityName(l.community.name)}>{cleanCommunityName(l.community.name)} · {l.community.city}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-bold text-stone-900 text-sm">{formatPrice(l.currentPrice)}</p>

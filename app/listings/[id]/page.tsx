@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { formatPrice, formatNumber, daysAgo } from "@/lib/utils"
+import { formatPrice, formatNumber, daysAgo, cleanCommunityName } from "@/lib/utils"
 import { getBuilderColor } from "@/lib/builder-colors"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -284,7 +284,7 @@ export default function ListingDetailPage() {
               <div>
                 <h1 className="text-2xl font-bold text-stone-900">{listing.address}</h1>
                 <p className="text-stone-500 mt-0.5 text-sm">
-                  {listing.community.name} ·{" "}
+                  {cleanCommunityName(listing.community.name)} ·{" "}
                   <span className="font-semibold" style={{ color: builderColor }}>{listing.community.builder.name}</span>
                   {" "}· {listing.community.city}, {listing.community.state}
                 </p>
