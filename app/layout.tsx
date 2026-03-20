@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google"
 import "./globals.css"
 import Link from "next/link"
 import { NavActions } from "@/app/_components/NavActions"
+import { GoogleAnalytics } from "@next/third-parties/google"
 import { MobileNav } from "@/app/_components/MobileNav"
 
 const nunito = Nunito({ variable: "--font-nunito", subsets: ["latin"], weight: ["400", "600", "700", "800"] })
@@ -150,6 +151,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </p>
           </div>
         </footer>
+      <GoogleAnalytics gaId="G-2NDP6KLSSY" />
       </body>
     </html>
   )
