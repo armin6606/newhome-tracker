@@ -64,11 +64,8 @@ export function FilterGate({ children }: { children: React.ReactNode }) {
                 </svg>
               </div>
               <h2 className="text-xl font-bold text-stone-900 mb-2">
-                Sign up for free to unlock filters and track new homes
+                Sign Up for Free to Unlock All Features.
               </h2>
-              <p className="text-stone-500 text-sm">
-                Create a free account to filter listings, save favorites, and get alerts on new homes.
-              </p>
             </div>
             <Link
               href="/auth/login"

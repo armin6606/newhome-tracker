@@ -40,12 +40,9 @@ export function ContentGate({ children }: { children: React.ReactNode }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-stone-900 mb-3">
-            Sign up for free to access full market data
+          <h2 className="text-2xl font-bold text-stone-900 mb-6">
+            Sign Up for Free to Unlock All Features.
           </h2>
-          <p className="text-stone-500 text-sm mb-6 max-w-sm mx-auto">
-            Get unlimited access to community analytics, builder incentives, pricing trends, and more.
-          </p>
           <Link
             href="/auth/login"
             className="inline-block w-full max-w-xs py-3 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold rounded-lg transition-all text-sm"
