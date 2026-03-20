@@ -58,8 +58,8 @@ export default function IncentivesPage() {
     const res = await fetch(`/api/incentives?${params}`)
     const data = await res.json()
     setOffers(data)
-    // Expand all by default
-    setExpandedOffers(new Set(data.map((_: GroupedOffer, i: number) => i)))
+    // Collapsed by default
+    setExpandedOffers(new Set())
     setLoading(false)
   }, [citySearch, builderSearch])
 
@@ -189,17 +189,19 @@ export default function IncentivesPage() {
                       Eligible Communities
                     </span>
                   </div>
-                  <div className="grid grid-cols-2">
+                  <div className="grid grid-cols-2 divide-x divide-stone-100">
                     {offer.communities.map((c, i) => (
                       <div key={c.id}
-                        className={`px-4 py-2 flex items-center gap-2 hover:bg-amber-50/30 transition-colors ${Math.floor(i / 2) % 2 === 0 ? "bg-white" : "bg-stone-50"}`}>
-                        <a href={c.url} target="_blank" rel="noopener noreferrer"
-                          className={`font-medium hover:underline text-sm min-w-0 truncate ${builderColor(offer.builder)}`}>
-                          {cleanCommunityName(c.name)}
-                        </a>
-                        <span className="text-xs text-stone-400 whitespace-nowrap">{c.city}</span>
-                        <span className="text-xs text-stone-400 whitespace-nowrap">{c.activeCount} listing{c.activeCount !== 1 ? "s" : ""}</span>
-                        <span className="ml-auto text-sm text-stone-700 font-medium whitespace-nowrap">
+                        className={`px-4 py-2.5 flex items-center gap-3 hover:bg-amber-50/30 transition-colors ${Math.floor(i / 2) % 2 === 0 ? "bg-white" : "bg-stone-50/60"}`}>
+                        <div className="flex-1 min-w-0">
+                          <a href={c.url} target="_blank" rel="noopener noreferrer"
+                            className={`font-semibold hover:underline text-sm ${builderColor(offer.builder)}`}>
+                            {cleanCommunityName(c.name)}
+                          </a>
+                          <span className="text-xs text-stone-400 ml-2">{c.city}</span>
+                          <span className="text-xs text-stone-400 ml-1.5">{c.activeCount} listing{c.activeCount !== 1 ? "s" : ""}</span>
+                        </div>
+                        <span className="text-sm text-stone-700 font-medium whitespace-nowrap">
                           {c.minPrice && c.maxPrice ? (
                             c.minPrice === c.maxPrice
                               ? formatPrice(c.minPrice)

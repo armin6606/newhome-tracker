@@ -9,7 +9,7 @@ import { getBuilderColor } from "@/lib/builder-colors"
 
 type Listing = {
   id: number
-  address: string
+  address: string | null
   lotNumber: string | null
   floorPlan: string | null
   sqft: number | null
@@ -283,8 +283,8 @@ export default function HomePage() {
 
   // Deduplicate by address (keep first occurrence = lowest id)
   const deduped = listings.filter((l, idx, arr) => {
-    const key = `${l.community.city.trim().toLowerCase()}__${l.address.toLowerCase().trim()}`
-    return arr.findIndex((x) => `${x.community.city.trim().toLowerCase()}__${x.address.toLowerCase().trim()}` === key) === idx
+    const key = `${l.community.city.trim().toLowerCase()}__${(l.address ?? "").toLowerCase().trim()}`
+    return arr.findIndex((x) => `${x.community.city.trim().toLowerCase()}__${(x.address ?? "").toLowerCase().trim()}` === key) === idx
   })
 
   // Builders and cities that have at least one listing (for dropdowns)

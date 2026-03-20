@@ -37,7 +37,7 @@ model Listing {
   id            Int            @id @default(autoincrement())
   communityId   Int
   community     Community      @relation(fields: [communityId], references: [id])
-  address       String
+  address       String?
   lotNumber     String?
   floorPlan     String?
   sqft          Int?
