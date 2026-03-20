@@ -56,7 +56,7 @@ const SHEET_NAME = process.env.SHEET_NAME || "Listings"
 const USER_EDITABLE_COLS = new Set([11, 12, 13, 17, 20]) // L, M, N, R, U
 
 // Total number of columns in the sheet
-const TOTAL_COLS = 21 // A–U
+const TOTAL_COLS = 22 // A–V
 
 const HEADER_ROW = [
   "Listing ID",
@@ -80,6 +80,7 @@ const HEADER_ROW = [
   "Status",
   "Source URL",
   "Notes",
+  "Property Type",
 ]
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -122,7 +123,8 @@ function dbRow(listing) {
     listing.schools ?? "",                        // R  Schools   (editable, seeded)
     listing.status ?? "active",                   // S  Status
     listing.sourceUrl ?? "",                      // T  Source URL
-    "",                                           // U  Notes     (editable, empty by default)
+    "",                                           // U  Notes     (editable, preserved by merge)
+    listing.propertyType ?? "",                   // V  Property Type
   ]
 }
 
