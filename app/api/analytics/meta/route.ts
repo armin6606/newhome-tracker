@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 
-const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures"]
+const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures", "Brandywine Homes", "Olson Homes", "Risewell Homes"]
 
 export async function GET() {
   // Only return cities, builders, and communities that have active listings

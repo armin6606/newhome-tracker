@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const builders    = searchParams.getAll("builder")
   const communities = searchParams.getAll("community")
 
-  const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures"]
+  const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures", "Brandywine Homes", "Olson Homes", "Risewell Homes"]
 
   const communityWhere: Record<string, unknown> = {
     builder: { name: { notIn: EXCLUDED_BUILDERS } },
