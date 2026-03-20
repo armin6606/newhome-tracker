@@ -283,8 +283,8 @@ export default function HomePage() {
 
   // Deduplicate by address (keep first occurrence = lowest id)
   const deduped = listings.filter((l, idx, arr) => {
-    const key = `${l.community.city.toLowerCase()}__${l.address.toLowerCase().trim()}`
-    return arr.findIndex((x) => `${x.community.city.toLowerCase()}__${x.address.toLowerCase().trim()}` === key) === idx
+    const key = `${l.community.city.trim().toLowerCase()}__${l.address.toLowerCase().trim()}`
+    return arr.findIndex((x) => `${x.community.city.trim().toLowerCase()}__${x.address.toLowerCase().trim()}` === key) === idx
   })
 
   // Builders and cities that have at least one listing (for dropdowns)
@@ -292,11 +292,11 @@ export default function HomePage() {
     new Set(listings.map((l) => l.community.builder.name))
   ).sort()
   const citiesWithListings = Array.from(
-    new Set(listings.map((l) => l.community.city))
+    new Set(listings.map((l) => l.community.city.trim().replace(/\b\w/g, c => c.toUpperCase())))
   ).sort()
 
   const displayed = deduped.filter((l) => {
-    if (citySearch && l.community.city !== citySearch) return false
+    if (citySearch && l.community.city.toLowerCase() !== citySearch.toLowerCase()) return false
     if (moveInOnly && !isReady(l.moveInDate)) return false
     if (typeFilter && l.propertyType !== typeFilter) return false
     if (builderFilter && l.community.builder.name !== builderFilter) return false
