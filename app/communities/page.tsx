@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { formatPrice, cleanCommunityName } from "@/lib/utils"
 import { getBuilderColor } from "@/lib/builder-colors"
 import { FollowButton } from "@/app/_components/FollowButton"
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 
 type Community = {
   id: number
@@ -21,17 +21,9 @@ type Community = {
   avgDaysOnMarket: number | null
   minPrice: number | null
   maxPrice: number | null
+  salesByWeek: { week: string; sold: number }[]
 }
 
-function PaceBar({ salesPerMonth, max }: { salesPerMonth: number; max: number }) {
-  const pct = max > 0 ? Math.min((salesPerMonth / max) * 100, 100) : 0
-  const color = pct > 66 ? "bg-green-500" : pct > 33 ? "bg-yellow-500" : "bg-red-400"
-  return (
-    <div className="w-full bg-gray-100 rounded-full h-2 mt-1">
-      <div className={`${color} h-2 rounded-full transition-all`} style={{ width: `${pct}%` }} />
-    </div>
-  )
-}
 
 export default function CommunitiesPage() {
   const [communities, setCommunities] = useState<Community[]>([])
@@ -61,8 +53,6 @@ export default function CommunitiesPage() {
     if (builderFilter && c.builderName !== builderFilter) return false
     return true
   })
-
-  const maxSales = Math.max(...displayed.map((c) => c.salesPerMonth), 1)
 
   const selectCls = "border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
 
@@ -182,13 +172,35 @@ export default function CommunitiesPage() {
                 </div>
               </div>
 
-              {/* Sales pace */}
+              {/* Weekly sales bar chart */}
               <div className="mb-3">
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                  <span>Sales pace</span>
-                  <span className="font-semibold text-gray-800">{c.salesPerMonth}/month</span>
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                  <span className="font-medium">Sales (last 12 weeks)</span>
+                  <span className="font-semibold text-gray-800">{c.salesPerMonth}/mo pace</span>
                 </div>
-                <PaceBar salesPerMonth={c.salesPerMonth} max={maxSales} />
+                {c.salesByWeek.some((w) => w.sold > 0) ? (
+                  <ResponsiveContainer width="100%" height={60}>
+                    <BarChart data={c.salesByWeek} margin={{ top: 2, right: 0, bottom: 0, left: 0 }} barCategoryGap="20%">
+                      <XAxis dataKey="week" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false}
+                        interval={Math.floor(c.salesByWeek.length / 4)} />
+                      <YAxis hide allowDecimals={false} />
+                      <Tooltip
+                        cursor={{ fill: "#f3f4f6" }}
+                        contentStyle={{ fontSize: 11, padding: "2px 8px", borderRadius: 6 }}
+                        formatter={(v: number) => [`${v} sold`, "Sales"]}
+                      />
+                      <Bar dataKey="sold" radius={[3, 3, 0, 0]} maxBarSize={16}>
+                        {c.salesByWeek.map((entry, i) => (
+                          <Cell key={i} fill={entry.sold > 0 ? getBuilderColor(c.builderName) : "#e5e7eb"} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[60px] flex items-center justify-center text-xs text-gray-300 bg-gray-50 rounded-lg">
+                    No sales recorded yet
+                  </div>
+                )}
               </div>
 
               {/* Stats */}

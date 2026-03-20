@@ -50,6 +50,29 @@ export async function GET() {
     const minPrice = prices.length ? Math.min(...prices) : null
     const maxPrice = prices.length ? Math.max(...prices) : null
 
+    // Weekly sales for the last 12 weeks
+    function getWeekStart(d: Date): number {
+      const day = d.getUTCDay()
+      const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
+      return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff)).getTime()
+    }
+    const now = new Date()
+    const thisWeek = getWeekStart(now)
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+    const salesByWeek: { week: string; sold: number }[] = []
+    for (let i = 11; i >= 0; i--) {
+      const wStart = thisWeek - i * WEEK_MS
+      const wEnd = wStart + WEEK_MS
+      const d = new Date(wStart)
+      const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`
+      const count = c.listings.filter((l) => {
+        if (!l.soldAt) return false
+        const t = l.soldAt.getTime()
+        return t >= wStart && t < wEnd
+      }).length
+      salesByWeek.push({ week: label, sold: count })
+    }
+
     return {
       id: c.id,
       name: c.name,
@@ -65,6 +88,7 @@ export async function GET() {
       avgDaysOnMarket,
       minPrice,
       maxPrice,
+      salesByWeek,
     }
   })
 
