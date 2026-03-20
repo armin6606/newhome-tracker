@@ -50,18 +50,17 @@ export async function GET() {
     const minPrice = prices.length ? Math.min(...prices) : null
     const maxPrice = prices.length ? Math.max(...prices) : null
 
-    // Weekly sales for the last 12 weeks
+    // Weekly sales from tracking start (week of 2026-03-17) to current week
     function getWeekStart(d: Date): number {
       const day = d.getUTCDay()
       const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
       return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff)).getTime()
     }
-    const now = new Date()
-    const thisWeek = getWeekStart(now)
     const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+    const TRACKING_START_MS = getWeekStart(new Date("2026-03-17"))
+    const thisWeek = getWeekStart(new Date())
     const salesByWeek: { week: string; sold: number }[] = []
-    for (let i = 11; i >= 0; i--) {
-      const wStart = thisWeek - i * WEEK_MS
+    for (let wStart = TRACKING_START_MS; wStart <= thisWeek; wStart += WEEK_MS) {
       const wEnd = wStart + WEEK_MS
       const d = new Date(wStart)
       const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`

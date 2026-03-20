@@ -175,15 +175,19 @@ export default function CommunitiesPage() {
               {/* Weekly sales bar chart */}
               <div className="mb-3">
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                  <span className="font-medium">Sales (last 12 weeks)</span>
+                  <span className="font-medium">
+                    {c.salesByWeek.length <= 1
+                      ? "Sales (this week)"
+                      : `Sales (past ${c.salesByWeek.length} weeks)`}
+                  </span>
                   <span className="font-semibold text-gray-800">{c.salesPerMonth}/mo pace</span>
                 </div>
                 {c.salesByWeek.some((w) => w.sold > 0) ? (
-                  <ResponsiveContainer width="100%" height={60}>
-                    <BarChart data={c.salesByWeek} margin={{ top: 2, right: 0, bottom: 0, left: 0 }} barCategoryGap="20%">
+                  <ResponsiveContainer width="100%" height={70}>
+                    <BarChart data={c.salesByWeek} margin={{ top: 2, right: 4, bottom: 0, left: -16 }} barCategoryGap="20%">
                       <XAxis dataKey="week" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false}
-                        interval={Math.floor(c.salesByWeek.length / 4)} />
-                      <YAxis hide allowDecimals={false} />
+                        interval={Math.max(0, Math.floor(c.salesByWeek.length / 4) - 1)} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} width={24} />
                       <Tooltip
                         cursor={{ fill: "#f3f4f6" }}
                         contentStyle={{ fontSize: 11, padding: "2px 8px", borderRadius: 6 }}
@@ -197,7 +201,7 @@ export default function CommunitiesPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-[60px] flex items-center justify-center text-xs text-gray-300 bg-gray-50 rounded-lg">
+                  <div className="h-[70px] flex items-center justify-center text-xs text-gray-300 bg-gray-50 rounded-lg">
                     No sales recorded yet
                   </div>
                 )}
