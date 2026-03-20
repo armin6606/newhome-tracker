@@ -53,6 +53,7 @@ model Listing {
   moveInDate    String?
   schools       String?
   incentives    String?
+  incentivesUrl String?
   status        String         @default("active")
   sourceUrl     String?
   firstDetected DateTime       @default(now())

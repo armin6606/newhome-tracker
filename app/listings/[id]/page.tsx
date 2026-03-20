@@ -35,6 +35,7 @@ type Listing = {
   moveInDate: string | null
   schools: string | null
   incentives: string | null
+  incentivesUrl: string | null
   status: string
   sourceUrl: string | null
   firstDetected: string
@@ -351,6 +352,16 @@ export default function ListingDetailPage() {
                 Current Builder Incentive
               </h2>
               <p className="text-sm text-amber-900 leading-relaxed">{listing.incentives}</p>
+              {listing.incentivesUrl && (
+                <a
+                  href={listing.incentivesUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-amber-700 underline hover:text-amber-900"
+                >
+                  View full offer details on builder website →
+                </a>
+              )}
             </div>
           )}
 

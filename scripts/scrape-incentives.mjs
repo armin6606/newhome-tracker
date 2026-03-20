@@ -30,9 +30,11 @@ function parseIncentives(bodyText) {
 
   // 2. Wider regex on full body
   const patterns = [
+    // Lennar ARM offer: "X.XX% 7/6 Adjustable rate mortgage..."
+    /\d+\.\d+%[^\n]{0,20}\d\/\d\s+Adjustable[^\n.]{0,200}/i,
     /\d+\.\d+%[^\n]{0,40}first[- ]year[^\n]{0,80}/i,
     /first[- ]year\s+rate[^\n]{0,120}/i,
-    /\d\/\d\s+buydown[^\n]{0,120}/i,
+    /\d\/\d\s+(?:ARM|buydown)[^\n]{0,120}/i,
     /closing\s+cost\s+(?:credit|assistance)[^\n.]{0,120}/i,
     /rate\s+buy[- ]?down[^\n.]{0,120}/i,
     /flex\s+cash[^\n.]{0,120}/i,
@@ -83,10 +85,13 @@ async function main() {
     if (!activeIds.length) continue
 
     let url = community.url
+    let incentivesUrl = null
     const builderLower = community.builder.name.toLowerCase()
     // Use builder-level promo pages — these show site-wide banners
     if (builderLower.includes("lennar")) {
-      url = "https://www.lennar.com/new-homes/california/orange-county/irvine"
+      // Lennar OC: check the OC promo page first, fall back to community URL
+      url = "https://www.lennar.com/new-homes/california/orange-county/promo/ochlen_dsv26_oc"
+      incentivesUrl = "https://www.lennar.com/new-homes/california/orange-county/promo/ochlen_dsv26_oc"
     } else if (builderLower.includes("toll")) {
       url = "https://www.tollbrothers.com/luxury-homes/California"
     }
@@ -105,11 +110,11 @@ async function main() {
     const incentives = parseIncentives(bodyText)
     if (incentives) {
       console.log(`  ✓ ${incentives.slice(0, 110)}`)
-      await prisma.listing.updateMany({ where: { id: { in: activeIds } }, data: { incentives } })
+      await prisma.listing.updateMany({ where: { id: { in: activeIds } }, data: { incentives, incentivesUrl } })
       totalUpdated += activeIds.length
     } else {
       console.log(`  – No incentive found`)
-      await prisma.listing.updateMany({ where: { id: { in: activeIds } }, data: { incentives: null } })
+      await prisma.listing.updateMany({ where: { id: { in: activeIds } }, data: { incentives: null, incentivesUrl: null } })
     }
     console.log()
     await page.waitForTimeout(1500)
