@@ -24,6 +24,7 @@ model Community {
   city          String
   state         String
   url           String
+  excluded      Boolean           @default(false)
   firstDetected DateTime          @default(now())
   lastUpdated   DateTime          @updatedAt
   listings      Listing[]

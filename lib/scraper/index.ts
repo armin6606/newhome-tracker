@@ -6,13 +6,8 @@ import { scrapeTriPointeOC } from "./tri-pointe"
 import { scrapeaSheaHomesOC } from "./shea-homes"
 import { scrapePulteOC, scrapeDelWebbOC } from "./pulte"
 import { scrapeTaylorMorrisonOC } from "./taylor-morrison"
-import { scrapeRisewellOC } from "./risewell"
 import { scrapeMeliaHomesOC } from "./melia"
 import { scrapeBrookfieldOC } from "./brookfield"
-import { scrapeCityVenturesOC } from "./city-ventures"
-import { scrapeBrandywineOC } from "./brandywine"
-import { scrapeOlsonHomesOC } from "./olson-homes"
-import { scrapeBonanniOC } from "./bonanni"
 import { detectAndApplyChanges, type ChangeDetails } from "./detect-changes"
 import { sendScrapeSummary } from "./scrape-summary"
 import type { ScrapedListing } from "./toll-brothers"
@@ -83,13 +78,6 @@ const BUILDERS: BuilderConfig[] = [
     scrape: scrapeTaylorMorrisonOC,
   },
   {
-    name: "Risewell Homes",
-    websiteUrl: "https://risewellhomes.com",
-    city: "Orange County",
-    state: "CA",
-    scrape: scrapeRisewellOC,
-  },
-  {
     name: "Melia Homes",
     websiteUrl: "https://meliahomes.com",
     city: "Orange County",
@@ -102,34 +90,6 @@ const BUILDERS: BuilderConfig[] = [
     city: "Orange County",
     state: "CA",
     scrape: scrapeBrookfieldOC,
-  },
-  {
-    name: "City Ventures",
-    websiteUrl: "https://cityventures.com",
-    city: "Orange County",
-    state: "CA",
-    scrape: scrapeCityVenturesOC,
-  },
-  {
-    name: "Brandywine Homes",
-    websiteUrl: "https://www.brandywine-homes.com",
-    city: "Orange County",
-    state: "CA",
-    scrape: scrapeBrandywineOC,
-  },
-  {
-    name: "Olson Homes",
-    websiteUrl: "https://www.olsonhomes.com",
-    city: "Orange County",
-    state: "CA",
-    scrape: scrapeOlsonHomesOC,
-  },
-  {
-    name: "Bonanni Development",
-    websiteUrl: "https://www.bonannidevelopment.com",
-    city: "Orange County",
-    state: "CA",
-    scrape: scrapeBonanniOC,
   },
 ]
 
@@ -198,6 +158,16 @@ async function scrapeBuilder(config: BuilderConfig): Promise<{
   for (const [communityName, listings] of byCommunity.entries()) {
     const communityUrl = listings[0].communityUrl
     const listingCity = listings[0].city || config.city
+
+    // Check if this community is excluded (user deleted it from the site)
+    const existing = await withReconnect(() => prisma.community.findUnique({
+      where: { builderId_name: { builderId: builder.id, name: communityName } },
+      select: { excluded: true },
+    }))
+    if (existing?.excluded) {
+      console.log(`  [${config.name}] Skipping excluded community: ${communityName}`)
+      continue
+    }
 
     const community = await withReconnect(() => prisma.community.upsert({
       where: { builderId_name: { builderId: builder.id, name: communityName } },
