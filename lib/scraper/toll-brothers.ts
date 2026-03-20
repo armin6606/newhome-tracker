@@ -1,4 +1,5 @@
 import { chromium, type Page } from "playwright"
+import { randomDelayMs, randomUserAgent } from "./utils"
 
 export interface ScrapedListing {
   communityName: string
@@ -78,7 +79,7 @@ async function scrapeDetailPage(page: Page, url: string): Promise<{
 }> {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(randomDelayMs(1000, 2500))
 
     return await page.evaluate(() => {
       const body = (document.body as HTMLElement).innerText || ""
@@ -194,8 +195,7 @@ const OC_CITIES = [
 export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    userAgent: randomUserAgent(),
   })
   const allListings: ScrapedListing[] = []
 
@@ -244,7 +244,7 @@ export async function scrapeTollBrothersIrvine(): Promise<ScrapedListing[]> {
       } catch (err) {
         console.error(`Error scraping ${community.name}:`, err)
       }
-      await page.waitForTimeout(2000)
+      await page.waitForTimeout(randomDelayMs(1500, 3000))
     }
   } finally {
     await browser.close()
@@ -306,7 +306,7 @@ async function scrapeCommunityPage(
       const tab = page.locator(`a:has-text('${tabText}'), button:has-text('${tabText}')`)
       if (await tab.first().isVisible({ timeout: 2000 })) {
         await tab.first().click()
-        await page.waitForTimeout(2000)
+        await page.waitForTimeout(randomDelayMs(1500, 3000))
         break
       }
     } catch {
@@ -395,7 +395,7 @@ async function scrapeCommunityPage(
       detailTaxes = detail.taxes
       detailFloors = detail.floors
       detailIncentives = detail.incentives
-      await page.waitForTimeout(800)
+      await page.waitForTimeout(randomDelayMs(500, 1200))
     }
 
     listings.push({

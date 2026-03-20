@@ -5,6 +5,7 @@
  */
 import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
+import { randomDelayMs, randomUserAgent } from "./utils"
 
 const LISTING_URL = "https://meliahomes.com/new-homes/"
 const PROMOS_URLS = [
@@ -32,7 +33,7 @@ async function scrapeMeliaPromotions(page: import("playwright").Page): Promise<s
       console.log(`  Trying Melia promotions page: ${promoUrl}`)
       const response = await page.goto(promoUrl, { waitUntil: "domcontentloaded", timeout: 20000 })
       if (!response || response.status() >= 400) continue
-      await page.waitForTimeout(3000)
+      await page.waitForTimeout(randomDelayMs(2000, 4000))
 
       const result = await page.evaluate(() => {
         const body = document.body as HTMLElement
@@ -100,7 +101,7 @@ async function scrapeMeliaPromotions(page: import("playwright").Page): Promise<s
     console.log("  Checking Melia homepage for promotions banner...")
     const response = await page.goto("https://meliahomes.com/", { waitUntil: "domcontentloaded", timeout: 20000 })
     if (response && response.status() < 400) {
-      await page.waitForTimeout(3000)
+      await page.waitForTimeout(randomDelayMs(2000, 4000))
 
       const result = await page.evaluate(() => {
         const bodyText = document.body.innerText || ""
@@ -139,7 +140,7 @@ async function scrapeMeliaPromotions(page: import("playwright").Page): Promise<s
 export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    userAgent: randomUserAgent(),
   })
   const allListings: ScrapedListing[] = []
 
@@ -147,7 +148,7 @@ export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
     const page = await context.newPage()
     console.log("Loading Melia Homes page...")
     await page.goto(LISTING_URL, { waitUntil: "domcontentloaded", timeout: 60000 })
-    await page.waitForTimeout(3000)
+    await page.waitForTimeout(randomDelayMs(2000, 4000))
 
     // Submit the OC filter form
     const filtered = await page.evaluate(async () => {
@@ -173,7 +174,7 @@ export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
         const btn = document.querySelector("form.oi-filter-form [type='submit'], form.oi-filter-form button") as HTMLElement | null
         btn?.click()
       })
-      await page.waitForTimeout(3000)
+      await page.waitForTimeout(randomDelayMs(2000, 4000))
     }
 
     const communities = await page.evaluate(() => {

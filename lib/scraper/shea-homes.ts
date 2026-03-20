@@ -4,6 +4,7 @@
  */
 import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
+import { randomDelayMs, randomUserAgent } from "./utils"
 
 const OC_URL = "https://www.sheahomes.com/new-homes/california/orange-county/"
 const BASE_URL = "https://www.sheahomes.com"
@@ -39,7 +40,7 @@ async function scrapeaSheaPromotions(page: import("playwright").Page): Promise<s
       console.log(`  Trying Shea Homes promotions page: ${promoUrl}`)
       const response = await page.goto(promoUrl, { waitUntil: "domcontentloaded", timeout: 20000 })
       if (!response || response.status() >= 400) continue
-      await page.waitForTimeout(3000)
+      await page.waitForTimeout(randomDelayMs(2000, 4000))
 
       const result = await page.evaluate(() => {
         const body = document.body as HTMLElement
@@ -105,7 +106,7 @@ async function scrapeaSheaPromotions(page: import("playwright").Page): Promise<s
 export async function scrapeaSheaHomesOC(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    userAgent: randomUserAgent(),
   })
   const allListings: ScrapedListing[] = []
 
@@ -113,7 +114,7 @@ export async function scrapeaSheaHomesOC(): Promise<ScrapedListing[]> {
     const page = await context.newPage()
     console.log("Loading Shea Homes OC page...")
     await page.goto(OC_URL, { waitUntil: "domcontentloaded", timeout: 60000 })
-    await page.waitForTimeout(5000)
+    await page.waitForTimeout(randomDelayMs(3000, 6000))
 
     const communities: SheaCommunity[] = await page.evaluate(() => {
       const cs = (window as any).communitySearch || (window as any).communitySearchMapJsonV2 || []

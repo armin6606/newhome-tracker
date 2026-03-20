@@ -4,6 +4,7 @@
  */
 import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
+import { randomDelayMs, randomUserAgent } from "./utils"
 
 const OC_URL = "https://www.brookfieldresidential.com/new-homes/california/orange-county"
 const PROMOS_URLS = [
@@ -20,7 +21,7 @@ async function scrapeBrookfieldPromotions(page: import("playwright").Page): Prom
       console.log(`  Trying Brookfield promotions page: ${promoUrl}`)
       const response = await page.goto(promoUrl, { waitUntil: "domcontentloaded", timeout: 20000 })
       if (!response || response.status() >= 400) continue
-      await page.waitForTimeout(3000)
+      await page.waitForTimeout(randomDelayMs(2000, 4000))
 
       const result = await page.evaluate(() => {
         const body = document.body as HTMLElement
@@ -101,7 +102,7 @@ async function scrapeBrookfieldPromotions(page: import("playwright").Page): Prom
 export async function scrapeBrookfieldOC(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    userAgent: randomUserAgent(),
   })
   const allListings: ScrapedListing[] = []
 
@@ -109,7 +110,7 @@ export async function scrapeBrookfieldOC(): Promise<ScrapedListing[]> {
     const page = await context.newPage()
     console.log("Loading Brookfield Residential OC page...")
     await page.goto(OC_URL, { waitUntil: "domcontentloaded", timeout: 60000 })
-    await page.waitForTimeout(3000)
+    await page.waitForTimeout(randomDelayMs(2000, 4000))
 
     const communities = await page.evaluate(() => {
       const results: { name: string; url: string; city: string; price?: number; beds?: number; baths?: number; sqft?: number; status?: string; incentives?: string }[] = []

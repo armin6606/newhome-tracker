@@ -4,6 +4,7 @@
  */
 import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
+import { randomDelayMs, randomUserAgent } from "./utils"
 
 const BASE_URL = "https://www.kbhome.com"
 const OC_URL = `${BASE_URL}/new-homes-orange-county`
@@ -54,7 +55,7 @@ async function scrapeKBPromotions(page: import("playwright").Page): Promise<stri
       console.log(`  Trying KB Home promotions page: ${promoUrl}`)
       const response = await page.goto(promoUrl, { waitUntil: "domcontentloaded", timeout: 20000 })
       if (!response || response.status() >= 400) continue
-      await page.waitForTimeout(3000)
+      await page.waitForTimeout(randomDelayMs(2000, 4000))
 
       const result = await page.evaluate(() => {
         const body = document.body as HTMLElement
@@ -122,7 +123,7 @@ async function scrapeKBPromotions(page: import("playwright").Page): Promise<stri
 export async function scrapeKBHomeOC(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    userAgent: randomUserAgent(),
   })
   const allListings: ScrapedListing[] = []
 
@@ -130,7 +131,7 @@ export async function scrapeKBHomeOC(): Promise<ScrapedListing[]> {
     const page = await context.newPage()
     console.log("Loading KB Home OC page...")
     await page.goto(OC_URL, { waitUntil: "domcontentloaded", timeout: 60000 })
-    await page.waitForTimeout(6000)
+    await page.waitForTimeout(randomDelayMs(4000, 7000))
 
     const communities: KBCommunity[] = await page.evaluate(() => {
       const rd = (window as any).regionMapData

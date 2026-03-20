@@ -2,6 +2,7 @@ import { chromium, type Page } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
 import { parseFloors } from "./toll-brothers"
 import { cleanAddress } from "./clean-address"
+import { randomDelayMs, randomUserAgent } from "./utils"
 
 const BASE_URL = "https://www.lennar.com"
 
@@ -146,7 +147,7 @@ async function scrapeLennarPropertyDetails(page: Page, listingUrl: string): Prom
       () => document.body.innerText.includes("Tax rate") || document.body.innerText.includes("Homesite"),
       { timeout: 15000 }
     ).catch(() => {})
-    await page.waitForTimeout(500)
+    await page.waitForTimeout(randomDelayMs(300, 800))
 
     return await page.evaluate(() => {
       // Lennar property-details page uses divs with exactly 2 children: label + value
@@ -263,7 +264,7 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
 }> {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
-    await page.waitForTimeout(2000)
+    await page.waitForTimeout(randomDelayMs(1500, 3000))
 
     const basicResult = await page.evaluate(() => {
       const body = (document.body as HTMLElement).innerText || ""
@@ -328,7 +329,7 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
         const offerBtn = await page.$('a:has-text("View offer"), button:has-text("View offer"), [class*="offer"] a, [class*="offer"] button')
         if (offerBtn) {
           await offerBtn.click()
-          await page.waitForTimeout(2000)
+          await page.waitForTimeout(randomDelayMs(1500, 3000))
 
           // Read modal/overlay content
           incentives = await page.evaluate(() => {
@@ -396,7 +397,7 @@ async function scrapeLennarDetailPage(page: Page, url: string): Promise<{
 async function scrapeLennarOfferPage(page: Page, offerUrl: string): Promise<string | undefined> {
   try {
     await page.goto(offerUrl, { waitUntil: "domcontentloaded", timeout: 30000 })
-    await page.waitForTimeout(2000)
+    await page.waitForTimeout(randomDelayMs(1500, 3000))
 
     return await page.evaluate(() => {
       const body = document.body as HTMLElement
@@ -578,8 +579,7 @@ function buildDetailUrl(raw: ApolloHomesite): string {
 export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    userAgent: randomUserAgent(),
   })
 
   const allListings: ScrapedListing[] = []
@@ -591,7 +591,7 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
     // ── Step 1: Scrape the find-a-home search page for all OC listings ──
     console.log("Loading Lennar find-a-home search page...")
     await page.goto(SEARCH_URL, { waitUntil: "domcontentloaded", timeout: 90000 })
-    await page.waitForTimeout(5000)
+    await page.waitForTimeout(randomDelayMs(3000, 6000))
 
     const searchHomesites = await extractApolloHomesites(page)
     console.log(`Found ${searchHomesites.length} listings from find-a-home search`)
@@ -635,9 +635,9 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
         if (hasCards) {
           // Irvine city page uses HomesiteCard format - scrape via DOM
           await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-          await page.waitForTimeout(2000)
+          await page.waitForTimeout(randomDelayMs(1500, 3000))
           await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-          await page.waitForTimeout(2000)
+          await page.waitForTimeout(randomDelayMs(1500, 3000))
 
           const rawCards = await page.evaluate(() => {
             const results: Array<{
@@ -681,7 +681,7 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
             const pd = await scrapeLennarPropertyDetails(page, raw.href)
             const detail = await scrapeLennarDetailPage(page, raw.href)
             moveInDate = moveInDate || pd.moveInDate || detail.moveInDate
-            await page.waitForTimeout(500)
+            await page.waitForTimeout(randomDelayMs(300, 800))
 
             const finalSqft = pd.sqft || sqft
             const finalBeds = pd.beds || beds
@@ -718,7 +718,7 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
           }
         } else {
           // Apollo state format - extract all homesites
-          await page.waitForTimeout(3000)
+          await page.waitForTimeout(randomDelayMs(2000, 4000))
           const homesites = await extractApolloHomesites(page)
           const active = homesites.filter(h => {
             const s = h.status.toUpperCase()
@@ -790,7 +790,7 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
           moveInDate = moveInDate || detail.moveInDate
           pd.floors = pd.floors || detail.floors
         }
-        await page.waitForTimeout(500)
+        await page.waitForTimeout(randomDelayMs(300, 800))
       }
 
       const rawCommunity = pd.communityFromPD

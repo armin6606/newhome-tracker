@@ -5,6 +5,7 @@
  */
 import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
+import { randomDelayMs, randomUserAgent } from "./utils"
 
 const OC_URL = "https://www.tripointehomes.com/ca/orange-county/"
 const PROMOS_URLS = [
@@ -20,7 +21,7 @@ async function scrapeTriPointePromotions(page: import("playwright").Page): Promi
       console.log(`  Trying TRI Pointe promotions page: ${promoUrl}`)
       const response = await page.goto(promoUrl, { waitUntil: "domcontentloaded", timeout: 20000 })
       if (!response || response.status() >= 400) continue
-      await page.waitForTimeout(3000)
+      await page.waitForTimeout(randomDelayMs(2000, 4000))
 
       const result = await page.evaluate(() => {
         const body = document.body as HTMLElement
@@ -85,7 +86,7 @@ async function scrapeTriPointePromotions(page: import("playwright").Page): Promi
 export async function scrapeTriPointeOC(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    userAgent: randomUserAgent(),
   })
   const allListings: ScrapedListing[] = []
 
@@ -93,9 +94,9 @@ export async function scrapeTriPointeOC(): Promise<ScrapedListing[]> {
     const page = await context.newPage()
     console.log("Loading TRI Pointe OC page...")
     await page.goto(OC_URL, { waitUntil: "domcontentloaded", timeout: 60000 })
-    await page.waitForTimeout(5000)
+    await page.waitForTimeout(randomDelayMs(3000, 6000))
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-    await page.waitForTimeout(2000)
+    await page.waitForTimeout(randomDelayMs(1500, 3000))
 
     const cards = await page.evaluate(() => {
       const results: {
