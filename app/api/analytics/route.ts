@@ -82,6 +82,37 @@ export async function GET(req: NextRequest) {
     soldByMonth[key] = (soldByMonth[key] || 0) + 1
   })
 
+  // ── Sales pace — grouped by week (Monday as week start) ──────────────────
+  function getWeekStart(date: Date): string {
+    const d = new Date(date)
+    const day = d.getUTCDay()
+    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1) // Monday
+    d.setUTCDate(diff)
+    return d.toISOString().slice(0, 10) // YYYY-MM-DD
+  }
+  const soldByWeekMap: Record<string, number> = {}
+  // Also track new listings per week
+  const newByWeekMap: Record<string, number> = {}
+  listings.filter((l) => l.soldAt).forEach((l) => {
+    const key = getWeekStart(l.soldAt!)
+    soldByWeekMap[key] = (soldByWeekMap[key] || 0) + 1
+  })
+  listings.forEach((l) => {
+    const key = getWeekStart(l.firstDetected)
+    newByWeekMap[key] = (newByWeekMap[key] || 0) + 1
+  })
+  // Merge all weeks from both maps and fill gaps with 0
+  const allWeekKeys = Array.from(new Set([...Object.keys(soldByWeekMap), ...Object.keys(newByWeekMap)])).sort()
+  const soldByWeek = allWeekKeys.map((weekKey) => {
+    const [y, m, d] = weekKey.split("-")
+    const label = `${m}/${d}`
+    return {
+      week: label,
+      sold: soldByWeekMap[weekKey] || 0,
+      newListings: newByWeekMap[weekKey] || 0,
+    }
+  })
+
   // ── Community summary ────────────────────────────────────────────────────
   const communityMap: Record<string, {
     name: string; builderName: string; active: number; sold: number;
@@ -115,6 +146,7 @@ export async function GET(req: NextRequest) {
     priceRangeByCommunity,
     avgPriceByMonth,
     soldByMonth: Object.entries(soldByMonth).sort(([a], [b]) => a.localeCompare(b)).map(([month, count]) => ({ month, count })),
+    soldByWeek,
     communitySummary,
     totalActive:   listings.filter((l) => l.status === "active").length,
     totalSold:     listings.filter((l) => l.status !== "active").length,

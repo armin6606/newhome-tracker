@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { formatPrice } from "@/lib/utils"
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis,
+  ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis, ComposedChart, Area,
+  Legend,
 } from "recharts"
 
 const CHART_COLORS = [
@@ -25,6 +26,7 @@ type AnalyticsData = {
   priceRangeByCommunity: { community: string; min: number; max: number; avg: number; count: number }[]
   avgPriceByMonth: { month: string; avgPrice: number }[]
   soldByMonth: { month: string; count: number }[]
+  soldByWeek: { week: string; sold: number; newListings: number }[]
   communitySummary: Community[]
   totalActive: number; totalSold: number; totalListings: number;
 }
@@ -395,7 +397,56 @@ export default function AnalyticsPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* 5. Sales Trend */}
+            {/* 5. Sales Pace — weekly */}
+            <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm lg:col-span-2">
+              <h2 className="font-semibold text-stone-900 mb-1">Sales Pace</h2>
+              <p className="text-xs text-stone-400 mb-4">Homes sold vs. new listings added per week</p>
+              {data.soldByWeek.length > 0 ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <ComposedChart data={data.soldByWeek} margin={{ top: 4, right: 16, bottom: 24, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="week"
+                      tick={{ fontSize: 10 }}
+                      angle={-45}
+                      textAnchor="end"
+                      interval={Math.max(0, Math.floor(data.soldByWeek.length / 12) - 1)}
+                    />
+                    <YAxis tick={{ fontSize: 11 }} width={28} allowDecimals={false} />
+                    <Tooltip
+                      formatter={(v, name) =>
+                        name === "sold" ? [`${v} sold`, "Sold"] : [`${v} added`, "New Listings"]
+                      }
+                    />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      iconType="circle"
+                      iconSize={8}
+                      formatter={(v) => (
+                        <span className="text-xs text-stone-500">{v === "sold" ? "Sold / Removed" : "New Listings"}</span>
+                      )}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="newListings"
+                      name="newListings"
+                      fill="#DBEAFE"
+                      stroke="#93C5FD"
+                      strokeWidth={1.5}
+                      dot={false}
+                    />
+                    <Bar dataKey="sold" name="sold" fill="#C46060" radius={[3, 3, 0, 0]} maxBarSize={20} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[260px] flex items-center justify-center text-stone-400 text-sm">
+                  No weekly sales data yet.
+                </div>
+              )}
+            </div>
+
+            {/* 6. Sales Trend (monthly) */}
             <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm lg:col-span-2">
               <h2 className="font-semibold text-stone-900 mb-1">Sales Trend</h2>
               <p className="text-xs text-stone-400 mb-4">Listings marked sold or removed from builder site per month</p>
