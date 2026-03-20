@@ -8,6 +8,7 @@ import type { ScrapedListing } from "./toll-brothers"
 
 const OC_URL = "https://www.taylormorrison.com/ca/orange-county"
 const BASE_URL = "https://www.taylormorrison.com"
+const PROMOS_URL = "https://www.taylormorrison.com/make-moves"
 
 const OC_CITIES = [
   "irvine", "newport beach", "laguna niguel", "laguna beach", "laguna hills",
@@ -18,6 +19,74 @@ const OC_CITIES = [
   "santa ana", "seal beach", "los alamitos", "cypress", "stanton", "la habra",
   "villa park", "rancho mission viejo",
 ]
+
+/** Scrape the Taylor Morrison /make-moves promotions page for builder-wide offer text */
+async function scrapeTaylorMorrisonPromotions(page: import("playwright").Page): Promise<string | undefined> {
+  try {
+    console.log("Loading Taylor Morrison promotions page...")
+    await page.goto(PROMOS_URL, { waitUntil: "domcontentloaded", timeout: 30000 })
+    await page.waitForTimeout(4000)
+
+    return await page.evaluate(() => {
+      const body = document.body as HTMLElement
+      const bodyText = body.innerText || ""
+
+      // Try structured promo elements first
+      const promoSelectors = [
+        '[class*="promo"]', '[class*="Promo"]',
+        '[class*="offer"]', '[class*="Offer"]',
+        '[class*="incentive"]', '[class*="Incentive"]',
+        '[class*="hero"] h1', '[class*="hero"] h2',
+        '[class*="Hero"] h1', '[class*="Hero"] h2',
+        '[class*="banner"]', '[class*="Banner"]',
+        'main h1', 'main h2',
+      ]
+
+      const parts: string[] = []
+      const seen = new Set<string>()
+      for (const sel of promoSelectors) {
+        document.querySelectorAll(sel).forEach((el) => {
+          const txt = (el as HTMLElement).innerText?.trim()
+          if (txt && txt.length > 10 && txt.length < 500 && !seen.has(txt)) {
+            seen.add(txt)
+            parts.push(txt)
+          }
+        })
+        if (parts.length >= 3) break
+      }
+
+      // Regex patterns for dollar amounts, rates, and offer details
+      const patterns = [
+        /(?:reduced\s+rate|no\s+(?:monthly\s+)?(?:mortgage\s+)?insurance|buy[-\s]?down|closing\s+cost|flex\s+cash|design\s+credit)[^\n]{0,200}/gi,
+        /(?:save|get|receive|up\s+to)\s+\$[\d,]+[^\n]{0,150}/gi,
+        /\d+(?:\.\d+)?%\s+(?:interest|rate|APR|fixed)[^\n]{0,150}/gi,
+        /(?:limited[-\s]time|special\s+offer|exclusive\s+offer)[^\n]{0,200}/gi,
+      ]
+
+      for (const pat of patterns) {
+        let m: RegExpExecArray | null
+        while ((m = pat.exec(bodyText)) !== null) {
+          const txt = m[0].trim()
+          if (txt.length > 10 && !seen.has(txt)) {
+            seen.add(txt)
+            parts.push(txt)
+          }
+          if (parts.length >= 5) break
+        }
+      }
+
+      if (parts.length > 0) {
+        // Deduplicate and join
+        return parts.slice(0, 5).join(" | ")
+      }
+
+      return undefined
+    })
+  } catch (err) {
+    console.log("  Could not load Taylor Morrison promotions page:", err)
+    return undefined
+  }
+}
 
 export async function scrapeTaylorMorrisonOC(): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
@@ -116,6 +185,12 @@ export async function scrapeTaylorMorrisonOC(): Promise<ScrapedListing[]> {
 
     console.log(`Found ${communities.length} Taylor Morrison OC communities`)
 
+    // Scrape the builder-wide promotions page
+    const builderPromo = await scrapeTaylorMorrisonPromotions(page)
+    if (builderPromo) {
+      console.log(`  Builder-wide promo found: ${builderPromo.substring(0, 100)}...`)
+    }
+
     for (const c of communities) {
       if (!c.name) continue
       const communityUrl = c.url.startsWith("http") ? c.url : `${BASE_URL}${c.url}`
@@ -131,7 +206,7 @@ export async function scrapeTaylorMorrisonOC(): Promise<ScrapedListing[]> {
         price,
         pricePerSqft: price && c.sqft ? Math.round(price / c.sqft) : undefined,
         propertyType: "Detached",
-        incentives: c.incentives,
+        incentives: c.incentives || builderPromo,
         sourceUrl: communityUrl,
       })
     }

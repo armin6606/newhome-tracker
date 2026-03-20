@@ -7,6 +7,11 @@ import type { ScrapedListing } from "./toll-brothers"
 
 const BASE_URL = "https://www.kbhome.com"
 const OC_URL = `${BASE_URL}/new-homes-orange-county`
+const PROMOS_URLS = [
+  `${BASE_URL}/savings-and-offers`,
+  `${BASE_URL}/promotions`,
+  `${BASE_URL}/offers`,
+]
 
 // Orange County city names to filter from California-wide regionMapData
 const OC_CITIES = new Set([
@@ -42,50 +47,76 @@ interface KBCommunity {
   ComingSoon?: boolean
 }
 
-/** Extract incentive text from a KB Home community page */
-async function scrapeKBIncentives(page: import("playwright").Page, url: string): Promise<string | undefined> {
-  try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
-    await page.waitForTimeout(3000)
+/** Scrape KB Home builder-wide promotions page for offer details */
+async function scrapeKBPromotions(page: import("playwright").Page): Promise<string | undefined> {
+  for (const promoUrl of PROMOS_URLS) {
+    try {
+      console.log(`  Trying KB Home promotions page: ${promoUrl}`)
+      const response = await page.goto(promoUrl, { waitUntil: "domcontentloaded", timeout: 20000 })
+      if (!response || response.status() >= 400) continue
+      await page.waitForTimeout(3000)
 
-    return await page.evaluate(() => {
-      const body = (document.body as HTMLElement).innerText || ""
+      const result = await page.evaluate(() => {
+        const body = document.body as HTMLElement
+        const bodyText = body.innerText || ""
 
-      // Try CSS selectors for incentive elements
-      const selectors = [
-        '[class*="incentive"]', '[class*="Incentive"]',
-        '[class*="promotion"]', '[class*="Promotion"]',
-        '[class*="offer"]', '[class*="Offer"]',
-        '[class*="special"]', '[class*="Special"]',
-        '[class*="closing"]', '[class*="buydown"]',
-        '[class*="credit"]', '[class*="Credit"]',
-        '[class*="savings"]', '[class*="Savings"]',
-      ]
-      for (const sel of selectors) {
-        const el = document.querySelector(sel) as HTMLElement | null
-        const txt = el?.innerText?.trim()
-        if (txt && txt.length > 5 && txt.length < 500) return txt
-      }
+        // Try structured promo/offer elements
+        const promoSelectors = [
+          '[class*="promo"]', '[class*="Promo"]',
+          '[class*="offer"]', '[class*="Offer"]',
+          '[class*="incentive"]', '[class*="Incentive"]',
+          '[class*="savings"]', '[class*="Savings"]',
+          '[class*="hero"] h1', '[class*="hero"] h2',
+          '[class*="Hero"] h1', '[class*="Hero"] h2',
+          '[class*="banner"]', '[class*="Banner"]',
+          '[class*="deal"]', '[class*="Deal"]',
+          'main h1', 'main h2', 'main h3',
+        ]
 
-      // Regex fallback on page text
-      const patterns = [
-        /(?:closing\s+cost\s+(?:credit|assistance)|rate\s+buy[-\s]?down|flex\s+cash|design\s+(?:credit|dollars?)|upgrade\s+credit|builder\s+incentive|special\s+offer|limited[-\s]time\s+offer)\s*[:\-–]?\s*([^\n.]{5,120})/gi,
-      ]
-      const matches: string[] = []
-      for (const pat of patterns) {
-        let m: RegExpExecArray | null
-        while ((m = pat.exec(body)) !== null) {
-          matches.push(m[0].trim())
-          if (matches.length >= 3) break
+        const parts: string[] = []
+        const seen = new Set<string>()
+        for (const sel of promoSelectors) {
+          document.querySelectorAll(sel).forEach((el) => {
+            const txt = (el as HTMLElement).innerText?.trim()
+            if (txt && txt.length > 10 && txt.length < 500 && !seen.has(txt)) {
+              seen.add(txt)
+              parts.push(txt)
+            }
+          })
+          if (parts.length >= 3) break
         }
-      }
-      if (matches.length) return matches.join(" | ")
 
-      return undefined
-    })
-  } catch {
-    return undefined
+        // Regex patterns for financial details
+        const patterns = [
+          /(?:save|get|receive|up\s+to)\s+\$[\d,]+[^\n]{0,150}/gi,
+          /\$[\d,]+\s+(?:toward|in|off|credit|closing|savings)[^\n]{0,150}/gi,
+          /\d+(?:\.\d+)?%\s+(?:interest|rate|APR|fixed|down)[^\n]{0,150}/gi,
+          /(?:closing\s+cost|rate\s+buy[-\s]?down|flex\s+cash|design\s+credit|upgrade\s+credit)[^\n]{0,200}/gi,
+          /(?:limited[-\s]time|special\s+offer|exclusive|don'?t\s+miss)[^\n]{0,200}/gi,
+        ]
+
+        for (const pat of patterns) {
+          let m: RegExpExecArray | null
+          while ((m = pat.exec(bodyText)) !== null) {
+            const txt = m[0].trim()
+            if (txt.length > 10 && !seen.has(txt)) {
+              seen.add(txt)
+              parts.push(txt)
+            }
+            if (parts.length >= 5) break
+          }
+        }
+
+        if (parts.length > 0) return parts.slice(0, 5).join(" | ")
+        return undefined
+      })
+
+      if (result) return result
+    } catch {
+      continue
+    }
   }
+  return undefined
 }
 
 export async function scrapeKBHomeOC(): Promise<ScrapedListing[]> {
@@ -108,6 +139,12 @@ export async function scrapeKBHomeOC(): Promise<ScrapedListing[]> {
 
     console.log(`Found ${communities.length} KB Home OC communities`)
 
+    // Scrape the builder-wide promotions page once
+    const builderPromo = await scrapeKBPromotions(page)
+    if (builderPromo) {
+      console.log(`  Builder-wide promo found: ${builderPromo.substring(0, 100)}...`)
+    }
+
     for (const c of communities) {
       if (!c.CommunityName) continue
       if (c.ComingSoon) continue
@@ -126,11 +163,6 @@ export async function scrapeKBHomeOC(): Promise<ScrapedListing[]> {
 
       const propertyType = /multi-family|condo|townhome|attached/i.test(c.Style || "") ? "Attached" : "Detached"
 
-      // Scrape incentives from community page
-      console.log(`  Checking incentives: ${c.CommunityName}`)
-      const incentives = await scrapeKBIncentives(page, communityUrl)
-      await page.waitForTimeout(500)
-
       allListings.push({
         communityName: c.CommunityName,
         communityUrl,
@@ -143,7 +175,7 @@ export async function scrapeKBHomeOC(): Promise<ScrapedListing[]> {
         price,
         pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
         propertyType,
-        incentives,
+        incentives: builderPromo,
         sourceUrl: communityUrl,
       })
     }

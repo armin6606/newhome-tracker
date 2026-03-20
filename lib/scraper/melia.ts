@@ -7,6 +7,12 @@ import { chromium } from "playwright"
 import type { ScrapedListing } from "./toll-brothers"
 
 const LISTING_URL = "https://meliahomes.com/new-homes/"
+const PROMOS_URLS = [
+  "https://meliahomes.com/promotions/",
+  "https://meliahomes.com/special-offers/",
+  "https://meliahomes.com/offers/",
+  "https://meliahomes.com/incentives/",
+]
 
 function parsePrice(text: string): number | undefined {
   // Handles "$800,000's", "from the High $700,000's", "$1,200,000"
@@ -17,6 +23,117 @@ function parsePrice(text: string): number | undefined {
   // If ends in 000s/000, it's already the price; if it's like "800" from "800,000's" handle separately
   if (base < 10000) return base * 1000
   return base
+}
+
+/** Scrape Melia Homes builder-wide promotions page for offer details */
+async function scrapeMeliaPromotions(page: import("playwright").Page): Promise<string | undefined> {
+  for (const promoUrl of PROMOS_URLS) {
+    try {
+      console.log(`  Trying Melia promotions page: ${promoUrl}`)
+      const response = await page.goto(promoUrl, { waitUntil: "domcontentloaded", timeout: 20000 })
+      if (!response || response.status() >= 400) continue
+      await page.waitForTimeout(3000)
+
+      const result = await page.evaluate(() => {
+        const body = document.body as HTMLElement
+        const bodyText = body.innerText || ""
+
+        const promoSelectors = [
+          '[class*="promo"]', '[class*="Promo"]',
+          '[class*="offer"]', '[class*="Offer"]',
+          '[class*="incentive"]', '[class*="Incentive"]',
+          '[class*="savings"]', '[class*="Savings"]',
+          '[class*="hero"] h1', '[class*="hero"] h2',
+          '[class*="banner"]', '[class*="Banner"]',
+          '[class*="deal"]', '[class*="Deal"]',
+          '[class*="special"]', '[class*="Special"]',
+          'main h1', 'main h2', 'main h3',
+          '.entry-content h2', '.entry-content h3',
+          '.entry-content p',
+        ]
+
+        const parts: string[] = []
+        const seen = new Set<string>()
+        for (const sel of promoSelectors) {
+          document.querySelectorAll(sel).forEach((el) => {
+            const txt = (el as HTMLElement).innerText?.trim()
+            if (txt && txt.length > 10 && txt.length < 500 && !seen.has(txt)) {
+              seen.add(txt)
+              parts.push(txt)
+            }
+          })
+          if (parts.length >= 3) break
+        }
+
+        const patterns = [
+          /(?:save|get|receive|up\s+to)\s+\$[\d,]+[^\n]{0,150}/gi,
+          /\$[\d,]+\s+(?:toward|in|off|credit|closing|savings)[^\n]{0,150}/gi,
+          /\d+(?:\.\d+)?%\s+(?:interest|rate|APR|fixed|down)[^\n]{0,150}/gi,
+          /(?:closing\s+cost|rate\s+buy[-\s]?down|flex\s+cash|design\s+credit|upgrade\s+credit)[^\n]{0,200}/gi,
+          /(?:limited[-\s]time|special\s+offer|exclusive|don'?t\s+miss)[^\n]{0,200}/gi,
+        ]
+
+        for (const pat of patterns) {
+          let m: RegExpExecArray | null
+          while ((m = pat.exec(bodyText)) !== null) {
+            const txt = m[0].trim()
+            if (txt.length > 10 && !seen.has(txt)) {
+              seen.add(txt)
+              parts.push(txt)
+            }
+            if (parts.length >= 5) break
+          }
+        }
+
+        if (parts.length > 0) return parts.slice(0, 5).join(" | ")
+        return undefined
+      })
+
+      if (result) return result
+    } catch {
+      continue
+    }
+  }
+
+  // Also check the main homepage for banner promotions
+  try {
+    console.log("  Checking Melia homepage for promotions banner...")
+    const response = await page.goto("https://meliahomes.com/", { waitUntil: "domcontentloaded", timeout: 20000 })
+    if (response && response.status() < 400) {
+      await page.waitForTimeout(3000)
+
+      const result = await page.evaluate(() => {
+        const bodyText = document.body.innerText || ""
+        const patterns = [
+          /(?:save|get|receive|up\s+to)\s+\$[\d,]+[^\n]{0,150}/gi,
+          /\$[\d,]+\s+(?:toward|in|off|credit|closing|savings)[^\n]{0,150}/gi,
+          /(?:closing\s+cost|rate\s+buy[-\s]?down|flex\s+cash|design\s+credit)[^\n]{0,200}/gi,
+          /(?:limited[-\s]time|special\s+offer|exclusive)[^\n]{0,200}/gi,
+        ]
+        const parts: string[] = []
+        const seen = new Set<string>()
+        for (const pat of patterns) {
+          let m: RegExpExecArray | null
+          while ((m = pat.exec(bodyText)) !== null) {
+            const txt = m[0].trim()
+            if (txt.length > 10 && !seen.has(txt)) {
+              seen.add(txt)
+              parts.push(txt)
+            }
+            if (parts.length >= 3) break
+          }
+        }
+        if (parts.length > 0) return parts.slice(0, 3).join(" | ")
+        return undefined
+      })
+
+      if (result) return result
+    }
+  } catch {
+    // ignore
+  }
+
+  return undefined
 }
 
 export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
@@ -142,6 +259,12 @@ export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
 
     console.log(`Found ${communities.length} Melia OC communities`)
 
+    // Scrape builder-wide promotions page
+    const builderPromo = await scrapeMeliaPromotions(page)
+    if (builderPromo) {
+      console.log(`  Builder-wide promo found: ${builderPromo.substring(0, 100)}...`)
+    }
+
     for (const comm of communities) {
       if (!comm.name) continue
       const price = comm.price && comm.price > 100000 ? comm.price : undefined
@@ -155,7 +278,7 @@ export async function scrapeMeliaHomesOC(): Promise<ScrapedListing[]> {
         price,
         pricePerSqft: price && comm.sqft ? Math.round(price / comm.sqft) : undefined,
         propertyType: comm.propertyType || "Attached",
-        incentives: comm.incentives,
+        incentives: comm.incentives || builderPromo,
         sourceUrl: comm.url || LISTING_URL,
       })
     }
