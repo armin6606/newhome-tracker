@@ -3,18 +3,18 @@ import { prisma } from "@/lib/db"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const city      = searchParams.get("city")      || ""
-  const builder   = searchParams.get("builder")   || ""
-  const community = searchParams.get("community") || ""
+  const cities      = searchParams.getAll("city")
+  const builders    = searchParams.getAll("builder")
+  const communities = searchParams.getAll("community")
 
   const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures"]
 
   const communityWhere: Record<string, unknown> = {
     builder: { name: { notIn: EXCLUDED_BUILDERS } }
   }
-  if (city)      communityWhere.city    = { contains: city,      mode: "insensitive" }
-  if (builder)   communityWhere.builder = { name: { contains: builder, mode: "insensitive" } }
-  if (community) communityWhere.name    = { contains: community, mode: "insensitive" }
+  if (cities.length > 0)      communityWhere.city    = { in: cities }
+  if (builders.length > 0)    communityWhere.builder = { name: { in: builders } }
+  if (communities.length > 0) communityWhere.name    = { in: communities }
 
   const where: Record<string, unknown> = { community: communityWhere }
 

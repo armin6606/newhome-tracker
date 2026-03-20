@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { formatPrice } from "@/lib/utils"
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis,
 } from "recharts"
 
-// Refined color palette — saturated enough to read clearly, not garish
 const CHART_COLORS = [
   "#4D8EC8", "#59AE7F", "#C49040", "#8B65C8", "#3EAAAA",
   "#C4B040", "#C46060", "#5070C8", "#52A87E", "#C47840",
@@ -51,23 +50,102 @@ function builderColor(name: string): string {
   return "text-stone-600"
 }
 
-const selectCls = "border border-stone-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white text-stone-700 cursor-pointer"
-
 function fmtPrice(v: number): string {
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`
   if (v >= 1_000)     return `$${(v / 1_000).toFixed(0)}K`
   return `$${v}`
 }
 
-export default function AnalyticsPage() {
-  const [data, setData]           = useState<AnalyticsData | null>(null)
-  const [meta, setMeta]           = useState<MetaData | null>(null)
-  const [loading, setLoading]     = useState(true)
-  const [cityFilter, setCityFilter]           = useState("")
-  const [builderFilter, setBuilderFilter]     = useState("")
-  const [communityFilter, setCommunityFilter] = useState("")
+// ── Multi-select dropdown ────────────────────────────────────────────────────
+function MultiSelect({
+  label, options, selected, onChange, placeholder, width = "w-44",
+}: {
+  label: string
+  options: string[]
+  selected: string[]
+  onChange: (v: string[]) => void
+  placeholder: string
+  width?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
-  // Fetch dropdown options once on mount
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  function toggle(val: string) {
+    if (selected.includes(val)) onChange(selected.filter((x) => x !== val))
+    else onChange([...selected, val])
+  }
+
+  const displayText =
+    selected.length === 0
+      ? placeholder
+      : selected.length === 1
+      ? selected[0]
+      : `${selected.length} selected`
+
+  return (
+    <div className="flex flex-col gap-1" ref={ref}>
+      <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">{label}</label>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className={`${width} h-[34px] flex items-center justify-between gap-1 border border-stone-200 rounded-lg px-3 text-sm bg-white text-stone-700 hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors`}
+        >
+          <span className={`truncate ${selected.length === 0 ? "text-stone-400" : ""}`}>{displayText}</span>
+          <svg className={`w-3.5 h-3.5 flex-none text-stone-400 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {open && (
+          <div className="absolute z-50 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg min-w-full max-h-60 overflow-y-auto">
+            {/* Clear all */}
+            {selected.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="w-full text-left px-3 py-2 text-xs text-amber-600 hover:bg-amber-50 border-b border-stone-100 font-medium"
+              >
+                ✕ Clear all
+              </button>
+            )}
+            {options.map((opt) => (
+              <label
+                key={opt}
+                className="flex items-center gap-2.5 px-3 py-2 hover:bg-stone-50 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.includes(opt)}
+                  onChange={() => toggle(opt)}
+                  className="w-3.5 h-3.5 rounded accent-amber-500 cursor-pointer"
+                />
+                <span className="text-sm text-stone-700 truncate">{opt}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function AnalyticsPage() {
+  const [data, setData]       = useState<AnalyticsData | null>(null)
+  const [meta, setMeta]       = useState<MetaData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [cities, setCities]         = useState<string[]>([])
+  const [builders, setBuilders]     = useState<string[]>([])
+  const [communities, setCommunities] = useState<string[]>([])
+
   useEffect(() => {
     fetch("/api/analytics/meta")
       .then((r) => r.json())
@@ -77,26 +155,26 @@ export default function AnalyticsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
-    if (cityFilter)      params.set("city",      cityFilter)
-    if (builderFilter)   params.set("builder",   builderFilter)
-    if (communityFilter) params.set("community", communityFilter)
+    cities.forEach((c) => params.append("city", c))
+    builders.forEach((b) => params.append("builder", b))
+    communities.forEach((c) => params.append("community", c))
     const res = await fetch(`/api/analytics?${params}`)
     setData(await res.json())
     setLoading(false)
-  }, [cityFilter, builderFilter, communityFilter])
+  }, [cities, builders, communities])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   function resetFilters() {
-    setCityFilter("")
-    setBuilderFilter("")
-    setCommunityFilter("")
+    setCities([])
+    setBuilders([])
+    setCommunities([])
   }
 
+  const hasFilters = cities.length > 0 || builders.length > 0 || communities.length > 0
   const ppsqftHeight    = data ? Math.max(260, data.avgPricePerSqftByCommunity.length * 48) : 260
   const priceRangeHeight = data ? Math.max(260, data.priceRangeByCommunity.length * 48)     : 260
 
-  // Group scatter data by community for per-community colors
   const scatterByCommunity = (data?.scatterData ?? []).reduce((acc, pt) => {
     if (!acc[pt.community]) acc[pt.community] = []
     acc[pt.community].push(pt)
@@ -140,46 +218,41 @@ export default function AnalyticsPage() {
       {/* Filters */}
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm px-4 py-3 mb-6">
         <div className="flex flex-wrap items-end gap-3">
-          {/* City */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">City</label>
-            <select value={cityFilter} onChange={(e) => { setCityFilter(e.target.value); setCommunityFilter("") }}
-              className={`${selectCls} w-32`}>
-              <option value="">All Cities</option>
-              {meta?.cities.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          {/* Builder */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Builder</label>
-            <select value={builderFilter} onChange={(e) => { setBuilderFilter(e.target.value); setCommunityFilter("") }}
-              className={`${selectCls} w-36`}>
-              <option value="">All Builders</option>
-              {meta?.builders.map((b) => <option key={b} value={b}>{b}</option>)}
-            </select>
-          </div>
-          {/* Community */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Community</label>
-            <select value={communityFilter} onChange={(e) => setCommunityFilter(e.target.value)}
-              className={`${selectCls} w-52`}>
-              <option value="">All Communities</option>
-              {meta?.communities
-                .filter((c) => {
-                  if (cityFilter && !c.toLowerCase().includes(cityFilter.toLowerCase())) {
-                    // We can't easily filter community names by city here without extra data
-                    // so show all and let the API handle it
-                  }
-                  return true
-                })
-                .map((c) => <option key={c} value={c}>{shortName(c)}</option>)}
-            </select>
-          </div>
+          <MultiSelect
+            label="City"
+            options={meta?.cities ?? []}
+            selected={cities}
+            onChange={(v) => { setCities(v); setCommunities([]) }}
+            placeholder="All Cities"
+            width="w-36"
+          />
+          <MultiSelect
+            label="Builder"
+            options={meta?.builders ?? []}
+            selected={builders}
+            onChange={(v) => { setBuilders(v); setCommunities([]) }}
+            placeholder="All Builders"
+            width="w-40"
+          />
+          <MultiSelect
+            label="Community"
+            options={(meta?.communities ?? []).map(shortName)}
+            selected={communities}
+            onChange={setCommunities}
+            placeholder="All Communities"
+            width="w-52"
+          />
           {/* Reset */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] invisible">x</label>
-            <button onClick={resetFilters}
-              className="h-[34px] px-3 rounded-lg text-xs text-stone-400 hover:text-stone-600 border border-stone-200 hover:bg-stone-50 transition-colors">
+            <button
+              onClick={resetFilters}
+              className={`h-[34px] px-3 rounded-lg text-xs border transition-colors ${
+                hasFilters
+                  ? "text-amber-600 border-amber-300 bg-amber-50 hover:bg-amber-100"
+                  : "text-stone-400 border-stone-200 hover:bg-stone-50 hover:text-stone-600"
+              }`}
+            >
               ↺ Reset
             </button>
           </div>
@@ -189,15 +262,37 @@ export default function AnalyticsPage() {
             </div>
           )}
         </div>
+        {/* Active filter chips */}
+        {hasFilters && (
+          <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-stone-100">
+            {cities.map((c) => (
+              <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                {c}
+                <button onClick={() => setCities(cities.filter((x) => x !== c))} className="hover:text-blue-900">✕</button>
+              </span>
+            ))}
+            {builders.map((b) => (
+              <span key={b} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
+                {b}
+                <button onClick={() => setBuilders(builders.filter((x) => x !== b))} className="hover:text-amber-900">✕</button>
+              </span>
+            ))}
+            {communities.map((c) => (
+              <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+                {c}
+                <button onClick={() => setCommunities(communities.filter((x) => x !== c))} className="hover:text-emerald-900">✕</button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {loading && <div className="text-center text-stone-400 py-20">Loading analytics...</div>}
       {!loading && data && (
         <>
-          {/* Charts grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
-            {/* 1. Price vs Square Footage — per-community colors */}
+            {/* 1. Price vs Sqft */}
             <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm">
               <h2 className="font-semibold text-stone-900 mb-1">Price vs Square Footage</h2>
               <p className="text-xs text-stone-400 mb-4">Active listings only — each dot = one home</p>
@@ -218,17 +313,11 @@ export default function AnalyticsPage() {
                     formatter={(v, name) => name === "Price" ? formatPrice(Number(v)) : `${Number(v).toLocaleString()} sqft`}
                     labelFormatter={(_, payload) => payload?.[0]?.payload?.community ? shortName(payload[0].payload.community) : ""} />
                   {scatterCommunities.map((name, i) => (
-                    <Scatter
-                      key={name}
-                      name={shortName(name)}
-                      data={scatterByCommunity[name]}
-                      fill={CHART_COLORS[i % CHART_COLORS.length]}
-                      opacity={0.8}
-                    />
+                    <Scatter key={name} name={shortName(name)} data={scatterByCommunity[name]}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]} opacity={0.8} />
                   ))}
                 </ScatterChart>
               </ResponsiveContainer>
-              {/* Legend */}
               {scatterCommunities.length > 0 && (
                 <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-stone-100">
                   {scatterCommunities.map((name, i) => (
@@ -242,7 +331,7 @@ export default function AnalyticsPage() {
               )}
             </div>
 
-            {/* 2. Avg $/sqft by Community */}
+            {/* 2. Avg $/sqft */}
             <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm">
               <h2 className="font-semibold text-stone-900 mb-1">Avg Price / Sqft by Community</h2>
               <p className="text-xs text-stone-400 mb-4">Active listings only</p>
@@ -263,7 +352,7 @@ export default function AnalyticsPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* 3. Price Range by Community */}
+            {/* 3. Price Range */}
             <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm">
               <h2 className="font-semibold text-stone-900 mb-1">Price Range by Community</h2>
               <p className="text-xs text-stone-400 mb-4">Min · Avg · Max — active listings only</p>
@@ -275,9 +364,9 @@ export default function AnalyticsPage() {
                   <XAxis type="number" domain={[500000, "auto"]} tickFormatter={fmtPrice} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="community" tick={{ fontSize: 11 }} width={130} interval={0} />
                   <Tooltip formatter={(v) => formatPrice(Number(v))} />
-                  <Bar dataKey="min"  name="Min"  fill="#59AE7F" radius={[0, 0, 0, 0]} stackId="a" />
-                  <Bar dataKey="avg"  name="Avg"  fill="#C4B040" radius={[0, 0, 0, 0]} stackId="b" />
-                  <Bar dataKey="max"  name="Max"  fill="#C46060" radius={[0, 4, 4, 0]} stackId="c" />
+                  <Bar dataKey="min" name="Min" fill="#59AE7F" stackId="a" />
+                  <Bar dataKey="avg" name="Avg" fill="#C4B040" stackId="b" />
+                  <Bar dataKey="max" name="Max" fill="#C46060" radius={[0, 4, 4, 0]} stackId="c" />
                 </BarChart>
               </ResponsiveContainer>
               <div className="flex gap-4 mt-2 pt-2 border-t border-stone-100">
