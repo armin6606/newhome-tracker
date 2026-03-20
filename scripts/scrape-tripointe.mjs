@@ -627,6 +627,13 @@ async function main() {
       // Upsert each listing
       let createdCount = 0
       let updatedCount = 0
+      const seenAddrKeys = new Set()
+
+      // Get active DB listings for sold detection
+      const activeDbListings = await prisma.listing.findMany({
+        where: { communityId: dbComm.id, status: "active" },
+        select: { id: true, address: true },
+      })
 
       for (const listing of rawListings) {
         // For plans, use plan name as address key; for MIR homes use street address
@@ -636,6 +643,8 @@ async function main() {
 
         if (!addrKey) continue
 
+        seenAddrKeys.add(addrKey)
+
         const before = await prisma.listing.findFirst({
           where: { communityId: dbComm.id, address: addrKey },
         })
@@ -644,6 +653,16 @@ async function main() {
 
         if (!before) createdCount++
         else updatedCount++
+      }
+
+      // Mark listings no longer on site as removed (sold)
+      let removedCount = 0
+      for (const dbL of activeDbListings) {
+        if (!seenAddrKeys.has(dbL.address)) {
+          await prisma.listing.update({ where: { id: dbL.id }, data: { status: "removed", soldAt: new Date() } })
+          console.log(`    ✗ Marked removed [${dbL.id}] "${dbL.address}" (not in scraped response)`)
+          removedCount++
+        }
       }
 
       summary.push({

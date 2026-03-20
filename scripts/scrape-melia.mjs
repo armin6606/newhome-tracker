@@ -479,12 +479,28 @@ async function main() {
         continue
       }
 
+      // Get active DB listings for sold detection
+      const activeDbListings = await prisma.listing.findMany({
+        where: { communityId: dbComm.id, status: "active" },
+        select: { id: true, address: true },
+      })
+      const scrapedAddrs = new Set()
+
       // Upsert listings
       console.log(`\n  [Upserting listings]`)
       let upserted = 0
       for (const home of homes) {
         const id = await upsertListing(dbComm.id, home)
         if (id) upserted++
+        if (home.address) scrapedAddrs.add(home.address.trim())
+      }
+
+      // Mark sold listings as removed
+      for (const dbL of activeDbListings) {
+        if (!scrapedAddrs.has(dbL.address)) {
+          await prisma.listing.update({ where: { id: dbL.id }, data: { status: "removed", soldAt: new Date() } })
+          console.log(`  ✗ Marked removed [${dbL.id}] "${dbL.address}" (not found on site)`)
+        }
       }
 
       summary.push({ community: comm.name, communityId: dbComm.id, scraped: homes.length, upserted })

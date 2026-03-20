@@ -110,6 +110,12 @@ async function main() {
     const homes = extractListings(raw)
     console.log(`  Found ${homes.length} homes`)
 
+    // Get current active listings for sold detection
+    const activeDbListings = await prisma.listing.findMany({
+      where: { communityId: community.id, status: "active" }
+    })
+    const foundAddresses = new Set()
+
     for (const h of homes) {
       const addr = cleanAddress(typeof h.address === 'object' ? JSON.stringify(h.address) : h.address)
       console.log(`    Raw address: ${JSON.stringify(h.address)} → cleaned: ${addr}`)
@@ -119,6 +125,8 @@ async function main() {
         console.log(`    ✗ Skipping — no valid address`)
         continue
       }
+
+      foundAddresses.add(addr)
 
       const price = typeof h.price === 'number' ? h.price : parseInt(String(h.price || "").replace(/[^0-9]/g, "")) || null
 
@@ -142,6 +150,14 @@ async function main() {
           totalCreated++
         }
       } catch (e) { console.log(`    Error: ${e.message?.slice(0, 80)}`) }
+    }
+
+    // Mark active DB listings not found in API as removed (sold)
+    for (const dbL of activeDbListings) {
+      if (!foundAddresses.has(dbL.address)) {
+        await prisma.listing.update({ where: { id: dbL.id }, data: { status: "removed", soldAt: new Date() } })
+        console.log(`    ✗ Marked removed [${dbL.id}] "${dbL.address}" (not in API response)`)
+      }
     }
   }
 

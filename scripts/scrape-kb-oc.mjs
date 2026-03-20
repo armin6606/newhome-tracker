@@ -464,6 +464,8 @@ async function main() {
     // ---------- Step 5: Upsert listings ----------
     console.log("\n[Step 5] Upserting listings...")
     const activeMirPaths = new Set()
+    // Track scraped addresses per communityId for sold detection
+    const scrapedAddrsByComm = new Map()
     for (const listing of detailedListings) {
       if (!listing.communityName) continue
 
@@ -492,7 +494,27 @@ async function main() {
 
       await upsertListing(cId, listing, listing.mirPath)
       activeMirPaths.add(listing.mirPath)
+      if (!scrapedAddrsByComm.has(cId)) scrapedAddrsByComm.set(cId, new Set())
+      scrapedAddrsByComm.get(cId).add(listing.address.trim())
     }
+
+    // Mark listings no longer on site as removed (sold)
+    console.log("\n[Step 5b] Checking for sold/removed listings...")
+    let soldCount = 0
+    for (const [commId, scrapedAddrs] of scrapedAddrsByComm.entries()) {
+      const activeDbListings = await prisma.listing.findMany({
+        where: { communityId: commId, status: "active" },
+        select: { id: true, address: true },
+      })
+      for (const dbL of activeDbListings) {
+        if (!scrapedAddrs.has(dbL.address)) {
+          await prisma.listing.update({ where: { id: dbL.id }, data: { status: "removed", soldAt: new Date() } })
+          console.log(`  ✗ Marked removed [${dbL.id}] "${dbL.address}" (not in scraped response)`)
+          soldCount++
+        }
+      }
+    }
+    console.log(`  Total sold/removed: ${soldCount}`)
 
     // ---------- Step 6: Fix wrong-region communities ----------
     console.log("\n[Step 6] Fixing wrong-region KB communities in DB...")

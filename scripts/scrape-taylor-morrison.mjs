@@ -347,6 +347,13 @@ async function main() {
       console.log("\n[Scrape listings]")
       const homes = await scrapeAvailableHomes(context, comm)
 
+      // Get active DB listings for sold detection
+      const activeDbListings = await prisma.listing.findMany({
+        where: { communityId: dbComm.id, status: "active" },
+        select: { id: true, address: true },
+      })
+      const scrapedAddrs = new Set()
+
       // Upsert each listing
       let created = 0, updated = 0, skipped = 0
       if (homes.length > 0) {
@@ -354,6 +361,7 @@ async function main() {
         for (const home of homes) {
           const id = await upsertListing(dbComm.id, home, comm.url)
           if (id) {
+            if (home.address) scrapedAddrs.add(home.address.trim())
             // Check if it was a create or update
             const listing = await prisma.listing.findUnique({ where: { id } })
             if (listing?.firstDetected && listing.firstDetected.getTime() === listing.lastUpdated.getTime()) {
@@ -364,6 +372,14 @@ async function main() {
           } else {
             skipped++
           }
+        }
+      }
+
+      // Mark sold listings as removed
+      for (const dbL of activeDbListings) {
+        if (!scrapedAddrs.has(dbL.address)) {
+          await prisma.listing.update({ where: { id: dbL.id }, data: { status: "removed", soldAt: new Date() } })
+          console.log(`  ✗ Marked removed [${dbL.id}] "${dbL.address}" (not found on site)`)
         }
       }
 

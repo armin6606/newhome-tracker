@@ -335,12 +335,31 @@ async function main() {
     await browser.close()
   }
 
+  // Get active DB listings before upserting for sold detection
+  const activeDbListings = await prisma.listing.findMany({
+    where: { communityId: dbComm.id, status: "active" },
+    select: { id: true, address: true },
+  })
+  const scrapedAddrs = new Set()
+
   console.log(`\n[Step 4] Upserting ${scraped.length} listings in DB...`)
   let upserted = 0
   for (const home of scraped) {
     const id = await upsertListing(dbComm.id, home)
     if (id) upserted++
+    if (home.address) scrapedAddrs.add(home.address.trim())
   }
+
+  // Mark sold listings as removed
+  let soldCount = 0
+  for (const dbL of activeDbListings) {
+    if (!scrapedAddrs.has(dbL.address)) {
+      await prisma.listing.update({ where: { id: dbL.id }, data: { status: "removed", soldAt: new Date() } })
+      console.log(`  ✗ Marked removed [${dbL.id}] "${dbL.address}" (not found on site)`)
+      soldCount++
+    }
+  }
+  if (soldCount > 0) console.log(`  Sold/removed: ${soldCount}`)
 
   // -----------------------------------------------------------
   // Final summary
