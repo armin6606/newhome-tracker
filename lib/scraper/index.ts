@@ -149,105 +149,147 @@ async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export async function runScraper() {
-  const scrapeStartTime = new Date()
-  console.log(`[${scrapeStartTime.toISOString()}] Starting scrape...`)
-
-  const totalStats: ChangeDetails = {
-    added: 0,
-    priceChanges: 0,
-    removed: 0,
-    unchanged: 0,
-    newListings: [],
-    priceChangeDetails: [],
-    removedListings: [],
-    newIncentives: [],
+/** Process a single builder: scrape, dedup, group by community, detect changes */
+async function scrapeBuilder(config: BuilderConfig): Promise<{
+  scraped: number
+  stats: ChangeDetails
+  error?: { builder: string; error: string }
+}> {
+  const stats: ChangeDetails = {
+    added: 0, priceChanges: 0, removed: 0, unchanged: 0,
+    newListings: [], priceChangeDetails: [], removedListings: [], newIncentives: [],
   }
 
+  console.log(`\n--- ${config.name} ---`)
+
+  const builder = await withReconnect(() => prisma.builder.upsert({
+    where: { name: config.name },
+    update: {},
+    create: { name: config.name, websiteUrl: config.websiteUrl },
+  }))
+
+  let scrapedListings: ScrapedListing[]
+  try {
+    scrapedListings = await config.scrape()
+    console.log(`[${config.name}] Scraped ${scrapedListings.length} total listings`)
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err)
+    console.error(`[${config.name}] Error:`, err)
+    return { scraped: 0, stats, error: { builder: config.name, error: errorMsg } }
+  }
+
+  // Deduplicate by sourceUrl
+  const seenUrls = new Set<string>()
+  const dedupedListings = scrapedListings.filter((l) => {
+    if (seenUrls.has(l.sourceUrl)) return false
+    seenUrls.add(l.sourceUrl)
+    return true
+  })
+  console.log(`[${config.name}] After dedup: ${dedupedListings.length} unique listings`)
+
+  // Group by community
+  const byCommunity = new Map<string, typeof scrapedListings>()
+  for (const listing of dedupedListings) {
+    const key = listing.communityName
+    if (!byCommunity.has(key)) byCommunity.set(key, [])
+    byCommunity.get(key)!.push(listing)
+  }
+
+  for (const [communityName, listings] of byCommunity.entries()) {
+    const communityUrl = listings[0].communityUrl
+    const listingCity = listings[0].city || config.city
+
+    const community = await withReconnect(() => prisma.community.upsert({
+      where: { builderId_name: { builderId: builder.id, name: communityName } },
+      update: {
+        url: communityUrl,
+        ...(listingCity !== config.city ? { city: listingCity } : {}),
+      },
+      create: {
+        builderId: builder.id,
+        name: communityName,
+        city: listingCity,
+        state: config.state,
+        url: communityUrl,
+      },
+    }))
+
+    const communityStats = await detectAndApplyChanges(listings, community.id, config.name)
+    stats.added += communityStats.added
+    stats.priceChanges += communityStats.priceChanges
+    stats.removed += communityStats.removed
+    stats.unchanged += communityStats.unchanged
+    stats.newListings.push(...communityStats.newListings)
+    stats.priceChangeDetails.push(...communityStats.priceChangeDetails)
+    stats.removedListings.push(...communityStats.removedListings)
+    stats.newIncentives.push(...communityStats.newIncentives)
+
+    console.log(
+      `  [${config.name}] ${communityName}: +${communityStats.added} new, ${communityStats.priceChanges} price changes, ${communityStats.removed} removed, ${communityStats.unchanged} unchanged`
+    )
+  }
+
+  return { scraped: scrapedListings.length, stats }
+}
+
+// Max concurrent browser-based scrapers to avoid memory exhaustion
+const MAX_CONCURRENT = 5
+
+async function runWithConcurrency<T>(
+  tasks: (() => Promise<T>)[],
+  limit: number
+): Promise<T[]> {
+  const results: T[] = []
+  const executing = new Set<Promise<void>>()
+
+  for (const task of tasks) {
+    const p = task().then((result) => { results.push(result) })
+      .then(() => { executing.delete(p) })
+    executing.add(p)
+
+    if (executing.size >= limit) {
+      await Promise.race(executing)
+    }
+  }
+
+  await Promise.all(executing)
+  return results
+}
+
+export async function runScraper() {
+  const scrapeStartTime = new Date()
+  console.log(`[${scrapeStartTime.toISOString()}] Starting scrape (${BUILDERS.length} builders, max ${MAX_CONCURRENT} concurrent)...`)
+
+  // Run builders in parallel with concurrency limit
+  const results = await runWithConcurrency(
+    BUILDERS.map((config) => () => scrapeBuilder(config)),
+    MAX_CONCURRENT
+  )
+
+  // Aggregate results
+  const totalStats: ChangeDetails = {
+    added: 0, priceChanges: 0, removed: 0, unchanged: 0,
+    newListings: [], priceChangeDetails: [], removedListings: [], newIncentives: [],
+  }
   let totalScraped = 0
   const errors: { builder: string; error: string }[] = []
 
-  for (const config of BUILDERS) {
-    console.log(`\n--- ${config.name} ---`)
-
-    // Reconnect before each builder to avoid stale connections
-    await prisma.$disconnect().catch(() => {})
-    await prisma.$connect().catch(() => {})
-
-    const builder = await withReconnect(() => prisma.builder.upsert({
-      where: { name: config.name },
-      update: {},
-      create: { name: config.name, websiteUrl: config.websiteUrl },
-    }))
-
-    let scrapedListings: ScrapedListing[]
-    try {
-      scrapedListings = await config.scrape()
-      console.log(`Scraped ${scrapedListings.length} total listings`)
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      console.error(`Error scraping ${config.name}:`, err)
-      errors.push({ builder: config.name, error: errorMsg })
-      continue
-    }
-
-    totalScraped += scrapedListings.length
-
-    // Deduplicate by sourceUrl
-    const seenUrls = new Set<string>()
-    const dedupedListings = scrapedListings.filter((l) => {
-      if (seenUrls.has(l.sourceUrl)) return false
-      seenUrls.add(l.sourceUrl)
-      return true
-    })
-    console.log(`After dedup: ${dedupedListings.length} unique listings`)
-
-    // Group by community
-    const byCommunity = new Map<string, typeof scrapedListings>()
-    for (const listing of dedupedListings) {
-      const key = listing.communityName
-      if (!byCommunity.has(key)) byCommunity.set(key, [])
-      byCommunity.get(key)!.push(listing)
-    }
-
-    for (const [communityName, listings] of byCommunity.entries()) {
-      const communityUrl = listings[0].communityUrl
-      const listingCity = listings[0].city || config.city
-
-      const community = await withReconnect(() => prisma.community.upsert({
-        where: { builderId_name: { builderId: builder.id, name: communityName } },
-        update: {
-          url: communityUrl,
-          // Update to real city if we now have one (scraper returns specific city)
-          ...(listingCity !== config.city ? { city: listingCity } : {}),
-        },
-        create: {
-          builderId: builder.id,
-          name: communityName,
-          city: listingCity,
-          state: config.state,
-          url: communityUrl,
-        },
-      }))
-
-      const stats = await detectAndApplyChanges(listings, community.id, config.name)
-      totalStats.added += stats.added
-      totalStats.priceChanges += stats.priceChanges
-      totalStats.removed += stats.removed
-      totalStats.unchanged += stats.unchanged
-      totalStats.newListings.push(...stats.newListings)
-      totalStats.priceChangeDetails.push(...stats.priceChangeDetails)
-      totalStats.removedListings.push(...stats.removedListings)
-      totalStats.newIncentives.push(...stats.newIncentives)
-
-      console.log(
-        `  ${communityName}: +${stats.added} new, ${stats.priceChanges} price changes, ${stats.removed} removed, ${stats.unchanged} unchanged`
-      )
-    }
+  for (const r of results) {
+    totalScraped += r.scraped
+    totalStats.added += r.stats.added
+    totalStats.priceChanges += r.stats.priceChanges
+    totalStats.removed += r.stats.removed
+    totalStats.unchanged += r.stats.unchanged
+    totalStats.newListings.push(...r.stats.newListings)
+    totalStats.priceChangeDetails.push(...r.stats.priceChangeDetails)
+    totalStats.removedListings.push(...r.stats.removedListings)
+    totalStats.newIncentives.push(...r.stats.newIncentives)
+    if (r.error) errors.push(r.error)
   }
 
+  const elapsed = ((Date.now() - scrapeStartTime.getTime()) / 1000).toFixed(1)
   console.log(
-    `\n[${new Date().toISOString()}] Scrape complete:`,
+    `\n[${new Date().toISOString()}] Scrape complete in ${elapsed}s:`,
     `+${totalStats.added} new,`,
     `${totalStats.priceChanges} price changes,`,
     `${totalStats.removed} removed`
