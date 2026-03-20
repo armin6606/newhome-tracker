@@ -192,21 +192,20 @@ export default function IncentivesPage() {
                   <div className="grid grid-cols-2">
                     {offer.communities.map((c, i) => (
                       <div key={c.id}
-                        className={`px-4 py-2 hover:bg-amber-50/30 transition-colors ${Math.floor(i / 2) % 2 === 0 ? "bg-white" : "bg-stone-50"}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <a href={c.url} target="_blank" rel="noopener noreferrer"
-                            className={`font-medium hover:underline text-sm truncate ${builderColor(offer.builder)}`}>
-                            {cleanCommunityName(c.name)}
-                          </a>
-                          <span className="text-sm text-stone-700 font-medium whitespace-nowrap">
-                            {c.minPrice && c.maxPrice ? (
-                              c.minPrice === c.maxPrice
-                                ? formatPrice(c.minPrice)
-                                : `${formatPrice(c.minPrice)} – ${formatPrice(c.maxPrice)}`
-                            ) : "—"}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-stone-400 mt-0.5">{c.city} · {c.activeCount} listing{c.activeCount !== 1 ? "s" : ""}</div>
+                        className={`px-4 py-2 flex items-center gap-2 hover:bg-amber-50/30 transition-colors ${Math.floor(i / 2) % 2 === 0 ? "bg-white" : "bg-stone-50"}`}>
+                        <a href={c.url} target="_blank" rel="noopener noreferrer"
+                          className={`font-medium hover:underline text-sm min-w-0 truncate ${builderColor(offer.builder)}`}>
+                          {cleanCommunityName(c.name)}
+                        </a>
+                        <span className="text-xs text-stone-400 whitespace-nowrap">{c.city}</span>
+                        <span className="text-xs text-stone-400 whitespace-nowrap">{c.activeCount} listing{c.activeCount !== 1 ? "s" : ""}</span>
+                        <span className="ml-auto text-sm text-stone-700 font-medium whitespace-nowrap">
+                          {c.minPrice && c.maxPrice ? (
+                            c.minPrice === c.maxPrice
+                              ? formatPrice(c.minPrice)
+                              : `${formatPrice(c.minPrice)} – ${formatPrice(c.maxPrice)}`
+                          ) : "—"}
+                        </span>
                       </div>
                     ))}
                   </div>
