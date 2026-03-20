@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures", "Brandywine Homes", "Olson Homes", "Risewell Homes"]
 
   const where: Record<string, unknown> = {
-    community: { builder: { name: { notIn: EXCLUDED_BUILDERS } } }
+    community: { excluded: false, builder: { name: { notIn: EXCLUDED_BUILDERS } } }
   }
   if (status !== "all") where.status = status
   if (minPrice || maxPrice) {
