@@ -51,6 +51,21 @@ function parsePlanAndCommunity(description: string): { planName: string; communi
   return { planName: "", communityName: description.trim() }
 }
 
+/** Map known plan prefixes to their proper sub-community for Great Park */
+const GREAT_PARK_PLAN_MAP: Record<string, string> = {
+  "rhea": "Rhea at Luna Park",
+  "isla": "Isla at Luna Park",
+  "nova": "Nova - Active Adult",
+  "strata": "Strata - Active Adult",
+}
+
+/** If community is generic "Great Park Neighborhoods", resolve to specific sub-community using plan name */
+function resolveGreatParkCommunity(communityName: string, planName?: string): string {
+  if (!planName || !communityName.toLowerCase().includes("great park")) return communityName
+  const planPrefix = planName.split(/\s+/)[0].toLowerCase()
+  return GREAT_PARK_PLAN_MAP[planPrefix] || communityName
+}
+
 function parsePrice(text: string | null | undefined): number | undefined {
   if (!text) return undefined
   const cleaned = text.replace(/[^0-9]/g, "")
@@ -613,9 +628,10 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
             const finalSqft = pd.sqft || sqft
             const finalBeds = pd.beds || beds
             const finalBaths = pd.baths || baths
-            const finalCommunity = pd.communityFromPD
+            const rawCommunity = pd.communityFromPD
               ? pd.communityFromPD.replace(/\s*\|\s*/g, " - ")
               : communityName
+            const finalCommunity = resolveGreatParkCommunity(rawCommunity, planName)
             const finalCity = pd.cityFromPD || cityFromUrl(raw.href)
             const taxes = pd.taxRate && price ? Math.round(price * pd.taxRate / 100) : undefined
 
@@ -719,9 +735,10 @@ export async function scrapeLennarIrvine(): Promise<ScrapedListing[]> {
         await page.waitForTimeout(500)
       }
 
-      const finalCommunity = pd.communityFromPD
+      const rawCommunity = pd.communityFromPD
         ? pd.communityFromPD.replace(/\s*\|\s*/g, " - ")
         : communityName
+      const finalCommunity = resolveGreatParkCommunity(rawCommunity, raw.planName)
       const finalCity = pd.cityFromPD || raw.city || cityFromUrl(detailUrl)
       const finalSqft = pd.sqft || raw.sqft || undefined
       const finalBeds = pd.beds || raw.beds || undefined
