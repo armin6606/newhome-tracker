@@ -197,9 +197,10 @@ export default function IncentivesPage() {
                       Eligible Communities
                     </span>
                   </div>
-                  <div className="divide-y divide-stone-100">
-                    {offer.communities.map((c) => (
-                      <div key={c.id} className="px-5 py-2.5 flex items-center gap-4 hover:bg-amber-50/30 transition-colors">
+                  <div className="grid grid-cols-2">
+                    {offer.communities.map((c, i) => (
+                      <div key={c.id}
+                        className={`px-5 py-2.5 flex items-center gap-4 hover:bg-amber-50/30 transition-colors ${Math.floor(i / 2) % 2 === 0 ? "bg-white" : "bg-stone-50"}`}>
                         <a href={c.url} target="_blank" rel="noopener noreferrer"
                           className={`font-medium hover:underline text-sm min-w-0 truncate ${builderColor(offer.builder)}`}>
                           {cleanCommunityName(c.name)}
