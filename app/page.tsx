@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { formatPrice, formatNumber, cleanCommunityName } from "@/lib/utils"
 import { HeartButton } from "@/app/_components/HeartButton"
+import { FilterGate } from "@/app/_components/FilterGate"
 import { getBuilderColor } from "@/lib/builder-colors"
 
 type Listing = {
@@ -426,6 +427,7 @@ export default function HomePage() {
       </div>
 
       {/* Filter Bar */}
+      <FilterGate>
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm px-4 py-3 mb-4">
         <div className="flex flex-wrap items-end gap-3">
           {/* City */}
@@ -531,6 +533,7 @@ export default function HomePage() {
           {loading ? "Loading..." : `${displayed.length} listing${displayed.length !== 1 ? "s" : ""}`}
         </div>
       </div>
+      </FilterGate>
 
       {/* Mobile listing cards (hidden on md+) */}
       <div className="md:hidden flex flex-col gap-3">

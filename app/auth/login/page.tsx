@@ -14,6 +14,7 @@ function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [agreeToTerms, setAgreeToTerms] = useState(false)
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(
     errorParam ? { type: "error", text: errorParam } : null
   )
@@ -70,7 +71,7 @@ function LoginForm() {
       {/* Tabs */}
       <div className="flex border-b border-gray-200">
         <button
-          onClick={() => { setTab("login"); setMessage(null) }}
+          onClick={() => { setTab("login"); setMessage(null); setAgreeToTerms(false) }}
           className={`flex-1 py-3.5 text-sm font-medium transition-colors ${
             tab === "login"
               ? "text-blue-600 border-b-2 border-blue-600 bg-white"
@@ -92,10 +93,37 @@ function LoginForm() {
       </div>
 
       <div className="p-8">
+        {/* Consent checkbox for signup tab */}
+        {tab === "signup" && (
+          <label className="flex items-start gap-2.5 mb-5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreeToTerms}
+              onChange={(e) => setAgreeToTerms(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded accent-violet-600 cursor-pointer flex-none"
+            />
+            <span className="text-xs text-gray-600 leading-relaxed">
+              I agree to the{" "}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                Privacy Policy
+              </a>
+              ,{" "}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                Terms of Use
+              </a>
+              , and{" "}
+              <a href="/accuracy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                Accuracy Disclosure
+              </a>
+            </span>
+          </label>
+        )}
+
         {/* Google OAuth */}
         <button
           onClick={handleGoogleSignIn}
-          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 mb-4"
+          disabled={tab === "signup" && !agreeToTerms}
+          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -155,8 +183,8 @@ function LoginForm() {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full py-2.5 px-4 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-all mt-2"
+            disabled={loading || (tab === "signup" && !agreeToTerms)}
+            className="w-full py-2.5 px-4 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-all mt-2"
           >
             {loading
               ? tab === "login"

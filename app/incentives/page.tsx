@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { formatPrice } from "@/lib/utils"
+import { ContentGate } from "@/app/_components/ContentGate"
 
 type CommunityEntry = {
   id: number
@@ -124,6 +125,7 @@ export default function IncentivesPage() {
         </div>
       </div>
 
+      <ContentGate>
       {/* Filters */}
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm px-4 py-3 mb-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -226,6 +228,7 @@ export default function IncentivesPage() {
       <p className="mt-4 text-xs text-stone-400 text-right">
         Incentives sourced directly from builder websites. Offers subject to change — verify with builder for current terms.
       </p>
+      </ContentGate>
     </div>
   )
 }

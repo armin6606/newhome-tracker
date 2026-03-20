@@ -141,7 +141,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-stone-500">
                 <Link href="/privacy" className="hover:text-amber-600 transition-colors">Privacy Policy</Link>
                 <Link href="/terms" className="hover:text-amber-600 transition-colors">Terms of Use</Link>
-                <Link href="/data-accuracy" className="hover:text-amber-600 transition-colors">Data Accuracy Policy</Link>
+                <Link href="/accuracy" className="hover:text-amber-600 transition-colors">Data Accuracy Policy</Link>
                 <a href="mailto:info@newkey.us" className="hover:text-amber-600 transition-colors">info@newkey.us</a>
               </div>
             </div>

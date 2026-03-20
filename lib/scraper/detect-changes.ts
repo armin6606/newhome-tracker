@@ -2,19 +2,68 @@ import { prisma } from "@/lib/db"
 import type { ScrapedListing } from "./toll-brothers"
 import { notifyPriceChange, notifyNewListings } from "./notifications"
 
+export interface NewListingDetail {
+  address: string
+  community: string
+  builder: string
+  price: number | null
+}
+
+export interface PriceChangeDetail {
+  address: string
+  community: string
+  oldPrice: number
+  newPrice: number
+}
+
+export interface RemovedListingDetail {
+  address: string
+  community: string
+}
+
+export interface IncentiveDetail {
+  address: string
+  community: string
+  incentives: string
+}
+
+export interface ChangeDetails {
+  added: number
+  priceChanges: number
+  removed: number
+  unchanged: number
+  newListings: NewListingDetail[]
+  priceChangeDetails: PriceChangeDetail[]
+  removedListings: RemovedListingDetail[]
+  newIncentives: IncentiveDetail[]
+}
+
 export async function detectAndApplyChanges(
   scrapedListings: ScrapedListing[],
-  communityId: number
-) {
+  communityId: number,
+  builderName?: string
+): Promise<ChangeDetails> {
   // Get all currently active listings in this community
   const existing = await prisma.listing.findMany({
     where: { communityId, status: "active" },
   })
 
+  const community = await prisma.community.findUnique({ where: { id: communityId } })
+  const communityName = community?.name ?? "Unknown"
+
   const existingByAddress = new Map(existing.map((l) => [normalizeAddress(l.address), l]))
   const scrapedAddresses = new Set(scrapedListings.map((l) => normalizeAddress(l.address)))
 
-  const stats = { added: 0, priceChanges: 0, removed: 0, unchanged: 0 }
+  const stats: ChangeDetails = {
+    added: 0,
+    priceChanges: 0,
+    removed: 0,
+    unchanged: 0,
+    newListings: [],
+    priceChangeDetails: [],
+    removedListings: [],
+    newIncentives: [],
+  }
   const newListingIds: number[] = []
 
   // Process each scraped listing
@@ -59,6 +108,19 @@ export async function detectAndApplyChanges(
       }
       newListingIds.push(listing.id)
       stats.added++
+      stats.newListings.push({
+        address: scraped.address,
+        community: communityName,
+        builder: builderName ?? "Unknown",
+        price: scraped.price ?? null,
+      })
+      if (scraped.incentives) {
+        stats.newIncentives.push({
+          address: scraped.address,
+          community: communityName,
+          incentives: scraped.incentives,
+        })
+      }
     } else {
       // Existing listing — check for price change
       const updates: Record<string, unknown> = {
@@ -77,6 +139,15 @@ export async function detectAndApplyChanges(
         schools: scraped.schools ?? existing.schools,
         incentives: scraped.incentives ?? existing.incentives,
         sourceUrl: scraped.sourceUrl ?? existing.sourceUrl,
+      }
+
+      // Track new or changed incentives on existing listings
+      if (scraped.incentives && scraped.incentives !== existing.incentives) {
+        stats.newIncentives.push({
+          address: scraped.address,
+          community: communityName,
+          incentives: scraped.incentives,
+        })
       }
 
       if (scraped.price && scraped.price !== existing.currentPrice) {
@@ -103,6 +174,12 @@ export async function detectAndApplyChanges(
         }
 
         stats.priceChanges++
+        stats.priceChangeDetails.push({
+          address: scraped.address,
+          community: communityName,
+          oldPrice: existing.currentPrice!,
+          newPrice: scraped.price,
+        })
       } else {
         stats.unchanged++
       }
@@ -124,6 +201,10 @@ export async function detectAndApplyChanges(
         data: { status: "removed", soldAt: new Date() },
       })
       stats.removed++
+      stats.removedListings.push({
+        address: listing.address,
+        community: communityName,
+      })
     }
   }
 

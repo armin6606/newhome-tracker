@@ -5,6 +5,7 @@ import { formatPrice, cleanCommunityName } from "@/lib/utils"
 import { getBuilderColor } from "@/lib/builder-colors"
 import { FollowButton } from "@/app/_components/FollowButton"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
+import { ContentGate } from "@/app/_components/ContentGate"
 
 type Community = {
   id: number
@@ -96,6 +97,7 @@ export default function CommunitiesPage() {
         </div>
       </div>
 
+      <ContentGate>
       {/* Filters */}
       {!loading && communities.length > 0 && (
         <div className="flex flex-wrap items-end gap-3 mb-5">
@@ -236,6 +238,7 @@ export default function CommunitiesPage() {
       <div className="mt-8 bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
         <strong>Sales pace color guide:</strong> Green = fast (&gt;66% of top community), Yellow = moderate, Red = slow
       </div>
+      </ContentGate>
     </div>
   )
 }

@@ -13,7 +13,8 @@ import { scrapeCityVenturesOC } from "./city-ventures"
 import { scrapeBrandywineOC } from "./brandywine"
 import { scrapeOlsonHomesOC } from "./olson-homes"
 import { scrapeBonanniOC } from "./bonanni"
-import { detectAndApplyChanges } from "./detect-changes"
+import { detectAndApplyChanges, type ChangeDetails } from "./detect-changes"
+import { sendScrapeSummary } from "./scrape-summary"
 import type { ScrapedListing } from "./toll-brothers"
 
 interface BuilderConfig {
@@ -149,9 +150,22 @@ async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 export async function runScraper() {
-  console.log(`[${new Date().toISOString()}] Starting scrape...`)
+  const scrapeStartTime = new Date()
+  console.log(`[${scrapeStartTime.toISOString()}] Starting scrape...`)
 
-  const totalStats = { added: 0, priceChanges: 0, removed: 0, unchanged: 0 }
+  const totalStats: ChangeDetails = {
+    added: 0,
+    priceChanges: 0,
+    removed: 0,
+    unchanged: 0,
+    newListings: [],
+    priceChangeDetails: [],
+    removedListings: [],
+    newIncentives: [],
+  }
+
+  let totalScraped = 0
+  const errors: { builder: string; error: string }[] = []
 
   for (const config of BUILDERS) {
     console.log(`\n--- ${config.name} ---`)
@@ -171,9 +185,13 @@ export async function runScraper() {
       scrapedListings = await config.scrape()
       console.log(`Scraped ${scrapedListings.length} total listings`)
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
       console.error(`Error scraping ${config.name}:`, err)
+      errors.push({ builder: config.name, error: errorMsg })
       continue
     }
+
+    totalScraped += scrapedListings.length
 
     // Deduplicate by sourceUrl
     const seenUrls = new Set<string>()
@@ -212,11 +230,15 @@ export async function runScraper() {
         },
       }))
 
-      const stats = await detectAndApplyChanges(listings, community.id)
+      const stats = await detectAndApplyChanges(listings, community.id, config.name)
       totalStats.added += stats.added
       totalStats.priceChanges += stats.priceChanges
       totalStats.removed += stats.removed
       totalStats.unchanged += stats.unchanged
+      totalStats.newListings.push(...stats.newListings)
+      totalStats.priceChangeDetails.push(...stats.priceChangeDetails)
+      totalStats.removedListings.push(...stats.removedListings)
+      totalStats.newIncentives.push(...stats.newIncentives)
 
       console.log(
         `  ${communityName}: +${stats.added} new, ${stats.priceChanges} price changes, ${stats.removed} removed, ${stats.unchanged} unchanged`
@@ -230,6 +252,19 @@ export async function runScraper() {
     `${totalStats.priceChanges} price changes,`,
     `${totalStats.removed} removed`
   )
+
+  // Send daily scrape summary email
+  try {
+    await sendScrapeSummary({
+      scrapeTime: scrapeStartTime,
+      totalScraped,
+      changes: totalStats,
+      errors,
+    })
+    console.log("Scrape summary email sent to info@newkey.us")
+  } catch (err) {
+    console.error("Failed to send scrape summary email:", err)
+  }
 
   return totalStats
 }

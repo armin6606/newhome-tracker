@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { formatPrice, cleanCommunityName } from "@/lib/utils"
+import { ContentGate } from "@/app/_components/ContentGate"
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis, ComposedChart, Area,
@@ -210,6 +211,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      <ContentGate>
       {/* Filters */}
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm px-4 py-3 mb-6">
         <div className="flex flex-wrap items-end gap-3">
@@ -509,6 +511,7 @@ export default function AnalyticsPage() {
           </div>
         </>
       )}
+      </ContentGate>
     </div>
   )
 }
