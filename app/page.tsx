@@ -500,7 +500,7 @@ export default function HomePage() {
 
       {/* Table (desktop only) */}
       <div className="hidden md:block bg-white rounded-xl border border-stone-200 shadow-sm">
-        <div ref={tableScrollRef} className="overflow-x-auto rounded-xl">
+        <div ref={tableScrollRef} className="overflow-x-auto overflow-y-auto rounded-xl max-h-[75vh]">
           <table className="min-w-max w-full text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="bg-stone-50 border-b border-stone-200">
