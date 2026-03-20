@@ -205,8 +205,8 @@ export default function AnalyticsPage() {
                 <ScatterChart margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis type="number" dataKey="sqft" name="Sqft"
-                    domain={[900, "auto"]}
-                    ticks={[900, 1900, 2900, 3900, 4900, 5900]}
+                    domain={[0, "auto"]}
+                    ticks={[1000, 2000, 3000, 4000, 5000, 6000]}
                     tickFormatter={(v) => v.toLocaleString()}
                     tick={{ fontSize: 11 }}
                     label={{ value: "Sq Ft", position: "insideBottomRight", offset: -4, fontSize: 11, fill: "#78716c" }} />
