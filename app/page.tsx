@@ -88,6 +88,7 @@ function cleanCommunityName(name: string): string {
     .replace(/^toll brothers\s+(at|in|by|of)\s+/i, "")
     .replace(/\s+by\s+toll brothers$/i, "")
     .replace(/^toll brothers\s+/i, "")
+    .replace(/\s+at\s+[\w\s]+$/i, "")
     .trim()
 }
 
@@ -551,7 +552,12 @@ export default function HomePage() {
                       />
                     </td>
                     <td className="px-4 py-3 max-w-[160px] text-center">
-                      <span className="block truncate text-stone-800 font-medium" title={l.community.name}>{cleanCommunityName(l.community.name)}</span>
+                      <div className="relative group/comm">
+                        <span className="block truncate text-stone-800 font-medium">{cleanCommunityName(l.community.name)}</span>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 bg-stone-800 text-white text-xs rounded whitespace-nowrap shadow-lg z-50 hidden group-hover/comm:block pointer-events-none">
+                          {cleanCommunityName(l.community.name)}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-stone-500 whitespace-nowrap text-center">{l.community.city}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">

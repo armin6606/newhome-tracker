@@ -9,6 +9,7 @@ export async function GET() {
     where: {
       builder: { name: { notIn: EXCLUDED_BUILDERS } },
       listings: { some: { status: "active" } },
+      name: { not: "Great Park Neighborhoods" },
     },
     select: {
       name: true,

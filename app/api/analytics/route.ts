@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
   const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures"]
 
   const communityWhere: Record<string, unknown> = {
-    builder: { name: { notIn: EXCLUDED_BUILDERS } }
+    builder: { name: { notIn: EXCLUDED_BUILDERS } },
+    name: { not: "Great Park Neighborhoods" },
   }
   if (cities.length > 0)      communityWhere.city    = { in: cities }
   if (builders.length > 0)    communityWhere.builder = { name: { in: builders } }

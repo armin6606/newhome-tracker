@@ -43,6 +43,7 @@ function shortName(name: string): string {
     .replace(/\s+by\s+toll brothers$/i, "")
     .replace(/^toll brothers\s+/i, "")
     .replace(/great park neighborhoods/i, "Great Park")
+    .replace(/\s+at\s+[\w\s]+$/i, "")
     .trim()
 }
 
