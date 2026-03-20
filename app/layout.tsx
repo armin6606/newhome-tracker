@@ -41,6 +41,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </main>
+        <footer className="bg-white border-t border-gray-200 mt-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <img src="/logo.png" alt="NewKey.us" className="h-8 w-auto" />
+                <span className="text-stone-400 text-sm">© {new Date().getFullYear()} NewKey.us</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-stone-500">
+                <Link href="/privacy" className="hover:text-amber-600 transition-colors">Privacy Policy</Link>
+                <Link href="/terms" className="hover:text-amber-600 transition-colors">Terms of Use</Link>
+                <Link href="/data-accuracy" className="hover:text-amber-600 transition-colors">Data Accuracy Policy</Link>
+                <a href="mailto:info@newkey.us" className="hover:text-amber-600 transition-colors">info@newkey.us</a>
+              </div>
+            </div>
+            <p className="mt-4 text-center text-xs text-stone-400">
+              All listing data is for informational purposes only and may not reflect current prices or availability.
+              Always verify directly with the homebuilder.
+            </p>
+          </div>
+        </footer>
       </body>
     </html>
   )
