@@ -502,7 +502,7 @@ export default function HomePage() {
       <div className="hidden md:block bg-white rounded-xl border border-stone-200 shadow-sm">
         <div ref={tableScrollRef} className="overflow-x-auto rounded-xl">
           <table className="min-w-max w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="bg-stone-50 border-b border-stone-200">
                 {[
                   { label: "Compare", field: null },
