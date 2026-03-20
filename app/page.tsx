@@ -220,13 +220,16 @@ export default function HomePage() {
     return arr.findIndex((x) => x.address.toLowerCase().trim() === norm) === idx
   })
 
-  // Builders that have at least one listing (for dropdown)
+  // Builders and cities that have at least one listing (for dropdowns)
   const buildersWithListings = Array.from(
     new Set(listings.map((l) => l.community.builder.name))
   ).sort()
+  const citiesWithListings = Array.from(
+    new Set(listings.map((l) => l.community.city))
+  ).sort()
 
   const displayed = deduped.filter((l) => {
-    if (citySearch && !l.community.city.toLowerCase().includes(citySearch.toLowerCase())) return false
+    if (citySearch && l.community.city !== citySearch) return false
     if (moveInOnly && !isReady(l.moveInDate)) return false
     if (typeFilter && l.propertyType !== typeFilter) return false
     if (builderFilter && l.community.builder.name !== builderFilter) return false
@@ -360,7 +363,12 @@ export default function HomePage() {
           {/* City */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">City</label>
-            <input type="text" placeholder="e.g. Irvine" value={citySearch} onChange={(e) => setCitySearch(e.target.value)} className={`${inputCls} w-28`} />
+            <select value={citySearch} onChange={(e) => setCitySearch(e.target.value)} className={`${selectCls} w-40`}>
+              <option value="">All Cities</option>
+              {citiesWithListings.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
 
           {/* Builder */}
