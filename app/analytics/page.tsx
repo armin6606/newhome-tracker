@@ -97,7 +97,7 @@ function MultiSelect({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`${width} h-[34px] flex items-center justify-between gap-1 border border-stone-200 rounded-lg px-3 text-sm bg-white text-stone-700 hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors`}
+          className={`${width} flex items-center justify-between gap-1 border border-stone-200 rounded-lg px-3 py-1.5 text-sm bg-white text-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors`}
         >
           <span className={`truncate ${selected.length === 0 ? "text-stone-400" : ""}`}>{displayText}</span>
           <svg className={`w-3.5 h-3.5 flex-none text-stone-400 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
