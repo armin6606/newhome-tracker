@@ -93,32 +93,6 @@ function LoginForm() {
       </div>
 
       <div className="p-8">
-        {/* Consent checkbox for signup tab */}
-        {tab === "signup" && (
-          <label className="flex items-start gap-2.5 mb-5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={agreeToTerms}
-              onChange={(e) => setAgreeToTerms(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded accent-violet-600 cursor-pointer flex-none"
-            />
-            <span className="text-xs text-gray-600 leading-relaxed">
-              I agree to the{" "}
-              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
-                Privacy Policy
-              </a>
-              ,{" "}
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
-                Terms of Use
-              </a>
-              , and{" "}
-              <a href="/accuracy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
-                Accuracy Disclosure
-              </a>
-            </span>
-          </label>
-        )}
-
         {/* Google OAuth */}
         <button
           onClick={handleGoogleSignIn}
@@ -180,6 +154,32 @@ function LoginForm() {
               className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+
+          {/* Consent checkbox for signup tab — below password */}
+          {tab === "signup" && (
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreeToTerms}
+                onChange={(e) => setAgreeToTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded accent-violet-600 cursor-pointer flex-none"
+              />
+              <span className="text-xs text-gray-600 leading-relaxed">
+                I agree to the{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                  Privacy Policy
+                </a>
+                ,{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                  Terms of Use
+                </a>
+                , and{" "}
+                <a href="/accuracy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                  Accuracy Disclosure
+                </a>
+              </span>
+            </label>
+          )}
 
           <button
             type="submit"
