@@ -3,26 +3,26 @@ import type { ScrapedListing } from "./toll-brothers"
 import { notifyPriceChange, notifyNewListings } from "./notifications"
 
 export interface NewListingDetail {
-  address: string
+  address: string | null
   community: string
   builder: string
   price: number | null
 }
 
 export interface PriceChangeDetail {
-  address: string
+  address: string | null
   community: string
   oldPrice: number
   newPrice: number
 }
 
 export interface RemovedListingDetail {
-  address: string
+  address: string | null
   community: string
 }
 
 export interface IncentiveDetail {
-  address: string
+  address: string | null
   community: string
   incentives: string
 }
@@ -211,6 +211,6 @@ export async function detectAndApplyChanges(
   return stats
 }
 
-function normalizeAddress(address: string): string {
-  return address.toLowerCase().replace(/\s+/g, " ").trim()
+function normalizeAddress(address: string | null): string {
+  return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
 }

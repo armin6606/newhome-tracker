@@ -8,7 +8,7 @@ function fmt(n: number | null | undefined) {
 // ─── Price Change Email ──────────────────────────────────────────────────────
 
 export interface PriceChangeData {
-  address: string
+  address: string | null
   community: string
   listingId: number
   oldPrice: number
@@ -88,7 +88,7 @@ export interface NewListingData {
   communityId: number
   listings: {
     id: number
-    address: string
+    address: string | null
     currentPrice: number | null
     beds: number | null
     baths: number | null
