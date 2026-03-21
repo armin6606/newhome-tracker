@@ -267,11 +267,11 @@ async function main() {
 
     // ── Load all active DB listings ──────────────────────────────────────
     console.log("  Loading DB listings…")
-    const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures"]
+    const EXCLUDED_BUILDERS = ["Bonanni Development", "City Ventures", "Brandywine Homes", "Olson Homes", "Risewell Homes"]
     const listings = await prisma.listing.findMany({
       where: {
         status: "active",
-        community: { builder: { name: { notIn: EXCLUDED_BUILDERS } } },
+        community: { excluded: false, builder: { name: { notIn: EXCLUDED_BUILDERS } } },
       },
       include: {
         community: {

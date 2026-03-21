@@ -414,7 +414,7 @@ async function upsertListing(communityId, home) {
   if (!existing) {
     // Case-insensitive fallback
     const all = await prisma.listing.findMany({ where: { communityId } })
-    existing = all.find(l => l.address.toLowerCase() === address.toLowerCase()) || null
+    existing = all.find(l => l.address && l.address.toLowerCase() === address.toLowerCase()) || null
   }
 
   if (existing) {
