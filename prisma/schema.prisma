@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Builder {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  websiteUrl  String
+  communities Community[]
+  createdAt   DateTime    @default(now())
+}
+
+model Community {
+  id            Int               @id @default(autoincrement())
+  builderId     Int
+  builder       Builder           @relation(fields: [builderId], references: [id])
+  name          String
+  city          String
+  state         String
+  url           String
+  firstDetected DateTime          @default(now())
+  lastUpdated   DateTime          @updatedAt
+  listings      Listing[]
+  follows       CommunityFollow[]
+
+  @@unique([builderId, name])
+}
+
+model Listing {
+  id            Int            @id @default(autoincrement())
+  communityId   Int
+  community     Community      @relation(fields: [communityId], references: [id])
+  address       String?
+  lotNumber     String?
+  floorPlan     String?
+  sqft          Int?
+  beds          Float?
+  baths         Float?
+  garages       Int?
+  floors        Int?
+  currentPrice  Int?
+  pricePerSqft  Int?
+  propertyType  String?
+  hoaFees       Int?
+  taxes         Int?
+  moveInDate    String?
+  incentives    String?
+  incentivesUrl String?
+  status        String         @default("active")
+  sourceUrl     String?
+  firstDetected DateTime       @default(now())
+  lastUpdated   DateTime       @updatedAt
+  soldAt        DateTime?
+  priceHistory  PriceHistory[]
+  favorites     UserFavorite[]
+
+  @@unique([communityId, address])
+}
+
+model PriceHistory {
+  id         Int      @id @default(autoincrement())
+  listingId  Int
+  listing    Listing  @relation(fields: [listingId], references: [id])
+  price      Int
+  changeType String
+  detectedAt DateTime @default(now())
+}
+
+model UserFavorite {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  listingId Int
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId])
+}
+
+model CommunityFollow {
+  id          Int       @id @default(autoincrement())
+  userId      String
+  communityId Int
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, communityId])
+  @@index([userId])
+}
