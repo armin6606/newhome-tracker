@@ -20,10 +20,16 @@ export async function GET() {
   })
 
   const result = communities.map((c) => {
-    const active  = c.listings.filter((l) => l.status === "active").length
-    const sold    = c.listings.filter((l) => l.status === "sold").length
-    const future  = c.listings.filter((l) => l.status === "future").length
-    const total   = c.listings.filter((l) => l.status !== "removed").length
+    // Placeholder lots (null address) drive community card counts.
+    // Real-address listings (from scraper) power listing detail pages.
+    // If no placeholders exist yet, fall back to counting all listings.
+    const placeholders = c.listings.filter((l) => l.address === null)
+    const countSource  = placeholders.length > 0 ? placeholders : c.listings
+
+    const active  = countSource.filter((l) => l.status === "active").length
+    const sold    = countSource.filter((l) => l.status === "sold").length
+    const future  = countSource.filter((l) => l.status === "future").length
+    const total   = countSource.filter((l) => l.status !== "removed").length
 
     const observedSales = c.listings.filter((l) => l.soldAt !== null)
     let salesPerMonth = 0

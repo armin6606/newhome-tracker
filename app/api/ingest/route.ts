@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { builder: builderData, community: communityData, listings: listingsData } = body
+  const { builder: builderData, community: communityData, listings: listingsData, clearPlaceholders } = body
 
   if (!builderData?.name || !communityData?.name || !Array.isArray(listingsData)) {
     return NextResponse.json({ error: "Invalid payload. Required: builder, community, listings[]" }, { status: 400 })
@@ -68,6 +68,13 @@ export async function POST(req: NextRequest) {
       url:   communityData.url || "",
     },
   })
+
+  // When clearPlaceholders=true, delete all null-address (placeholder) listings first
+  if (clearPlaceholders) {
+    await prisma.listing.deleteMany({
+      where: { communityId: community.id, address: null },
+    })
+  }
 
   const results = { created: 0, updated: 0, priceChanges: 0 }
 
