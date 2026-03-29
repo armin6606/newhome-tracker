@@ -1,0 +1,15 @@
+name: Snapshot 2 AM
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # 9 AM UTC = 2 AM PDT
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Capture 2 AM snapshot
+        run: |
+          curl -sf -X GET "https://www.newkey.us/api/cron/hourly-scrape" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
