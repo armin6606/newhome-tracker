@@ -23,10 +23,12 @@
     "date-fns": "^4.1.0",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
+    "playwright": "^1.58.2",
     "prisma": "^5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.8.0",
+    "resend": "^6.9.4",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {

@@ -1,0 +1,84 @@
+============================================================
+ Lennar OC Scraper — 2026-03-25T08:00:01.783Z
+============================================================
+
+Reading community list from Sheet …
+  Found 6 community(s) in Sheet Table 1
+
+Processing 6 community(s)…
+
+─ Isla at Luna Park
+  ✓ 68 sold | 11 for sale | 31 future | 110 total
+    ✓ No changes
+
+─ Rhea
+  ✓ 55 sold | 0 for sale | 0 future | 55 total
+    🆕 55 new listing(s)
+
+─ Torrey
+  ✓ 39 sold | 7 for sale | 3 future | 49 total
+    🆕 49 new listing(s)
+
+─ Hazel
+  ✓ 18 sold | 0 for sale | 46 future | 64 total
+    🆕 64 new listing(s)
+
+─ Nova
+  ✓ 0 sold | 0 for sale | 0 future | 0 total
+    ✓ No changes
+
+─ Strata
+  ✓ 0 sold | 0 for sale | 0 future | 0 total
+    ✓ No changes
+
+============================================================
+ Run Summary
+============================================================
+  Communities : 6 / 6 succeeded
+  Changes     : 168
+  Failures    : 0
+
+  Elapsed: 11.5s
+============================================================
+============================================================
+ Lennar OC Scraper — 2026-03-26T08:00:01.728Z
+============================================================
+
+Reading community list from Sheet …
+  Found 6 community(s) in Sheet Table 1
+
+Processing 6 community(s)…
+
+─ Isla at Luna Park
+  ✗ ERROR: Unexpected end of JSON input
+
+─ Rhea
+  ✓ 55 sold | 0 for sale | 0 future | 55 total
+    ✓ No changes
+
+─ Torrey
+  ✓ 39 sold | 7 for sale | 3 future | 49 total
+    ✓ No changes
+
+─ Hazel
+  ✓ 18 sold | 0 for sale | 46 future | 64 total
+    ✓ No changes
+
+─ Nova
+  ✓ 0 sold | 0 for sale | 0 future | 0 total
+    ✓ No changes
+
+─ Strata
+  ✓ 0 sold | 0 for sale | 0 future | 0 total
+    ✓ No changes
+
+============================================================
+ Run Summary
+============================================================
+  Communities : 5 / 6 succeeded
+  Changes     : 0
+  Failures    : 1
+    • Isla at Luna Park: Unexpected end of JSON input
+
+  Elapsed: 10.2s
+============================================================

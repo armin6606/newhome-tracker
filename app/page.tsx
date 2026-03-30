@@ -57,10 +57,16 @@ function displayAddress(address: string | null): string {
   return address
 }
 
-function formatLot(lot: string | null) {
+function formatLot(lot: string | null, communityName?: string) {
   if (!lot) return "—"
+  // Strip composite community-name prefix (e.g. "IslaatLunaPark0042" → "0042")
+  if (communityName) {
+    const prefix = communityName.replace(/\s+/g, "")
+    if (lot.startsWith(prefix)) lot = lot.slice(prefix.length)
+  }
   const stripped = lot.replace(/home site\s*/i, "").trim()
   if (!stripped) return "—"
+  // Remove leading zeros for display (0042 → 42)
   const num = parseInt(stripped, 10)
   return isNaN(num) ? stripped : num.toString()
 }
@@ -217,6 +223,7 @@ export default function HomePage() {
   const [moveInOnly, setMoveInOnly] = useState(false)
   const [typeFilter, setTypeFilter] = useState("")
   const [builderFilter, setBuilderFilter] = useState("")
+  const [communityFilter, setCommunityFilter] = useState("")
 
   // Table horizontal scroll
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -303,12 +310,20 @@ export default function HomePage() {
   const citiesWithListings = Array.from(
     new Set(listings.map((l) => l.community.city.trim().replace(/\b\w/g, c => c.toUpperCase())))
   ).sort()
+  const communitiesWithListings = Array.from(
+    new Set(
+      listings
+        .filter((l) => !builderFilter || l.community.builder.name === builderFilter)
+        .map((l) => l.community.name)
+    )
+  ).sort()
 
   const displayed = deduped.filter((l) => {
     if (citySearch && l.community.city.toLowerCase() !== citySearch.toLowerCase()) return false
     if (moveInOnly && !isReady(l.moveInDate)) return false
     if (typeFilter && l.propertyType !== typeFilter) return false
     if (builderFilter && l.community.builder.name !== builderFilter) return false
+    if (communityFilter && l.community.name !== communityFilter) return false
     return true
   })
 
@@ -347,6 +362,7 @@ export default function HomePage() {
     setMoveInOnly(false)
     setTypeFilter("")
     setBuilderFilter("")
+    setCommunityFilter("")
   }
 
   const inputCls = "border border-stone-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
@@ -390,14 +406,21 @@ export default function HomePage() {
       </div>
 
       {/* Quick Nav Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         {[
           {
             href: "/communities",
-            title: "Communities",
+            title: "Active Communities",
             desc: "Browse all active builder communities, track sales velocity, and compare inventory levels side by side.",
             photo: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=80",
             stat: communities > 0 ? `${communities} active communities` : null,
+          },
+          {
+            href: "/upcoming",
+            title: "Upcoming Communities",
+            desc: "Future lots and floor plans not yet released — track what's coming before it hits the market.",
+            photo: "https://images.unsplash.com/photo-1486325212027-8081e485255e?auto=format&fit=crop&w=800&q=80",
+            stat: "Coming soon",
           },
           {
             href: "/incentives",
@@ -442,7 +465,7 @@ export default function HomePage() {
           {/* City */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">City</label>
-            <select value={citySearch} onChange={(e) => setCitySearch(e.target.value)} className={`${selectCls} w-40`}>
+            <select value={citySearch} onChange={(e) => setCitySearch(e.target.value)} className={`${selectCls} w-32`}>
               <option value="">All Cities</option>
               {citiesWithListings.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -453,10 +476,21 @@ export default function HomePage() {
           {/* Builder */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Builder</label>
-            <select value={builderFilter} onChange={(e) => setBuilderFilter(e.target.value)} className={`${selectCls} w-40`}>
+            <select value={builderFilter} onChange={(e) => { setBuilderFilter(e.target.value); setCommunityFilter("") }} className={`${selectCls} w-32`}>
               <option value="">All Builders</option>
               {buildersWithListings.map((b) => (
                 <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Community */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Community</label>
+            <select value={communityFilter} onChange={(e) => setCommunityFilter(e.target.value)} className={`${selectCls} w-36`}>
+              <option value="">All Communities</option>
+              {communitiesWithListings.map((c) => (
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
@@ -529,13 +563,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Reset */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] invisible">x</label>
-            <button onClick={resetFilters} className="h-[34px] px-3 rounded-lg text-xs text-stone-400 hover:text-stone-600 border border-stone-200 hover:bg-stone-50 transition-colors">
-              ↺ Reset
-            </button>
-          </div>
 
         </div>
         <div className="mt-2 text-sm text-stone-400 text-right">
@@ -670,7 +697,7 @@ export default function HomePage() {
                         </Link>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-stone-500 whitespace-nowrap text-center">{formatLot(l.lotNumber)}</td>
+                    <td className="px-4 py-3 text-stone-500 whitespace-nowrap text-center">{formatLot(l.lotNumber, l.community.name)}</td>
                     <td className="px-4 py-3 text-stone-500 max-w-[130px] text-center">
                       <span className="block truncate">{cleanPlanName(l.floorPlan)}</span>
                     </td>

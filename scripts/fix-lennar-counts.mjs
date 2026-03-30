@@ -74,12 +74,23 @@ async function main() {
   console.log(`\nLennar communities in DB (${comms.length}):`)
   comms.forEach(c => console.log(`  • ${c.name}: ${c._count.listings} listings`))
 
-  // 2. Delete ALL listings for all Lennar communities
-  console.log("\nClearing all Lennar listings…")
-  for (const c of comms) {
-    const { count } = await prisma.listing.deleteMany({ where: { communityId: c.id } })
-    console.log(`  ✓ Deleted ${count} from "${c.name}"`)
+  // 2. Delete all price history, then listings, then bad communities
+  console.log("\nClearing all Lennar data…")
+  const commIds = comms.map(c => c.id)
+  const listings = await prisma.listing.findMany({ where: { communityId: { in: commIds } }, select: { id: true } })
+  const listingIds = listings.map(l => l.id)
+
+  if (listingIds.length > 0) {
+    const { count: phCount } = await prisma.priceHistory.deleteMany({ where: { listingId: { in: listingIds } } })
+    console.log(`  ✓ Deleted ${phCount} price history records`)
+    const { count: lCount } = await prisma.listing.deleteMany({ where: { id: { in: listingIds } } })
+    console.log(`  ✓ Deleted ${lCount} listings`)
   }
+
+  // Remove communities not in Table 2 (garbage ones like "Type", "Townhome")
+  // We'll delete all Lennar communities and let the sync recreate the correct ones
+  const { count: cCount } = await prisma.community.deleteMany({ where: { builderId: builder.id } })
+  console.log(`  ✓ Deleted ${cCount} communities (will be recreated from Table 2)`)
 
   // 3. Read correct counts from Table 2
   console.log("\nReading Table 2 from Sheet…")

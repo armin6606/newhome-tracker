@@ -1,0 +1,58 @@
+============================================================
+ New Key Community Count Sync — 2026-03-25T09:00:01.576Z
+============================================================
+
+── Toll Brothers (gid=0)
+   10 community(s) in Table 2
+   ✓ Elm Collection: 16 sold | 9 for sale | 41 future | 66 total (66 updated)
+   ✓ Rowan Collection: 10 sold | 20 for sale | 16 future | 46 total (46 updated)
+   ✓ Pinnacle: 34 sold | 4 for sale | 11 future | 49 total (49 updated)
+   ✓ Skyline: 37 sold | 2 for sale | 3 future | 42 total (42 updated)
+   ✓ Birch: 9 sold | 8 for sale | 58 future | 75 total (75 updated)
+   ✓ Elevate: 74 sold | 6 for sale | 2 future | 82 total (82 updated)
+   ✓ Laurel: 2 sold | 4 for sale | 101 future | 107 total (107 updated)
+   ✓ Sequoias: 48 sold | 7 for sale | 2 future | 57 total (57 updated)
+   ✓ Evergreens: 5 sold | 1 for sale | 0 future | 6 total (6 updated)
+   ✓ Alder (GPN): 3 sold | 9 for sale | 66 future | 78 total (78 updated)
+
+── Lennar (gid=1235396983)
+   6 community(s) in Table 2
+   ✓ Isla at Luna Park: 13 sold | 12 for sale | 56 future | 81 total (81 updated)
+   ✓ Rhea: 10 sold | 7 for sale | 99 future | 116 total (116 updated)
+   ✓ Torrey: 39 sold | 10 for sale | 15 future | 64 total (64 updated)
+   ✓ Hazel: 18 sold | 6 for sale | 25 future | 49 total (49 updated)
+   ✓ Nova: 14 sold | 2 for sale | 36 future | 52 total (52 updated)
+   ✓ Strata: 16 sold | 12 for sale | 44 future | 72 total (72 updated)
+
+============================================================
+ Summary: 16 succeeded | 0 failed | 22.7s
+============================================================
+============================================================
+ New Key Community Count Sync — 2026-03-26T09:00:01.633Z
+============================================================
+
+── Toll Brothers (gid=0)
+   10 community(s) in Table 2
+   ✓ Elm Collection: 16 sold | 9 for sale | 41 future | 66 total (66 updated)
+   ✓ Rowan Collection: 10 sold | 20 for sale | 16 future | 46 total (46 updated)
+   ✓ Pinnacle: 34 sold | 4 for sale | 11 future | 49 total (49 updated)
+   ✓ Skyline: 37 sold | 2 for sale | 3 future | 42 total (42 updated)
+   ✓ Birch: 9 sold | 8 for sale | 58 future | 75 total (75 updated)
+   ✓ Elevate: 74 sold | 6 for sale | 2 future | 82 total (82 updated)
+   ✓ Laurel: 2 sold | 4 for sale | 101 future | 107 total (107 updated)
+   ✓ Sequoias: 48 sold | 7 for sale | 2 future | 57 total (57 updated)
+   ✓ Evergreens: 5 sold | 1 for sale | 0 future | 6 total (6 updated)
+   ✓ Alder (GPN): 3 sold | 9 for sale | 66 future | 78 total (78 updated)
+
+── Lennar (gid=1235396983)
+   6 community(s) in Table 2
+   ✓ Isla at Luna Park: 13 sold | 12 for sale | 56 future | 81 total (81 updated)
+   ✓ Rhea: 10 sold | 7 for sale | 99 future | 116 total (116 updated)
+   ✓ Torrey: 39 sold | 10 for sale | 15 future | 64 total (64 updated)
+   ✓ Hazel: 18 sold | 6 for sale | 25 future | 49 total (49 updated)
+   ✓ Nova: 14 sold | 2 for sale | 36 future | 52 total (52 updated)
+   ✓ Strata: 16 sold | 12 for sale | 44 future | 72 total (72 updated)
+
+============================================================
+ Summary: 16 succeeded | 0 failed | 24.2s
+============================================================

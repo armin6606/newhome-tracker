@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google"
 import "./globals.css"
 import Link from "next/link"
 import { NavActions } from "@/app/_components/NavActions"
+import { NavLinks } from "@/app/_components/NavLinks"
 import { GoogleAnalytics } from "@next/third-parties/google"
 import { MobileNav } from "@/app/_components/MobileNav"
 
@@ -81,11 +82,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <img src="/logo.png" alt="NewKey.us" className="h-20 w-auto" />
               </Link>
               {/* Desktop nav */}
-              <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-gray-600">
-                <Link href="/" className="hover:text-blue-700 transition-colors">Home</Link>
-                <Link href="/communities" className="hover:text-blue-700 transition-colors">Communities</Link>
-                <Link href="/incentives" className="hover:text-blue-700 transition-colors">Incentives</Link>
-                <Link href="/analytics" className="hover:text-blue-700 transition-colors">Analytics</Link>
+              <div className="hidden md:flex items-center gap-6">
+                <NavLinks />
                 <NavActions />
               </div>
               {/* Mobile hamburger */}

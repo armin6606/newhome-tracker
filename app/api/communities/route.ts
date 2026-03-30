@@ -8,6 +8,8 @@ export async function GET() {
       listings: {
         select: {
           id: true,
+          address: true,
+          lotNumber: true,
           status: true,
           currentPrice: true,
           sqft: true,
@@ -20,25 +22,24 @@ export async function GET() {
   })
 
   const result = communities.map((c) => {
-    // Placeholder lots (null address) drive community card counts.
-    // Real-address listings (from scraper) power listing detail pages.
+    // Placeholder lots (lotNumber matches sold-N/avail-N/future-N) drive community card counts.
+    // Real listings from scrapers power listing detail pages.
     // If no placeholders exist yet, fall back to counting all listings.
-    const placeholders = c.listings.filter((l) => l.address === null)
-    const countSource  = placeholders.length > 0 ? placeholders : c.listings
+    const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
+    const placeholders   = c.listings.filter((l) => l.lotNumber && PLACEHOLDER_RE.test(l.lotNumber))
+    const countSource    = placeholders.length > 0 ? placeholders : c.listings
 
     const active  = countSource.filter((l) => l.status === "active").length
     const sold    = countSource.filter((l) => l.status === "sold").length
     const future  = countSource.filter((l) => l.status === "future").length
     const total   = countSource.filter((l) => l.status !== "removed").length
 
-    const observedSales = c.listings.filter((l) => l.soldAt !== null)
+    const trackingStart  = c.firstDetected ?? new Date()
+    const observedSales  = c.listings.filter((l) => l.soldAt !== null && l.soldAt >= trackingStart && l.address !== null)
     let salesPerMonth = 0
     if (observedSales.length > 0) {
-      const soldDates   = observedSales.map((l) => l.soldAt!.getTime())
-      const earliest    = Math.min(...soldDates)
-      const latest      = Math.max(...soldDates)
-      const spanMonths  = Math.max(1, (latest - earliest) / (1000 * 60 * 60 * 24 * 30))
-      salesPerMonth     = parseFloat((observedSales.length / spanMonths).toFixed(1))
+      const spanMonths = Math.max(1, (Date.now() - trackingStart.getTime()) / (1000 * 60 * 60 * 24 * 30))
+      salesPerMonth    = parseFloat((observedSales.length / spanMonths).toFixed(1))
     }
 
     const soldWithDates = c.listings.filter((l) => l.soldAt && l.firstDetected)
@@ -55,23 +56,20 @@ export async function GET() {
     const minPrice = prices.length ? Math.min(...prices) : null
     const maxPrice = prices.length ? Math.max(...prices) : null
 
-    function getWeekStart(d: Date): number {
-      const day  = d.getUTCDay()
-      const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
-      return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff)).getTime()
-    }
-    const WEEK_MS            = 7 * 24 * 60 * 60 * 1000
-    const TRACKING_START_MS  = getWeekStart(new Date("2026-03-17"))
-    const thisWeek           = getWeekStart(new Date())
+    const DAY_MS             = 24 * 60 * 60 * 1000
+    const TRACKING_START_MS  = Date.UTC(2026, 2, 27) // March 27, 2026
+    const todayUTC           = new Date()
+    const todayStart         = Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), todayUTC.getUTCDate())
     const salesByWeek: { week: string; sold: number }[] = []
-    for (let wStart = TRACKING_START_MS; wStart <= thisWeek; wStart += WEEK_MS) {
-      const wEnd  = wStart + WEEK_MS
-      const d     = new Date(wStart)
+    for (let dStart = TRACKING_START_MS; dStart <= todayStart; dStart += DAY_MS) {
+      const dEnd  = dStart + DAY_MS
+      const d     = new Date(dStart)
       const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`
       const count = c.listings.filter((l) => {
         if (!l.soldAt) return false
+        if (!l.address) return false  // exclude placeholders (sold-N etc.)
         const t = l.soldAt.getTime()
-        return t >= wStart && t < wEnd
+        return t >= dStart && t < dEnd
       }).length
       salesByWeek.push({ week: label, sold: count })
     }
@@ -89,6 +87,7 @@ export async function GET() {
       active,
       future,
       salesPerMonth,
+      trackedSales: observedSales.length,
       avgDaysOnMarket,
       minPrice,
       maxPrice,

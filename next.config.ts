@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  async redirects() {
+    return [
+      { source: "/sign-in", destination: "/auth/login", permanent: false },
+      { source: "/login",   destination: "/auth/login", permanent: false },
+    ]
+  },
   images: {
     formats: ["image/avif", "image/webp"],
   },

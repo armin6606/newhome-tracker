@@ -1,0 +1,559 @@
+2026-03-25 12:37:12,113  INFO      Pulte Agent started. Polling every 300s.
+2026-03-25 12:37:30,365  INFO      Found 2 new URL(s) to process.
+2026-03-25 12:37:40,522  INFO        Overview: name=Icon at Luna Park city=Irvine state=California
+2026-03-25 12:37:43,440  INFO        Plans scraped: 0 unique floor plans
+2026-03-25 12:38:13,484  WARNING     QMI scrape error: ElementHandle.click: Timeout 30000ms exceeded.
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    55 × waiting for element to be visible, enabled and stable
+       - element is not visible
+     - retrying click action
+       - waiting 500ms
+
+2026-03-25 12:38:13,485  INFO        QMI homes found: 0
+2026-03-25 12:38:24,515  INFO        No map API response intercepted — trying iframe DOM.
+2026-03-25 12:38:24,535  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=09341369-396d-4225-b89c-
+2026-03-25 12:38:29,520  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-25 12:38:30,691  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-25 12:38:34,022  INFO        Ingest POST success: Icon (199 listings)
+2026-03-25 12:38:38,317  INFO        Overview: name=Parallel at Luna Park city=Irvine state=California
+2026-03-25 12:38:40,079  INFO        Plans scraped: 0 unique floor plans
+2026-03-25 12:39:10,102  WARNING     QMI scrape error: ElementHandle.click: Timeout 30000ms exceeded.
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    55 × waiting for element to be visible, enabled and stable
+       - element is not visible
+     - retrying click action
+       - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+
+2026-03-25 12:39:10,102  INFO        QMI homes found: 0
+2026-03-25 12:39:35,331  INFO      Pulte Agent started. Polling every 300s.
+2026-03-25 12:39:37,031  INFO      Found 1 new URL(s) to process.
+2026-03-25 12:39:41,246  INFO        Overview: name=Parallel at Luna Park city=Irvine state=California
+2026-03-25 12:39:45,464  INFO        Plans scraped: 0 unique floor plans
+2026-03-25 12:40:15,502  WARNING     QMI scrape error: ElementHandle.click: Timeout 30000ms exceeded.
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    52 × waiting for element to be visible, enabled and stable
+       - element is not visible
+     - retrying click action
+       - waiting 500ms
+
+2026-03-25 12:40:15,505  INFO        QMI homes found: 0
+2026-03-25 12:40:26,537  INFO        No map API response intercepted — trying iframe DOM.
+2026-03-25 12:40:26,550  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=a3bea538-d2e9-4ac7-8fad-
+2026-03-25 12:40:31,637  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-25 12:40:32,811  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-25 12:40:36,211  INFO        Ingest POST success: Parallel (199 listings)
+2026-03-25 12:45:37,713  INFO      No new URLs. Next check in 300s.
+2026-03-25 12:50:38,903  INFO      No new URLs. Next check in 300s.
+2026-03-25 12:55:40,263  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:00:41,336  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:05:42,643  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:10:43,868  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:15:44,916  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:20:46,302  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:25:47,470  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:30:49,840  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:35:51,188  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:40:52,341  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:45:53,582  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:50:55,057  INFO      No new URLs. Next check in 300s.
+2026-03-25 13:55:56,506  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:00:57,823  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:05:59,243  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:11:04,853  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:16:06,129  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:21:07,500  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:26:08,755  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:31:10,021  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:36:11,260  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:41:12,412  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:46:13,850  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:51:15,212  INFO      No new URLs. Next check in 300s.
+2026-03-25 14:56:16,433  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:01:17,637  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:06:18,669  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:11:19,919  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:16:21,225  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:21:22,453  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:26:23,590  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:31:24,763  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:36:25,893  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:41:30,649  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:46:31,945  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:51:33,184  INFO      No new URLs. Next check in 300s.
+2026-03-25 15:56:34,326  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:01:35,611  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:06:36,899  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:11:38,050  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:16:39,242  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:21:41,697  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:26:42,950  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:31:44,013  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:36:45,279  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:41:46,352  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:46:47,436  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:51:48,607  INFO      No new URLs. Next check in 300s.
+2026-03-25 16:56:49,895  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:01:51,058  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:06:52,177  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:11:53,365  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:16:54,542  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:21:55,917  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:26:56,983  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:32:01,526  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:37:04,234  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:42:05,856  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:47:07,180  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:52:08,377  INFO      No new URLs. Next check in 300s.
+2026-03-25 17:57:09,835  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:02:11,063  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:07:12,141  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:12:13,551  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:17:14,738  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:22:15,910  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:27:17,058  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:32:18,332  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:37:19,456  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:42:20,561  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:47:21,805  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:52:23,002  INFO      No new URLs. Next check in 300s.
+2026-03-25 18:57:24,329  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:02:25,452  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:07:26,612  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:12:27,830  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:17:29,168  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:22:30,365  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:27:31,600  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:32:32,668  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:37:33,725  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:42:34,877  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:47:36,094  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:52:37,230  INFO      No new URLs. Next check in 300s.
+2026-03-25 19:57:41,973  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:02:43,216  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:07:44,303  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:12:45,443  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:17:46,534  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:22:47,648  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:27:48,721  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:32:49,823  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:37:50,959  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:42:52,130  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:47:53,256  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:52:54,428  INFO      No new URLs. Next check in 300s.
+2026-03-25 20:57:55,748  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:02:56,997  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:07:58,511  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:12:59,634  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:18:00,670  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:23:01,806  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:28:03,058  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:33:04,343  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:38:05,576  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:43:06,704  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:48:07,826  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:53:09,187  INFO      No new URLs. Next check in 300s.
+2026-03-25 21:58:12,827  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:03:14,197  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:08:15,363  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:13:16,444  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:18:17,702  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:23:18,781  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:28:20,006  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:33:21,126  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:38:22,286  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:43:23,605  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:48:24,783  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:53:25,845  INFO      No new URLs. Next check in 300s.
+2026-03-25 22:58:26,952  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:03:28,421  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:08:29,655  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:13:30,841  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:18:31,987  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:23:33,077  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:28:34,284  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:33:35,384  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:38:36,559  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:43:37,658  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:48:38,840  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:53:40,015  INFO      No new URLs. Next check in 300s.
+2026-03-25 23:58:41,242  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:03:42,315  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:08:43,381  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:13:44,387  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:18:45,565  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:23:46,691  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:28:47,767  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:33:48,899  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:38:50,131  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:43:51,272  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:48:52,384  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:53:53,417  INFO      No new URLs. Next check in 300s.
+2026-03-26 00:58:54,664  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:03:55,914  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:08:59,952  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:14:04,257  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:19:08,814  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:24:09,961  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:29:11,037  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:34:12,215  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:39:13,331  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:44:14,427  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:49:15,643  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:54:16,774  INFO      No new URLs. Next check in 300s.
+2026-03-26 01:59:17,806  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:04:19,123  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:09:23,055  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:14:24,205  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:19:25,370  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:24:26,574  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:29:27,824  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:34:28,895  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:39:30,112  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:44:31,292  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:49:32,364  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:54:33,751  INFO      No new URLs. Next check in 300s.
+2026-03-26 02:59:34,969  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:04:36,196  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:09:37,409  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:14:38,965  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:19:40,089  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:24:41,297  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:29:42,500  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:34:43,611  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:39:44,628  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:44:45,793  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:49:46,900  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:54:48,094  INFO      No new URLs. Next check in 300s.
+2026-03-26 03:59:49,176  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:04:50,250  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:09:51,295  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:14:52,400  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:19:53,602  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:24:54,806  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:29:55,947  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:34:57,092  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:39:58,384  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:44:59,659  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:50:00,767  INFO      No new URLs. Next check in 300s.
+2026-03-26 04:55:01,847  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:00:03,394  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:05:04,540  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:10:05,723  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:15:06,872  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:20:08,057  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:25:09,177  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:30:10,243  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:35:16,210  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:40:17,656  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:45:18,809  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:50:19,912  INFO      No new URLs. Next check in 300s.
+2026-03-26 05:55:21,184  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:00:22,439  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:05:23,680  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:10:24,897  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:15:26,129  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:20:27,297  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:25:28,522  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:30:29,700  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:35:30,920  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:40:32,158  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:45:33,292  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:50:34,515  INFO      No new URLs. Next check in 300s.
+2026-03-26 06:55:35,882  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:00:37,143  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:05:38,329  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:10:39,435  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:15:40,535  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:20:41,636  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:25:43,207  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:30:44,365  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:35:45,842  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:40:46,993  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:45:48,211  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:50:49,450  INFO      No new URLs. Next check in 300s.
+2026-03-26 07:55:50,563  INFO      No new URLs. Next check in 300s.
+2026-03-26 08:00:51,851  INFO      No new URLs. Next check in 300s.
+2026-03-26 08:05:53,025  INFO      No new URLs. Next check in 300s.
+2026-03-26 13:07:18,089  INFO      No new URLs to process.
+2026-03-26 13:07:34,502  INFO      Processing 2 communities: ['Icon', 'Parallel']
+2026-03-26 13:08:08,664  INFO        Overview: name=Icon at Luna Park city=Irvine state=California
+2026-03-26 13:08:15,046  INFO        Plans scraped: 0 unique floor plans
+2026-03-26 13:08:45,136  WARNING     QMI scrape error: ElementHandle.click: Timeout 30000ms exceeded.
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    53 × waiting for element to be visible, enabled and stable
+       - element is not visible
+     - retrying click action
+       - waiting 500ms
+
+2026-03-26 13:08:45,136  INFO        QMI homes found: 0
+2026-03-26 13:08:53,158  INFO        No map API — trying iframe DOM
+2026-03-26 13:08:53,164  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=09341369-396d-4225-b89c-
+2026-03-26 13:08:59,346  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:08:59,347  INFO        OVERVIEW : {'name': 'Icon at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Loon and Gadwall', 'description': 'Now pre-selling in Irvine in Great Park Neighborhoods - new construction homes at Icon at Luna Park. Click or call (949) 806-4800 to learn more. ', 'base_price': 1605168, 'sqft_min': 2104, 'sqft_max': 2608, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:08:59,347  INFO        PLANS    : 0 plans — []
+2026-03-26 13:08:59,347  INFO        QMI      : 0 homes
+2026-03-26 13:08:59,348  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:09:00,656  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:09:00,964  ERROR       Ingest POST failed 500: 
+2026-03-26 13:09:14,085  INFO        Overview: name=Parallel at Luna Park city=Irvine state=California
+2026-03-26 13:09:17,292  INFO        Plans scraped: 0 unique floor plans
+2026-03-26 13:09:47,371  WARNING     QMI scrape error: ElementHandle.click: Timeout 30000ms exceeded.
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    54 × waiting for element to be visible, enabled and stable
+       - element is not visible
+     - retrying click action
+       - waiting 500ms
+
+2026-03-26 13:09:47,371  INFO        QMI homes found: 0
+2026-03-26 13:09:55,392  INFO        No map API — trying iframe DOM
+2026-03-26 13:09:55,403  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=a3bea538-d2e9-4ac7-8fad-
+2026-03-26 13:10:00,720  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:10:00,720  INFO        OVERVIEW : {'name': 'Parallel at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Gadwall and Harrier', 'description': 'Now in Irvine at Great Park Neighborhoods - new construction homes in Parallel at Luna Park. Click or call (949) 806-4900 to learn more. ', 'base_price': 1427990, 'sqft_min': 2060, 'sqft_max': 2371, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:10:00,720  INFO        PLANS    : 0 plans — []
+2026-03-26 13:10:00,721  INFO        QMI      : 0 homes
+2026-03-26 13:10:00,721  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:10:02,123  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:10:02,472  ERROR       Ingest POST failed 500: 
+2026-03-26 13:10:02,731  INFO      Done.
+2026-03-26 13:12:36,150  INFO      Processing 2 communities: ['Icon', 'Parallel']
+2026-03-26 13:12:49,877  INFO        Overview: name=Icon at Luna Park city=Irvine state=California
+2026-03-26 13:12:55,858  ERROR       ERROR: cannot access local variable 'stat_blocks' where it is not associated with a value
+Traceback (most recent call last):
+  File "C:\New Key\Pulte Agent\scrape_now.py", line 78, in main
+    plans     = await scrape_plans(page, overview)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\New Key\Pulte Agent\pulte_agent.py", line 352, in scrape_plans
+    for block in stat_blocks:
+                 ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'stat_blocks' where it is not associated with a value
+2026-03-26 13:13:08,039  INFO        Overview: name=Parallel at Luna Park city=Irvine state=California
+2026-03-26 13:13:12,604  ERROR       ERROR: cannot access local variable 'stat_blocks' where it is not associated with a value
+Traceback (most recent call last):
+  File "C:\New Key\Pulte Agent\scrape_now.py", line 78, in main
+    plans     = await scrape_plans(page, overview)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\New Key\Pulte Agent\pulte_agent.py", line 352, in scrape_plans
+    for block in stat_blocks:
+                 ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'stat_blocks' where it is not associated with a value
+2026-03-26 13:13:12,776  INFO      Done.
+2026-03-26 13:14:36,046  INFO      Processing 2 communities: ['Icon', 'Parallel']
+2026-03-26 13:14:36,509  INFO      === Icon ===
+2026-03-26 13:14:45,381  INFO        Overview: name=Icon at Luna Park city=Irvine state=California
+2026-03-26 13:14:49,179  INFO        Plans scraped: 4 unique floor plans
+2026-03-26 13:14:49,547  INFO        QMI homes found: 5
+2026-03-26 13:14:57,575  INFO        No map API — trying iframe DOM
+2026-03-26 13:14:57,577  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=09341369-396d-4225-b89c-
+2026-03-26 13:15:02,382  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:15:02,385  INFO        OVERVIEW : {'name': 'Icon at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Loon and Gadwall', 'description': 'Now pre-selling in Irvine in Great Park Neighborhoods - new construction homes at Icon at Luna Park. Click or call (949) 806-4800 to learn more. ', 'base_price': 1605168, 'sqft_min': 2104, 'sqft_max': 2608, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:15:02,385  INFO        PLANS    : 4 plans — ['Plan 1', 'Plan 2', 'Plan 3', 'Plan 4']
+2026-03-26 13:15:02,385  INFO        QMI      : 5 homes
+2026-03-26 13:15:02,385  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:15:03,879  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:15:04,412  INFO        Table 3: wrote 4 floor plan rows starting at row 16
+2026-03-26 13:15:05,344  ERROR       Ingest POST failed 500: 
+2026-03-26 13:15:05,364  INFO      === Parallel ===
+2026-03-26 13:15:09,822  INFO        Overview: name=Parallel at Luna Park city=Irvine state=California
+2026-03-26 13:15:13,563  INFO        Plans scraped: 3 unique floor plans
+2026-03-26 13:15:13,731  INFO        QMI homes found: 4
+2026-03-26 13:15:21,741  INFO        No map API — trying iframe DOM
+2026-03-26 13:15:21,749  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=a3bea538-d2e9-4ac7-8fad-
+2026-03-26 13:15:26,485  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:15:26,485  INFO        OVERVIEW : {'name': 'Parallel at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Gadwall and Harrier', 'description': 'Now in Irvine at Great Park Neighborhoods - new construction homes in Parallel at Luna Park. Click or call (949) 806-4900 to learn more. ', 'base_price': 1427990, 'sqft_min': 2060, 'sqft_max': 2371, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:15:26,485  INFO        PLANS    : 3 plans — ['Plan 1', 'Plan 2', 'Plan 3']
+2026-03-26 13:15:26,486  INFO        QMI      : 4 homes
+2026-03-26 13:15:26,486  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:15:27,995  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:15:28,526  INFO        Table 3: wrote 3 floor plan rows starting at row 20
+2026-03-26 13:15:28,922  ERROR       Ingest POST failed 500: 
+2026-03-26 13:15:29,023  INFO      Done.
+2026-03-26 13:17:47,089  INFO      Processing 2 communities: ['Icon', 'Parallel']
+2026-03-26 13:17:47,549  INFO      === Icon ===
+2026-03-26 13:17:53,630  INFO        Overview: name=Icon at Luna Park city=Irvine state=California
+2026-03-26 13:17:57,558  INFO        Plans scraped: 4 unique floor plans
+2026-03-26 13:17:57,696  INFO        QMI homes found: 5
+2026-03-26 13:18:05,702  INFO        No map API — trying iframe DOM
+2026-03-26 13:18:05,707  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=09341369-396d-4225-b89c-
+2026-03-26 13:18:12,867  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:18:12,869  INFO        OVERVIEW : {'name': 'Icon at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Loon and Gadwall', 'description': 'Now pre-selling in Irvine in Great Park Neighborhoods - new construction homes at Icon at Luna Park. Click or call (949) 806-4800 to learn more. ', 'base_price': 1605168, 'sqft_min': 2104, 'sqft_max': 2608, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:18:12,869  INFO        PLANS    : 4 plans — ['Plan 1', 'Plan 2', 'Plan 3', 'Plan 4']
+2026-03-26 13:18:12,869  INFO        QMI      : 5 homes
+2026-03-26 13:18:12,869  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:18:13,753  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:18:14,099  INFO        Table 3: wrote 4 floor plan rows starting at row 23
+2026-03-26 13:18:14,604  ERROR       Ingest POST failed 500: 
+2026-03-26 13:18:14,630  INFO      === Parallel ===
+2026-03-26 13:18:19,181  INFO        Overview: name=Parallel at Luna Park city=Irvine state=California
+2026-03-26 13:18:23,021  INFO        Plans scraped: 3 unique floor plans
+2026-03-26 13:18:23,320  INFO        QMI homes found: 4
+2026-03-26 13:18:31,334  INFO        No map API — trying iframe DOM
+2026-03-26 13:18:31,337  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=a3bea538-d2e9-4ac7-8fad-
+2026-03-26 13:18:36,000  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:18:36,000  INFO        OVERVIEW : {'name': 'Parallel at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Gadwall and Harrier', 'description': 'Now in Irvine at Great Park Neighborhoods - new construction homes in Parallel at Luna Park. Click or call (949) 806-4900 to learn more. ', 'base_price': 1427990, 'sqft_min': 2060, 'sqft_max': 2371, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:18:36,000  INFO        PLANS    : 3 plans — ['Plan 1', 'Plan 2', 'Plan 3']
+2026-03-26 13:18:36,000  INFO        QMI      : 4 homes
+2026-03-26 13:18:36,001  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:18:36,839  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:18:37,184  INFO        Table 3: wrote 3 floor plan rows starting at row 27
+2026-03-26 13:18:37,554  ERROR       Ingest POST failed 500: 
+2026-03-26 13:18:37,651  INFO      Done.
+2026-03-26 13:19:00,569  INFO        Overview: name=Icon at Luna Park city=Irvine state=California
+2026-03-26 13:19:04,633  INFO        Plans scraped: 4 unique floor plans
+2026-03-26 13:19:05,003  INFO        QMI homes found: 5
+2026-03-26 13:19:51,095  INFO      Processing 2 communities: ['Icon', 'Parallel']
+2026-03-26 13:19:51,563  INFO      === Icon ===
+2026-03-26 13:19:56,548  INFO        Overview: name=Icon at Luna Park city=Irvine state=California
+2026-03-26 13:20:00,314  INFO        Plans scraped: 4 unique floor plans
+2026-03-26 13:20:00,688  INFO        QMI homes found: 5
+2026-03-26 13:20:08,700  INFO        No map API — trying iframe DOM
+2026-03-26 13:20:08,707  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=09341369-396d-4225-b89c-
+2026-03-26 13:20:13,596  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:20:13,597  INFO        OVERVIEW : {'name': 'Icon at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Loon and Gadwall', 'description': 'Now pre-selling in Irvine in Great Park Neighborhoods - new construction homes at Icon at Luna Park. Click or call (949) 806-4800 to learn more. ', 'base_price': 1605168, 'sqft_min': 2104, 'sqft_max': 2608, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:20:13,597  INFO        PLANS    : 4 plans — ['Plan 1', 'Plan 2', 'Plan 3', 'Plan 4']
+2026-03-26 13:20:13,597  INFO        QMI      : 5 homes
+2026-03-26 13:20:13,598  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:20:14,597  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:20:14,923  INFO        Table 3: wrote 4 floor plan rows starting at row 30
+2026-03-26 13:20:15,344  ERROR       Ingest POST failed 500: 
+2026-03-26 13:20:15,368  INFO      === Parallel ===
+2026-03-26 13:20:22,883  INFO        Overview: name=Parallel at Luna Park city=Irvine state=California
+2026-03-26 13:20:26,612  INFO        Plans scraped: 3 unique floor plans
+2026-03-26 13:20:26,902  INFO        QMI homes found: 4
+2026-03-26 13:20:34,916  INFO        No map API — trying iframe DOM
+2026-03-26 13:20:34,921  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=a3bea538-d2e9-4ac7-8fad-
+2026-03-26 13:20:40,116  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:20:40,116  INFO        OVERVIEW : {'name': 'Parallel at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Gadwall and Harrier', 'description': 'Now in Irvine at Great Park Neighborhoods - new construction homes in Parallel at Luna Park. Click or call (949) 806-4900 to learn more. ', 'base_price': 1427990, 'sqft_min': 2060, 'sqft_max': 2371, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:20:40,116  INFO        PLANS    : 3 plans — ['Plan 1', 'Plan 2', 'Plan 3']
+2026-03-26 13:20:40,116  INFO        QMI      : 4 homes
+2026-03-26 13:20:40,117  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:20:41,230  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:20:41,605  INFO        Table 3: wrote 3 floor plan rows starting at row 34
+2026-03-26 13:20:41,944  ERROR       Ingest POST failed 500: 
+2026-03-26 13:20:42,060  INFO      Done.
+2026-03-26 13:21:04,424  INFO        Overview: name=Icon at Luna Park city=Irvine state=California
+2026-03-26 13:21:08,313  INFO        Plans scraped: 4 unique floor plans
+2026-03-26 13:21:08,715  INFO        QMI homes found: 5
+2026-03-26 13:26:44,114  INFO      Processing 2 communities: ['Icon', 'Parallel']
+2026-03-26 13:26:44,574  INFO      === Icon ===
+2026-03-26 13:26:49,785  INFO        Overview: name=Icon at Luna Park city=Irvine state=California
+2026-03-26 13:26:53,597  INFO        Plans scraped: 4 unique floor plans
+2026-03-26 13:26:53,953  INFO        QMI homes found: 5
+2026-03-26 13:27:01,964  INFO        No map API — trying iframe DOM
+2026-03-26 13:27:01,971  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=09341369-396d-4225-b89c-
+2026-03-26 13:27:06,617  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:27:06,620  INFO        OVERVIEW : {'name': 'Icon at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Loon and Gadwall', 'description': 'Now pre-selling in Irvine in Great Park Neighborhoods - new construction homes at Icon at Luna Park. Click or call (949) 806-4800 to learn more. ', 'base_price': 1605168, 'sqft_min': 2104, 'sqft_max': 2608, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:27:06,620  INFO        PLANS    : 4 plans — ['Plan 1', 'Plan 2', 'Plan 3', 'Plan 4']
+2026-03-26 13:27:06,620  INFO        QMI      : 5 homes
+2026-03-26 13:27:06,620  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:27:07,706  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:27:08,055  INFO        Table 3: wrote 4 floor plan rows starting at row 37
+2026-03-26 13:27:11,436  INFO        Ingest POST success: Icon (199 listings)
+2026-03-26 13:27:11,464  INFO      === Parallel ===
+2026-03-26 13:27:15,798  INFO        Overview: name=Parallel at Luna Park city=Irvine state=California
+2026-03-26 13:27:19,421  INFO        Plans scraped: 3 unique floor plans
+2026-03-26 13:27:19,517  INFO        QMI homes found: 4
+2026-03-26 13:27:27,534  INFO        No map API — trying iframe DOM
+2026-03-26 13:27:27,541  INFO        Opening AlphaVision iframe: https://apps.zondavirtual.com/alphamap/index.html?OLAId=a3bea538-d2e9-4ac7-8fad-
+2026-03-26 13:27:33,230  INFO        Map counts (iframe DOM): total=199 sold=0 for_sale=9 future=190
+2026-03-26 13:27:33,230  INFO        OVERVIEW : {'name': 'Parallel at Luna Park', 'city': 'Irvine', 'state': 'California', 'zip': '92618', 'street': 'Gadwall and Harrier', 'description': 'Now in Irvine at Great Park Neighborhoods - new construction homes in Parallel at Luna Park. Click or call (949) 806-4900 to learn more. ', 'base_price': 1427990, 'sqft_min': 2060, 'sqft_max': 2371, 'property_type': 'Condominium', 'elem_school': 'See School Ratings'}
+2026-03-26 13:27:33,230  INFO        PLANS    : 3 plans — ['Plan 1', 'Plan 2', 'Plan 3']
+2026-03-26 13:27:33,231  INFO        QMI      : 4 homes
+2026-03-26 13:27:33,231  INFO        MAP      : {'total': 199, 'sold': 0, 'for_sale': 9, 'future': 190}
+2026-03-26 13:27:34,072  INFO        Table 2 written: sold=0 for_sale=9 future=190 total=199
+2026-03-26 13:27:34,414  INFO        Table 3: wrote 3 floor plan rows starting at row 41
+2026-03-26 13:27:37,694  INFO        Ingest POST success: Parallel (199 listings)
+2026-03-26 13:27:37,919  INFO      Done.
+2026-03-26 13:32:42,182  INFO      Pulte Agent started. Polling every 300s.
+2026-03-26 13:32:43,501  INFO      No new URLs. Next check in 300s.
+2026-03-26 13:37:44,224  INFO      No new URLs. Next check in 300s.
+2026-03-26 13:42:45,163  INFO      No new URLs. Next check in 300s.
+2026-03-26 13:47:46,578  INFO      No new URLs. Next check in 300s.
+2026-03-26 13:52:47,402  INFO      No new URLs. Next check in 300s.
+2026-03-26 13:57:48,206  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:02:49,488  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:07:50,392  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:12:51,364  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:17:53,255  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:22:55,734  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:27:57,050  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:36:02,425  WARNING   Google Sheets API error: APIError: [503]: The service is currently unavailable.
+2026-03-26 14:41:03,508  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:46:04,513  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:51:05,394  INFO      No new URLs. Next check in 300s.
+2026-03-26 14:56:06,428  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:01:07,465  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:06:08,333  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:11:09,328  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:16:10,235  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:21:11,306  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:26:12,207  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:31:13,586  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:36:14,558  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:41:15,624  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:46:16,373  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:51:17,244  INFO      No new URLs. Next check in 300s.
+2026-03-26 15:56:18,521  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:01:20,083  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:06:21,624  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:11:22,440  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:16:23,292  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:21:24,094  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:26:25,135  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:31:25,958  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:36:26,849  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:41:27,800  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:46:28,744  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:51:29,731  INFO      No new URLs. Next check in 300s.
+2026-03-26 16:56:30,536  INFO      No new URLs. Next check in 300s.
+2026-03-26 17:01:31,467  INFO      No new URLs. Next check in 300s.
+2026-03-26 17:06:32,376  INFO      No new URLs. Next check in 300s.
+2026-03-26 17:11:33,467  INFO      No new URLs. Next check in 300s.
+2026-03-26 17:16:34,410  INFO      No new URLs. Next check in 300s.
+2026-03-26 17:21:35,288  INFO      No new URLs. Next check in 300s.
+2026-03-26 17:26:36,247  INFO      No new URLs. Next check in 300s.

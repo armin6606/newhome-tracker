@@ -151,7 +151,7 @@ export default function IncentivesPage() {
         </div>
       ) : offers.length === 0 ? (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm px-4 py-12 text-center text-stone-400">
-          No active incentives found. Run the incentive scraper to populate.
+          Builder incentive data is being collected. Check back soon — or subscribe to the newsletter for updates.
         </div>
       ) : (
         <div className="space-y-4">

@@ -15,7 +15,15 @@ export async function GET(req: NextRequest) {
   const sortBy      = searchParams.get("sortBy") || "firstDetected"
   const sortDir     = searchParams.get("sortDir") === "asc" ? "asc" : "desc"
 
-  const where: Record<string, unknown> = {}
+  // Exclude placeholder lots — null address or placeholder-pattern address (avail-N, sold-N, future-N)
+  const where: Record<string, unknown> = {
+    address: { not: null },
+    NOT: [
+      { address: { startsWith: "avail-" } },
+      { address: { startsWith: "sold-" } },
+      { address: { startsWith: "future-" } },
+    ],
+  }
   if (status !== "all") where.status = status
   if (minPrice || maxPrice) {
     where.currentPrice = {}
@@ -41,7 +49,7 @@ export async function GET(req: NextRequest) {
         select: { name: true, city: true, state: true, builder: { select: { name: true } } },
       },
     },
-    orderBy: { [orderByField]: sortDir },
+    orderBy: { [orderByField]: { sort: sortDir, nulls: "last" } },
     take: 500,
   })
 

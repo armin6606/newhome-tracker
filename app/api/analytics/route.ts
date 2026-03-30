@@ -12,8 +12,18 @@ export async function GET(req: NextRequest) {
   if (builders.length > 0)    communityWhere.builder = { name: { in: builders } }
   if (communities.length > 0) communityWhere.name    = { in: communities }
 
+  const placeholderExclusion = {
+    address: { not: null },
+    NOT: [
+      { address: { startsWith: "avail-" } },
+      { address: { startsWith: "sold-" } },
+      { address: { startsWith: "future-" } },
+    ],
+  }
   const where: Record<string, unknown> =
-    Object.keys(communityWhere).length > 0 ? { community: communityWhere } : {}
+    Object.keys(communityWhere).length > 0
+      ? { community: communityWhere, ...placeholderExclusion }
+      : { ...placeholderExclusion }
 
   const listings = await prisma.listing.findMany({
     where,

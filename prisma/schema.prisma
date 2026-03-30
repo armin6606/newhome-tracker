@@ -61,6 +61,7 @@ model Listing {
   favorites     UserFavorite[]
 
   @@unique([communityId, address])
+  @@unique([communityId, lotNumber])
 }
 
 model PriceHistory {
@@ -92,4 +93,15 @@ model CommunityFollow {
 
   @@unique([userId, communityId])
   @@index([userId])
+}
+
+model HourlySnapshot {
+  id         Int      @id @default(autoincrement())
+  capturedAt DateTime @default(now())
+  hourPdt    Int      // 0-23 Pacific hour
+  datePdt    String   // YYYY-MM-DD Pacific date
+  data       Json     // SnapshotListing[]
+
+  @@index([datePdt])
+  @@map("hourly_snapshots")
 }

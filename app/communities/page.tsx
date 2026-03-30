@@ -20,12 +20,21 @@ type Community = {
   active: number
   future: number
   salesPerMonth: number
+  trackedSales: number
   avgDaysOnMarket: number | null
   minPrice: number | null
   maxPrice: number | null
   salesByWeek: { week: string; sold: number }[]
 }
 
+
+function formatSalesPace(sold: number, firstDetected: string): string {
+  if (!sold || !firstDetected) return "No sales yet"
+  const days = Math.max(1, Math.round((Date.now() - new Date(firstDetected).getTime()) / (1000 * 60 * 60 * 24)))
+  if (days < 30) return `${sold} sold in the past ${days} day${days === 1 ? "" : "s"}`
+  const months = Math.round(days / 30)
+  return `${sold} sold in the past ${months} month${months === 1 ? "" : "s"}`
+}
 
 export default function CommunitiesPage() {
   const [communities, setCommunities] = useState<Community[]>([])
@@ -224,18 +233,13 @@ export default function CommunitiesPage() {
 
               {/* Weekly sales bar chart */}
               <div className="mb-3">
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                  <span className="font-medium">
-                    {c.salesByWeek.length <= 1
-                      ? "Sales (this week)"
-                      : `Sales (past ${c.salesByWeek.length} weeks)`}
-                  </span>
-                  <span className="font-semibold text-gray-800">{c.salesPerMonth}/mo pace</span>
+                <div className="flex items-center justify-end text-xs text-gray-500 mb-2">
+                  <span className="font-semibold text-gray-800">{formatSalesPace(c.trackedSales, c.firstDetected)}</span>
                 </div>
                 {c.salesByWeek.some((w) => w.sold > 0) ? (
                   <ResponsiveContainer width="100%" height={80}>
                     <BarChart data={c.salesByWeek} margin={{ top: 2, right: 4, bottom: 0, left: -12 }} barCategoryGap="20%">
-                      <XAxis dataKey="week" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false}
+                      <XAxis dataKey="week" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={{ stroke: "#d1d5db" }}
                         interval={Math.max(0, Math.floor(c.salesByWeek.length / 4) - 1)} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 9, fill: "#6b7280" }} tickLine={false} axisLine={{ stroke: "#d1d5db" }} width={28} />
                       <Tooltip

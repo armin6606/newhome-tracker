@@ -316,7 +316,14 @@ export default function ListingDetailPage() {
                 { label: "Type",        value: listing.propertyType || "—" },
                 { label: "Garage",      value: listing.garages ? `${listing.garages} car` : "—" },
                 { label: "Floor Plan",  value: listing.floorPlan || "—" },
-                { label: "Lot #",       value: listing.lotNumber || "—" },
+                { label: "Lot #",       value: (() => {
+                  const lot = listing.lotNumber
+                  if (!lot) return "—"
+                  const prefix = listing.community.name.replace(/\s+/g, "")
+                  const raw = lot.startsWith(prefix) ? lot.slice(prefix.length) : lot
+                  const num = parseInt(raw, 10)
+                  return isNaN(num) ? raw || "—" : num.toString()
+                })() },
                 { label: "Price/sqft",  value: listing.pricePerSqft ? `$${listing.pricePerSqft}` : "—" },
                 { label: "HOA/mo",      value: formatPrice(listing.hoaFees) },
                 { label: "Tax Rate",    value: listing.taxes ? `${(listing.taxes / 100).toFixed(2)}%` : "—" },

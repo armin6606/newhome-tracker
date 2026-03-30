@@ -45,6 +45,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload. Required: builder, community, listings[]" }, { status: 400 })
   }
 
+  // Guard: reject Toll Brothers community names that look like full API names.
+  // Agents must use the short name from Table 1 of the Google Sheet (e.g. "Alder (GPN)", not "Toll Brothers at Great Park Neighborhoods - Alder Collection").
+  if (builderData.name === "Toll Brothers") {
+    const n = communityData.name as string
+    const looksLikeLongName = n.includes(" - ") || /\bby Toll\b/i.test(n) || /\bat The Meadows\b/i.test(n) || /\bat Great Park\b/i.test(n) || /\bin Summit\b/i.test(n)
+    if (looksLikeLongName) {
+      // Find the existing short name to suggest
+      const existing = await prisma.community.findMany({ where: { builder: { name: "Toll Brothers" } }, select: { name: true } })
+      return NextResponse.json({
+        error: `Community name "${n}" looks like a full API name. Use the short name from Google Sheet Table 1 instead.`,
+        existingCommunities: existing.map(c => c.name),
+      }, { status: 400 })
+    }
+  }
+
   // Upsert builder
   const builder = await prisma.builder.upsert({
     where: { name: builderData.name },
@@ -63,7 +78,10 @@ export async function POST(req: NextRequest) {
       url:   communityData.url || "",
     },
     update: {
-      city:  communityData.city || "",
+      // Only overwrite city when agent sends a real non-default value.
+      // "Irvine" is the fallback default many agents use when Table 3 city is unknown;
+      // preserving the existing DB city prevents reverting manually-corrected values.
+      ...(communityData.city && communityData.city !== "Irvine" ? { city: communityData.city } : {}),
       state: communityData.state || "CA",
       url:   communityData.url || "",
     },
@@ -84,10 +102,13 @@ export async function POST(req: NextRequest) {
     // Need at least address or lotNumber+floorPlan to identify a listing
     const address = l.address || null
 
-    // Try to find existing listing
+    // Try to find existing listing — by address first, then by lotNumber
+    const lotNumber = l.lotNumber || null
     const existing = address
       ? await prisma.listing.findUnique({ where: { communityId_address: { communityId: community.id, address } } })
-      : null
+      : lotNumber
+        ? await prisma.listing.findUnique({ where: { communityId_lotNumber: { communityId: community.id, lotNumber } } })
+        : null
 
     const soldAt = l.soldAt ? new Date(l.soldAt) : (status === "sold" ? new Date() : null)
 
@@ -130,7 +151,7 @@ export async function POST(req: NextRequest) {
         data: {
           communityId:   community.id,
           address,
-          lotNumber:     l.lotNumber    || null,
+          lotNumber,
           floorPlan:     l.floorPlan    || null,
           sqft:          l.sqft         || null,
           beds:          l.beds         || null,

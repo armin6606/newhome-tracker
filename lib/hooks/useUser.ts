@@ -7,9 +7,10 @@ import type { User } from "@supabase/supabase-js"
 export function useUser() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
+    const supabase = createClient()
+
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user)
       setLoading(false)
