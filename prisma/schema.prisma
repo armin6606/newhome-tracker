@@ -48,7 +48,7 @@ model Listing {
   pricePerSqft  Int?
   propertyType  String?
   hoaFees       Int?
-  taxes         Int?
+  taxes         String?
   moveInDate    String?
   incentives    String?
   incentivesUrl String?

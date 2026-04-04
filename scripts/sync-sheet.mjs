@@ -347,7 +347,7 @@ async function main() {
 
       // Read user-editable cells
       const sheetHoa      = toInt(row.values[11])   // L HOA
-      const sheetTax      = toInt(row.values[12])   // M Annual Tax
+      const sheetTax      = toStr(row.values[12])   // M Annual Tax
       const sheetMoveIn   = toStr(row.values[13])   // N Move-In Date
       const sheetSchools  = toStr(row.values[17])   // R Schools
       const sheetNotes    = toStr(row.values[20])   // U Notes
