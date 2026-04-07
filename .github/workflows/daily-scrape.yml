@@ -2,7 +2,7 @@ name: Daily Scrape
 
 on:
   schedule:
-    - cron: '0 8 * * *'   # 8 AM UTC daily
+    - cron: '0 9 * * *'   # 1 AM PST (9 AM UTC) daily
   workflow_dispatch:        # Manual trigger from GitHub Actions UI
 
 jobs:
@@ -26,6 +26,11 @@ jobs:
 
       - name: Generate Prisma client
         run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Sync DB schema
+        run: npx prisma db push --accept-data-loss
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
