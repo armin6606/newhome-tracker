@@ -31,8 +31,10 @@ jobs:
 
       - name: Sync DB schema
         run: npx prisma db push --accept-data-loss
+        continue-on-error: true   # won't block scraper if DIRECT_URL secret is missing
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Run scraper
         run: npx tsx scripts/run-scraper.ts
