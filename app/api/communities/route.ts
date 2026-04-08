@@ -24,15 +24,31 @@ export async function GET() {
 
   // ── Sheet guardrail: only show communities verified in the Google Sheet ──
   // Check builder tab existence first (fast, no network), then community in Table 2.
+  // Fallback: if the sheet is unreachable, trust the DB (cleanup script ensures it's clean).
   const verified = await Promise.all(
-    communities.map(async (c) => ({
-      c,
-      ok: BUILDER_SHEET_TABS[c.builder.name]
-        ? await isSheetVerified(c.builder.name, c.name)
-        : false,
-    }))
+    communities.map(async (c) => {
+      if (!BUILDER_SHEET_TABS[c.builder.name]) return { c, ok: false }
+      const ok = await isSheetVerified(c.builder.name, c.name)
+      return { c, ok }
+    })
   )
-  const allowedCommunities = verified.filter((v) => v.ok).map((v) => v.c)
+
+  // If the sheet returned no valid communities at all (sheet down / network error),
+  // fall back to showing all DB communities that have a known builder tab.
+  // This ensures dropdowns are never empty due to a transient sheet failure.
+  const sheetVerifiedCount = verified.filter((v) => v.ok).length
+  const sheetAppearsDown   = sheetVerifiedCount === 0 && communities.length > 0
+
+  if (sheetAppearsDown) {
+    console.warn(
+      `[communities] Sheet verification returned 0 results for ${communities.length} DB communities. ` +
+      `Sheet may be down — falling back to DB (cleanup ensures DB is clean).`
+    )
+  }
+
+  const allowedCommunities = sheetAppearsDown
+    ? communities.filter((c) => !!BUILDER_SHEET_TABS[c.builder.name])
+    : verified.filter((v) => v.ok).map((v) => v.c)
 
   const result = allowedCommunities.map((c) => {
     // ── IMMUTABLE RULE: Community card counts MUST come ONLY from Table 2 ──
