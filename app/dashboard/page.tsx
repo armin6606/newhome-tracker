@@ -20,7 +20,7 @@ interface FavoriteListing {
   currentPrice: number | null
   pricePerSqft: number | null
   hoaFees: number | null
-  taxes: number | null
+  taxes: string | null
   propertyType: string | null
   moveInDate: string | null
   status: string

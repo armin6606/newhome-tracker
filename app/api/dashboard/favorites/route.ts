@@ -33,7 +33,7 @@ export async function GET() {
       baths:        l.baths,
       sqft:         l.sqft,
       currentPrice: l.currentPrice,
-      pricePerSqft: l.pricePerSqft,
+      pricePerSqft: (l.currentPrice && l.sqft) ? Math.round(l.currentPrice / l.sqft) : null,
       hoaFees:      l.hoaFees,
       taxes:        l.taxes,
       propertyType: l.propertyType,

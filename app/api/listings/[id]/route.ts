@@ -17,5 +17,8 @@ export async function GET(
 
   if (!listing) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  return NextResponse.json(listing)
+  return NextResponse.json({
+    ...listing,
+    pricePerSqft: (listing.currentPrice && listing.sqft) ? Math.round(listing.currentPrice / listing.sqft) : null,
+  })
 }

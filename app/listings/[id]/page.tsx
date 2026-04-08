@@ -31,7 +31,7 @@ type Listing = {
   currentPrice: number | null
   pricePerSqft: number | null
   hoaFees: number | null
-  taxes: number | null
+  taxes: string | null
   moveInDate: string | null
   schools: string | null
   incentives: string | null
@@ -78,7 +78,7 @@ function SchoolBadge({ name, state }: { name: string; state: string }) {
   )
 }
 
-function PaymentCalculator({ price, hoaFees, taxes }: { price: number | null; hoaFees: number | null; taxes: number | null }) {
+function PaymentCalculator({ price, hoaFees, taxes }: { price: number | null; hoaFees: number | null; taxes: string | null }) {
   const [rate, setRate] = useState("6.75")
   const [down, setDown] = useState("20")
   const [term, setTerm] = useState<30 | 15>(30)
@@ -92,8 +92,8 @@ function PaymentCalculator({ price, hoaFees, taxes }: { price: number | null; ho
   const n = term * 12
   const pi = r > 0 ? principal * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : principal / n
   const monthlyHoa = hoaFees ?? 0
-  // taxes stored as rate × 100 (e.g. 189 = 1.89%) — calculate monthly dollar amount
-  const monthlyTax = taxes && price ? Math.round(price * (taxes / 100) / 100 / 12) : 0
+  const taxRate = taxes ? parseFloat(taxes) : NaN
+  const monthlyTax = !isNaN(taxRate) && price ? Math.round(price * taxRate / 100 / 12) : 0
   const total = Math.round(pi + monthlyHoa + monthlyTax)
 
   return (
@@ -179,6 +179,10 @@ function PaymentCalculator({ price, hoaFees, taxes }: { price: number | null; ho
 function RealtorAd() {
   return (
     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 shadow-sm">
+      <a href="mailto:contact@newkey.us" className="flex items-center justify-between mb-3 -mx-1 px-2 py-1 rounded-lg bg-blue-100/60 hover:bg-blue-200/70 transition-colors group">
+        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest group-hover:text-blue-700">Advertise here</span>
+        <span className="text-[10px] text-blue-400 group-hover:text-blue-600">→</span>
+      </a>
       <div className="flex items-center gap-3 mb-3">
         <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center text-base font-bold text-blue-700">A</div>
         <div>
@@ -206,6 +210,10 @@ function RealtorAd() {
 function LoanOfficerAd() {
   return (
     <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 shadow-sm">
+      <a href="mailto:contact@newkey.us" className="flex items-center justify-between mb-3 -mx-1 px-2 py-1 rounded-lg bg-amber-100/60 hover:bg-amber-200/70 transition-colors group">
+        <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest group-hover:text-amber-700">Advertise here</span>
+        <span className="text-[10px] text-amber-400 group-hover:text-amber-600">→</span>
+      </a>
       <div className="flex items-center gap-3 mb-3">
         <div className="w-11 h-11 rounded-full bg-amber-100 flex items-center justify-center text-base font-bold text-amber-700">S</div>
         <div>
@@ -326,7 +334,7 @@ export default function ListingDetailPage() {
                 })() },
                 { label: "Price/sqft",  value: listing.pricePerSqft ? `$${listing.pricePerSqft}` : "—" },
                 { label: "HOA/mo",      value: formatPrice(listing.hoaFees) },
-                { label: "Tax Rate",    value: listing.taxes ? `${(listing.taxes / 100).toFixed(2)}%` : "—" },
+                { label: "Tax Rate",    value: listing.taxes ?? "—" },
                 { label: "Move-In",     value: listing.moveInDate ? listing.moveInDate.replace(/^quick\s+move[-\s]?in\s*/i, "").trim() || listing.moveInDate : "—" },
                 { label: "Status",      value: listing.status === "removed" ? "Sold/Removed" : "Active" },
                 { label: "Days Listed", value: `${daysListed}d` },

@@ -41,6 +41,11 @@ export async function GET(req: NextRequest) {
 
   const validSortFields = ["currentPrice", "firstDetected", "sqft", "beds", "pricePerSqft", "floors"]
   const orderByField = validSortFields.includes(sortBy) ? sortBy : "firstDetected"
+  // nulls:"last" only valid for nullable fields — firstDetected/beds are non-nullable
+  const nonNullable = ["firstDetected", "beds"]
+  const orderByValue = nonNullable.includes(orderByField)
+    ? sortDir
+    : { sort: sortDir, nulls: "last" as const }
 
   const listings = await prisma.listing.findMany({
     where,
@@ -49,9 +54,13 @@ export async function GET(req: NextRequest) {
         select: { name: true, city: true, state: true, builder: { select: { name: true } } },
       },
     },
-    orderBy: { [orderByField]: { sort: sortDir, nulls: "last" } },
+    orderBy: { [orderByField]: orderByValue },
     take: 500,
   })
 
-  return NextResponse.json(listings)
+  const result = listings.map(l => ({
+    ...l,
+    pricePerSqft: (l.currentPrice && l.sqft) ? Math.round(l.currentPrice / l.sqft) : null,
+  }))
+  return NextResponse.json(result)
 }

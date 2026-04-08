@@ -204,9 +204,10 @@ async function getDbActive(communityName) {
 async function postIngest(comm, listings) {
   if (!listings.length) return
   const payload = {
-    builder:   { name: BUILDER_NAME, websiteUrl: BUILDER_URL },
-    community: { name: comm.name, city: comm.city, state: comm.state, url: comm.url },
+    builder:     { name: BUILDER_NAME, websiteUrl: BUILDER_URL },
+    community:   { name: comm.name, city: comm.city, state: comm.state, url: comm.url },
     listings,
+    scraperMode: true,
   }
   const res = await fetch(INGEST_URL, {
     method: "POST",
@@ -287,7 +288,7 @@ async function processCommunity(comm) {
   const commCounts  = sheetCounts[comm.name] || null
   if (commCounts) {
     const { toIngest: phIngest, removeIds } = reconcilePlaceholders(
-      commCounts, db.placeholders, db.realActiveCount
+      commCounts, db.placeholders
     )
     toIngest.push(...phIngest)
     if (removeIds.length > 0) {
@@ -298,13 +299,54 @@ async function processCommunity(comm) {
       console.log(`  Placeholders synced: +${phIngest.filter(l=>l.status==="sold").length} sold, +${phIngest.filter(l=>l.status==="active").length} avail, +${phIngest.filter(l=>l.status==="future").length} future`)
   }
 
+  // Build observedPrices map for validation (address → price from QMI API)
+  const observedPrices = new Map()
+  for (const lot of forSaleLots) {
+    if (!lot.address) continue
+    const qmi = qmiPrices.get(lot.address) || null
+    if (qmi?.price != null) observedPrices.set(lot.address, qmi.price)
+  }
+
   if (toIngest.length > 0) {
     await postIngest(comm, toIngest)
   } else {
     console.log("  No changes")
   }
 
+  await validatePriceSync(comm.name, observedPrices)
+
   return { community: comm.name, changes: toIngest.length }
+}
+
+// ─── Validation ─────────────────────────────────────────────────────────────
+
+async function validatePriceSync(communityName, observedPrices) {
+  if (observedPrices.size === 0) return
+
+  const listings = await prisma.listing.findMany({
+    where: {
+      status:    "active",
+      address:   { not: null },
+      community: { name: communityName, builder: { name: BUILDER_NAME } },
+    },
+    select: { address: true, currentPrice: true },
+  })
+
+  const drifted = []
+  for (const l of listings) {
+    const observed = observedPrices.get(l.address)
+    if (observed == null) continue
+    if (l.currentPrice !== observed)
+      drifted.push({ address: l.address, db: l.currentPrice, site: observed })
+  }
+
+  if (drifted.length === 0) {
+    console.log(`  ✔ Validation: all prices in sync`)
+  } else {
+    console.log(`  ✘ Validation FAILED: ${drifted.length} price drift(s) after ingest:`)
+    for (const d of drifted)
+      console.log(`      ${d.address}: DB=$${d.db?.toLocaleString() ?? "null"} Site=$${d.site?.toLocaleString()}`)
+  }
 }
 
 // ─── Main ───────────────────────────────────────────────────────────────────

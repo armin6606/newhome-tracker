@@ -191,9 +191,10 @@ async function getDbActive(communityName) {
 async function postIngest(comm, listings) {
   if (!listings.length) return
   const payload = {
-    builder:   { name: BUILDER_NAME, websiteUrl: BUILDER_URL },
-    community: { name: comm.name, city: comm.city, state: comm.state, url: comm.url },
+    builder:     { name: BUILDER_NAME, websiteUrl: BUILDER_URL },
+    community:   { name: comm.name, city: comm.city, state: comm.state, url: comm.url },
     listings,
+    scraperMode: true,
   }
   const res = await fetch(INGEST_URL, {
     method: "POST",
@@ -220,8 +221,11 @@ async function processCommunity(comm) {
   const qmiPrices = await fetchQmiPrices(comm.communityId)
   const db        = await getDbActive(comm.name)
 
-  const mapByAddr = new Map(forSaleLots.filter(l => l.address).map(l => [l.address, l]))
-  const mapByLot  = new Map(forSaleLots.filter(l => l.lotNumber).map(l => [l.lotNumber, l]))
+  const mapByAddr      = new Map(forSaleLots.filter(l => l.address).map(l => [l.address, l]))
+  const mapByLot       = new Map(forSaleLots.filter(l => l.lotNumber).map(l => [l.lotNumber, l]))
+  // Index ALL Zonda lots by address and lot number for sold-check below
+  const zondaByAddr    = new Map(zondaLots.filter(l => l.address).map(l => [l.address, l]))
+  const zondaByLotNum  = new Map(zondaLots.filter(l => l.lotNumber).map(l => [l.lotNumber, l]))
 
   const toIngest = []
 
@@ -248,8 +252,16 @@ async function processCommunity(comm) {
   for (const [addr, dbEntry] of db.byAddress.entries()) {
     const stillForSale = mapByAddr.has(addr) || (dbEntry.lotNumber && mapByLot.has(dbEntry.lotNumber))
     if (!stillForSale) {
-      console.log(`  - Sold: ${addr}`)
-      toIngest.push({ address: addr, lotNumber: dbEntry.lotNumber, status: "sold" })
+      // Only mark sold if Zonda explicitly says "Sold" — never mark sold just because
+      // the home dropped off the Available/QMI list (could be Reserved, Optioned, API glitch, etc.)
+      const rawLotNum  = dbEntry.lotNumber?.replace(/^[A-Za-z]+/, "") ?? null  // strip community prefix
+      const zondaEntry = zondaByAddr.get(addr) || (rawLotNum ? zondaByLotNum.get(rawLotNum) : null)
+      if (zondaEntry?.status === "Sold") {
+        console.log(`  - Sold: ${addr} (Zonda status: Sold)`)
+        toIngest.push({ address: addr, lotNumber: dbEntry.lotNumber, status: "sold" })
+      } else {
+        console.log(`  ? ${addr} not in for-sale (Zonda: ${zondaEntry?.status ?? "not found"}) — skipped`)
+      }
     }
   }
 
@@ -260,7 +272,7 @@ async function processCommunity(comm) {
   const commCounts  = sheetCounts[comm.name] || null
   if (commCounts) {
     const { toIngest: phIngest, removeIds } = reconcilePlaceholders(
-      commCounts, db.placeholders, db.realActiveCount
+      commCounts, db.placeholders
     )
     toIngest.push(...phIngest)
     if (removeIds.length > 0) {
@@ -271,10 +283,51 @@ async function processCommunity(comm) {
       console.log(`  Placeholders synced: +${phIngest.filter(l=>l.status==="sold").length} sold, +${phIngest.filter(l=>l.status==="active").length} avail, +${phIngest.filter(l=>l.status==="future").length} future`)
   }
 
+  // Build observedPrices map for validation (address → price from QMI API)
+  const observedPrices = new Map()
+  for (const lot of forSaleLots) {
+    if (!lot.address) continue
+    const qmi = qmiPrices.get(lot.address) || null
+    if (qmi?.price != null) observedPrices.set(lot.address, qmi.price)
+  }
+
   if (toIngest.length > 0) await postIngest(comm, toIngest)
   else console.log("  No changes")
 
+  await validatePriceSync(comm.name, observedPrices)
+
   return { community: comm.name, changes: toIngest.length }
+}
+
+// ─── Validation ──────────────────────────────────────────────────────────────
+
+async function validatePriceSync(communityName, observedPrices) {
+  if (observedPrices.size === 0) return
+
+  const listings = await prisma.listing.findMany({
+    where: {
+      status:    "active",
+      address:   { not: null },
+      community: { name: communityName, builder: { name: BUILDER_NAME } },
+    },
+    select: { address: true, currentPrice: true },
+  })
+
+  const drifted = []
+  for (const l of listings) {
+    const observed = observedPrices.get(l.address)
+    if (observed == null) continue
+    if (l.currentPrice !== observed)
+      drifted.push({ address: l.address, db: l.currentPrice, site: observed })
+  }
+
+  if (drifted.length === 0) {
+    console.log(`  ✔ Validation: all prices in sync`)
+  } else {
+    console.log(`  ✘ Validation FAILED: ${drifted.length} price drift(s) after ingest:`)
+    for (const d of drifted)
+      console.log(`      ${d.address}: DB=$${d.db?.toLocaleString() ?? "null"} Site=$${d.site?.toLocaleString()}`)
+  }
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────

@@ -291,9 +291,13 @@ async function getMIRDetail(browser, mirPath) {
       const hoaFees = hoaM ? parseInt(hoaM[1].replace(/,/g, ""), 10) : null
 
       let propertyType = null
-      if (bodyText.match(/condominium|condo/i))   propertyType = "Condo"
-      else if (bodyText.match(/townhome|townhouse/i)) propertyType = "Townhome"
-      else if (bodyText.match(/single.family/i))  propertyType = "Single Family"
+      if (bodyText.match(/condominium|condo/i))        propertyType = "Condo"
+      else if (bodyText.match(/townhome|townhouse/i))  propertyType = "Townhome"
+      else if (bodyText.match(/single.family/i))       propertyType = "Single Family"
+
+      // KB plan names follow "Plan XXXX" pattern (e.g. "Plan 1860")
+      const planM     = bodyText.match(/\bPlan\s+(\d{3,5})\b/i)
+      const floorPlan = planM ? `Plan ${planM[1]}` : null
 
       const isAvailableNow =
         bodyText.includes("AVAILABLE NOW") || bodyText.includes("Available Now")
@@ -312,6 +316,7 @@ async function getMIRDetail(browser, mirPath) {
         moveInDate,
         hoaFees,
         propertyType,
+        floorPlan,
         isAvailableNow,
       }
     })
@@ -322,6 +327,38 @@ async function getMIRDetail(browser, mirPath) {
     return null
   } finally {
     await page.close()
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Validation
+// ─────────────────────────────────────────────────────────────
+async function validatePriceSync(communityName, observedPrices) {
+  if (observedPrices.size === 0) return
+
+  const listings = await prisma.listing.findMany({
+    where: {
+      status:    "active",
+      address:   { not: null },
+      community: { name: communityName, builder: { name: BUILDER_NAME } },
+    },
+    select: { address: true, currentPrice: true },
+  })
+
+  const drifted = []
+  for (const l of listings) {
+    const observed = observedPrices.get(l.address)
+    if (observed == null) continue
+    if (l.currentPrice !== observed)
+      drifted.push({ address: l.address, db: l.currentPrice, site: observed })
+  }
+
+  if (drifted.length === 0) {
+    console.log(`  ✔ Validation: all prices in sync`)
+  } else {
+    console.log(`  ✘ Validation FAILED: ${drifted.length} price drift(s) after ingest:`)
+    for (const d of drifted)
+      console.log(`      ${d.address}: DB=$${d.db?.toLocaleString() ?? "null"} Site=$${d.site?.toLocaleString()}`)
   }
 }
 
@@ -496,6 +533,7 @@ async function main() {
             status:       "active",
             sourceUrl,
             // Full details for first ingest
+            floorPlan:    detail.floorPlan   || null,
             beds:         parseFloatSafe(detail.beds),
             baths:        parseFloatSafe(detail.baths),
             sqft:         parseIntSafe(detail.sqft),
@@ -515,7 +553,7 @@ async function main() {
       const phChanges   = []
       if (commCounts) {
         const { toIngest: phIngest, removeIds } = reconcilePlaceholders(
-          commCounts, db.placeholders, db.realActiveCount
+          commCounts, db.placeholders
         )
         phChanges.push(...phIngest)
         if (removeIds.length > 0) {
@@ -526,22 +564,32 @@ async function main() {
           console.log(`  Placeholders synced: +${phIngest.filter(l=>l.status==="sold").length} sold, +${phIngest.filter(l=>l.status==="active").length} avail, +${phIngest.filter(l=>l.status==="future").length} future`)
       }
 
+      // Build observedPrices map for validation (normalizedAddress → price from listing page)
+      const observedPrices = new Map()
+      for (const pl of pageListings) {
+        const normAddr = normalizeAddress(pl.address || "")
+        const price    = parsePriceInt(pl.price)
+        if (normAddr && price != null) observedPrices.set(normAddr, price)
+      }
+
       // ── POST to ingest if any changes ──
       const allChanges = [...newDetailedListings, ...priceChanges, ...soldEntries, ...phChanges]
       if (allChanges.length === 0) {
         console.log("  No changes — skipping ingest POST")
+        await validatePriceSync(resolvedName, observedPrices)
         continue
       }
 
       const payload = {
-        builder:   BUILDER_NAME,
-        community: {
+        builder:     { name: BUILDER_NAME, websiteUrl: "https://www.kbhome.com" },
+        community:   {
           name:  resolvedName,
           city,
           state,
           url:   communityUrl,
         },
-        listings: allChanges,
+        listings:    allChanges,
+        scraperMode: true,
       }
 
       console.log(`  POSTing ${allChanges.length} listing change(s) to ingest...`)
@@ -551,6 +599,7 @@ async function main() {
       } catch (err) {
         console.error(`  Ingest failed: ${err.message}`)
       }
+      await validatePriceSync(resolvedName, observedPrices)
 
       summary.new          += newDetailedListings.length
       summary.priceChanges += priceChanges.length

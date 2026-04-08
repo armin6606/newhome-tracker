@@ -57,13 +57,14 @@ export default function CommunitiesPage() {
       .catch(() => {})
   }, [])
 
-  const citiesWithCommunities = Array.from(new Set(communities.map((c) => c.city).filter(Boolean))).sort()
-  const buildersWithCommunities = Array.from(new Set(communities.map((c) => c.builderName).filter(Boolean))).sort()
+  const citiesWithCommunities     = Array.from(new Set(communities.map((c) => c.city).filter(Boolean))).sort()
+  const buildersWithCommunities   = Array.from(new Set(communities.map((c) => c.builderName).filter(Boolean))).sort()
+  const communityNames            = Array.from(new Set(communities.map((c) => cleanCommunityName(c.name)).filter(Boolean))).sort()
 
   const displayed = communities.filter((c) => {
     if (cityFilter && c.city !== cityFilter) return false
     if (builderFilter && c.builderName !== builderFilter) return false
-    if (communitySearch && !cleanCommunityName(c.name).toLowerCase().includes(communitySearch.toLowerCase())) return false
+    if (communitySearch && cleanCommunityName(c.name) !== communitySearch) return false
     return true
   })
 
@@ -113,13 +114,12 @@ export default function CommunitiesPage() {
         <div className="flex flex-wrap items-end gap-3 mb-5">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Community</label>
-            <input
-              type="text"
-              placeholder="Search communities..."
-              value={communitySearch}
-              onChange={(e) => setCommunitySearch(e.target.value)}
-              className={`${selectCls} w-48`}
-            />
+            <select value={communitySearch} onChange={(e) => setCommunitySearch(e.target.value)} className={`${selectCls} w-48`}>
+              <option value="">All Communities</option>
+              {communityNames.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">City</label>

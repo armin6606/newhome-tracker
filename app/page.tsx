@@ -21,7 +21,7 @@ type Listing = {
   currentPrice: number | null
   pricePerSqft: number | null
   hoaFees: number | null
-  taxes: number | null
+  taxes: string | null
   moveInDate: string | null
   schools: string | null
   status: string
@@ -224,6 +224,7 @@ export default function HomePage() {
   const [typeFilter, setTypeFilter] = useState("")
   const [builderFilter, setBuilderFilter] = useState("")
   const [communityFilter, setCommunityFilter] = useState("")
+  const [countyFilter, setCountyFilter] = useState("")
 
   // Table horizontal scroll
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -303,25 +304,34 @@ export default function HomePage() {
     return arr.findIndex((x) => `${x.communityId}__${(x.address ?? "").toLowerCase().trim()}` === key) === idx
   })
 
+  // County lookup (SoCal cities → county)
+  const CITY_COUNTY: Record<string, string> = {
+    "irvine": "Orange County", "orange": "Orange County", "anaheim": "Orange County",
+    "tustin": "Orange County", "fullerton": "Orange County", "garden grove": "Orange County",
+    "huntington beach": "Orange County", "newport beach": "Orange County", "lake forest": "Orange County",
+    "mission viejo": "Orange County", "aliso viejo": "Orange County", "laguna niguel": "Orange County",
+    "long beach": "Los Angeles County", "los angeles": "Los Angeles County", "torrance": "Los Angeles County",
+    "french valley": "Riverside County", "murrieta": "Riverside County", "temecula": "Riverside County",
+    "menifee": "Riverside County", "riverside": "Riverside County",
+  }
+  const getCounty = (city: string) => CITY_COUNTY[city.toLowerCase().trim()] ?? null
+
   // Builders and cities that have at least one listing (for dropdowns)
-  const buildersWithListings = Array.from(
-    new Set(listings.map((l) => l.community.builder.name))
-  ).sort()
-  const citiesWithListings = Array.from(
-    new Set(listings.map((l) => l.community.city.trim().replace(/\b\w/g, c => c.toUpperCase())))
-  ).sort()
+  const buildersWithListings = Array.from(new Set(listings.map((l) => l.community.builder.name))).sort()
+  const citiesWithListings   = Array.from(new Set(listings.map((l) => l.community.city.trim().replace(/\b\w/g, c => c.toUpperCase())))).sort()
+  const countiesWithListings = Array.from(new Set(listings.map((l) => getCounty(l.community.city)).filter(Boolean) as string[])).sort()
+  const typesWithListings    = Array.from(new Set(listings.map((l) => l.propertyType).filter(Boolean) as string[])).sort()
+  const bedsWithListings     = Array.from(new Set(listings.map((l) => l.beds).filter((b): b is number => b != null))).sort((a, b) => a - b)
+  const floorsWithListings   = Array.from(new Set(listings.map((l) => l.floors).filter((f): f is number => f != null))).sort((a, b) => a - b)
   const communitiesWithListings = Array.from(
-    new Set(
-      listings
-        .filter((l) => !builderFilter || l.community.builder.name === builderFilter)
-        .map((l) => l.community.name)
-    )
+    new Set(listings.filter((l) => !builderFilter || l.community.builder.name === builderFilter).map((l) => l.community.name))
   ).sort()
 
   const displayed = deduped.filter((l) => {
-    if (citySearch && l.community.city.toLowerCase() !== citySearch.toLowerCase()) return false
-    if (moveInOnly && !isReady(l.moveInDate)) return false
-    if (typeFilter && l.propertyType !== typeFilter) return false
+    if (citySearch    && l.community.city.toLowerCase() !== citySearch.toLowerCase()) return false
+    if (countyFilter  && getCounty(l.community.city) !== countyFilter) return false
+    if (moveInOnly    && !isReady(l.moveInDate)) return false
+    if (typeFilter    && l.propertyType !== typeFilter) return false
     if (builderFilter && l.community.builder.name !== builderFilter) return false
     if (communityFilter && l.community.name !== communityFilter) return false
     return true
@@ -473,6 +483,17 @@ export default function HomePage() {
             </select>
           </div>
 
+          {/* County */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">County</label>
+            <select value={countyFilter} onChange={(e) => setCountyFilter(e.target.value)} className={`${selectCls} w-36`}>
+              <option value="">All Counties</option>
+              {countiesWithListings.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Builder */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Builder</label>
@@ -508,17 +529,12 @@ export default function HomePage() {
           {/* Beds */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Beds</label>
-            <div className="flex gap-1">
-              {(["", "3", "4", "5"] as const).map((val) => (
-                <button
-                  key={val}
-                  onClick={() => setMinBeds(val)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${minBeds === val ? "bg-amber-500 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}
-                >
-                  {val === "" ? "Any" : `${val}+`}
-                </button>
+            <select value={minBeds} onChange={(e) => setMinBeds(e.target.value)} className={`${selectCls} w-24`}>
+              <option value="">Any</option>
+              {bedsWithListings.map((b) => (
+                <option key={b} value={String(b)}>{b}+</option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* Sqft */}
@@ -534,33 +550,23 @@ export default function HomePage() {
           {/* Floors */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Floors</label>
-            <div className="flex gap-1">
-              {(["", "1", "2", "3"] as const).map((val) => (
-                <button
-                  key={val}
-                  onClick={() => setFloors(val)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${floors === val ? "bg-amber-500 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}
-                >
-                  {val === "" ? "Any" : val}
-                </button>
+            <select value={floors} onChange={(e) => setFloors(e.target.value)} className={`${selectCls} w-24`}>
+              <option value="">Any</option>
+              {floorsWithListings.map((f) => (
+                <option key={f} value={String(f)}>{f}</option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* Type */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Type</label>
-            <div className="flex gap-1">
-              {(["", "Detached", "Attached"] as const).map((val) => (
-                <button
-                  key={val}
-                  onClick={() => setTypeFilter(val)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${typeFilter === val ? "bg-amber-500 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}
-                >
-                  {val === "" ? "Any" : val}
-                </button>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={`${selectCls} w-36`}>
+              <option value="">All Types</option>
+              {typesWithListings.map((t) => (
+                <option key={t} value={t}>{t}</option>
               ))}
-            </div>
+            </select>
           </div>
 
 
@@ -718,7 +724,7 @@ export default function HomePage() {
                       {l.hoaFees ? `$${l.hoaFees.toLocaleString()}` : "—"}
                     </td>
                     <td className="px-4 py-3 text-stone-600 whitespace-nowrap text-center">
-                      {l.taxes ? `${(l.taxes / 100).toFixed(2)}%` : "—"}
+                      {l.taxes ?? "—"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
                       {isReady(l.moveInDate) ? (
@@ -809,7 +815,7 @@ export default function HomePage() {
         })
         const monthlyRanks = rankAmong(monthlyPayments)
         const hoaRanks     = rankAmong(cmpListings.map((l) => l.hoaFees))
-        const taxRanks     = rankAmong(cmpListings.map((l) => l.taxes))
+        const taxRanks     = rankAmong(cmpListings.map((l) => parseFloat(l.taxes ?? "") || null))
         const sqftRanks    = rankAmong(cmpListings.map((l) => l.sqft))
         const ppsqRanks    = rankAmong(cmpListings.map((l) => l.pricePerSqft))
 
@@ -948,7 +954,7 @@ export default function HomePage() {
                       <td className={labelCls}>Taxes</td>
                       {cmpListings.map((l, i) => (
                         <td key={l.id} className={`${cellCls} font-semibold ${rankBg(taxRanks[i], false)}`}>
-                          {l.taxes ? `${(l.taxes / 100).toFixed(2)}%` : "—"}
+                          {l.taxes ?? "—"}
                         </td>
                       ))}
                     </tr>

@@ -1,13 +1,15 @@
 /**
  * Shea Homes Orange County Scraper — diff-based
  *
- * 1. For each community, scrape the available-homes page (QMI section).
- * 2. Query DB for current active listings.
- * 3. Diff: new → ingest, sold → mark sold, price changed → update price.
- * 4. Only POST to ingest if changes exist.
- * 5. Full detail only sent for new listings.
+ * 1. Read community list + URLs from Google Sheet Table 1 (Shea Communities tab).
+ * 2. For each community, scrape the available-homes (QMI) page.
+ * 3. Query DB for current active listings.
+ * 4. Diff: new → ingest, sold → mark sold, price changed → update price.
+ * 5. Sync Table 2 placeholder counts.
+ * 6. Only POST to ingest if changes exist.
  *
  * Run: node scripts/scrape-shea.mjs
+ * Schedule: Windows Task Scheduler via run-scraper.bat at 1:00 AM daily
  */
 
 import { createRequire } from "module"
@@ -16,73 +18,84 @@ import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 import { chromium } from "playwright"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
+import { fetchTable2Counts, reconcilePlaceholders } from "../../lib/sheet-table2.mjs"
 
 const require   = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-const envPath = resolve(__dirname, '../../.env.local')
+const envPath = resolve(__dirname, "../../.env.local")
 if (existsSync(envPath)) {
   for (const line of readFileSync(envPath, "utf8").split("\n")) {
     const m = line.match(/^([^#=]+)=(.*)$/)
     if (m) process.env[m[1].trim()] = m[2].trim().replace(/^"|"$/g, "")
   }
 }
-const { PrismaClient } = require('../../node_modules/@prisma/client')
+
+const { PrismaClient } = require("../../node_modules/@prisma/client")
 const prisma = new PrismaClient()
 
+const SHEET_ID      = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
+const SHEET_TAB     = "Shea Communities"
 const INGEST_URL    = "https://www.newkey.us/api/ingest"
 const INGEST_SECRET = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
 const BUILDER_NAME  = "Shea Homes"
 const USER_AGENT    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
-const SHEA_COMMUNITIES = [
-  {
-    name:  "Arbor at Portola Springs Village",
-    city:  "Irvine",
-    state: "CA",
-    url:   "https://www.sheahomes.com/new-homes/california/orange-county/irvine/arbor-at-portola-springs-village",
-    availableHomesUrl: "https://www.sheahomes.com/new-homes/california/orange-county/irvine/arbor-at-portola-springs-village?qmi-tab-select#available-homes",
-  },
-  {
-    name:  "Arrowleaf",
-    city:  "Rancho Mission Viejo",
-    state: "CA",
-    url:   "https://www.sheahomes.com/new-homes/california/orange-county/rancho-mission-viejo/arrowleaf",
-    availableHomesUrl: "https://www.sheahomes.com/new-homes/california/orange-county/rancho-mission-viejo/arrowleaf?qmi-tab-select#available-homes",
-  },
-  {
-    name:  "Bloom at Rienda",
-    city:  "Rancho Mission Viejo",
-    state: "CA",
-    url:   "https://www.sheahomes.com/new-homes/california/orange-county/rancho-mission-viejo/bloom-at-rienda",
-    availableHomesUrl: "https://www.sheahomes.com/new-homes/california/orange-county/rancho-mission-viejo/bloom-at-rienda?qmi-tab-select#available-homes",
-  },
-  {
-    name:  "Cielo at Portola Springs Village",
-    city:  "Irvine",
-    state: "CA",
-    url:   "https://www.sheahomes.com/new-homes/california/orange-county/irvine/cielo-at-portola-springs-village",
-    availableHomesUrl: "https://www.sheahomes.com/new-homes/california/orange-county/irvine/cielo-at-portola-springs-village?qmi-tab-select#available-homes",
-  },
-  {
-    name:  "Crestview",
-    city:  "Irvine",
-    state: "CA",
-    url:   "https://www.sheahomes.com/new-homes/california/orange-county/irvine/crestview",
-    availableHomesUrl: "https://www.sheahomes.com/new-homes/california/orange-county/irvine/crestview?qmi-tab-select#available-homes",
-  },
-]
+// ---------------------------------------------------------------------------
+// CSV parser
+// ---------------------------------------------------------------------------
+function parseCSV(text) {
+  return text.split("\n").map(line => {
+    const cells = []; let cur = "", inQ = false
+    for (const ch of line + ",") {
+      if (ch === '"')                inQ = !inQ
+      else if (ch === "," && !inQ) { cells.push(cur.trim()); cur = "" }
+      else                           cur += ch
+    }
+    return cells
+  })
+}
 
 // ---------------------------------------------------------------------------
-// Composite lot key
+// Step 1: Read community list from Google Sheet Table 1
 // ---------------------------------------------------------------------------
-function compositeKey(communityName, rawLot) {
-  return communityName.replace(/\s+/g, "") + String(rawLot)
+async function getCommunitiesFromSheet() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`
+  const res  = await fetch(url, { redirect: "follow" })
+  if (!res.ok) throw new Error(`Sheet fetch failed (${res.status})`)
+  const rows = parseCSV(await res.text())
+
+  const communities = []
+  for (const row of rows) {
+    const name     = row[0]?.trim()
+    const tableUrl = row[1]?.trim()
+    if (!name || name === "Table 1 Community" || !tableUrl?.startsWith("http")) continue
+
+    // Derive city from URL path (e.g. .../orange-county/irvine/crestview → Irvine)
+    const parts  = tableUrl.split("/")
+    const ocIdx  = parts.findIndex(p => p === "orange-county")
+    const city   = ocIdx >= 0 && parts[ocIdx + 1]
+      ? parts[ocIdx + 1].split("?")[0].replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+      : "Irvine"
+
+    const baseUrl          = tableUrl.split("?")[0].split("#")[0]
+    const availableHomesUrl = `${baseUrl}?qmi-tab-select#available-homes`
+
+    communities.push({ name, url: baseUrl, availableHomesUrl, city, state: "CA" })
+  }
+
+  if (communities.length === 0) throw new Error("No communities found in Sheet Table 1 for Shea Communities")
+  console.log(`  Found ${communities.length} community(ies) in Sheet Table 1`)
+  return communities
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+function compositeKey(communityName, rawLot) {
+  return communityName.replace(/\s+/g, "") + String(rawLot)
+}
+
 function parsePriceFromText(text) {
   const m = text.match(/\$([0-9,]+)/)
   if (!m) return null
@@ -111,19 +124,22 @@ function normalizeAddress(addr) {
 }
 
 // ---------------------------------------------------------------------------
-// DB helper: get active listings indexed by address and lotNumber
+// DB helper: get active listings + placeholder buckets
 // ---------------------------------------------------------------------------
 async function getDbActive(communityName, builderName) {
   const listings = await prisma.listing.findMany({
-    where: {
-      status:    "active",
-      community: { name: communityName, builder: { name: builderName } },
-    },
-    select: { id: true, address: true, lotNumber: true, currentPrice: true },
+    where: { community: { name: communityName, builder: { name: builderName } } },
+    select: { id: true, address: true, lotNumber: true, currentPrice: true, status: true },
   })
+  const active = listings.filter(l => l.status === "active")
   return {
-    byAddress:   new Map(listings.filter(l => l.address).map(l => [l.address, l])),
-    byLotNumber: new Map(listings.filter(l => l.lotNumber).map(l => [l.lotNumber, l])),
+    byAddress:      new Map(active.filter(l => l.address).map(l => [l.address, l])),
+    byLotNumber:    new Map(active.filter(l => l.lotNumber).map(l => [l.lotNumber, l])),
+    placeholders: {
+      sold:   listings.filter(l => l.status === "sold"   && /^sold-\d+$/.test(l.lotNumber   ?? "")),
+      avail:  listings.filter(l => l.status === "active" && /^avail-\d+$/.test(l.lotNumber  ?? "")),
+      future: listings.filter(l => l.status === "future" && /^future-\d+$/.test(l.lotNumber ?? "")),
+    },
   }
 }
 
@@ -151,20 +167,10 @@ function parseHomeCard(rawText, sourceUrl) {
       continue
     }
 
-    if (/^Homesite\s+\d+/i.test(line)) {
-      homesite = line.match(/\d+/)[0]
-      continue
-    }
+    if (/^Homesite\s+\d+/i.test(line)) { homesite = line.match(/\d+/)[0]; continue }
+    if (/^Plan\s+\w+$/i.test(line))    { plan = line; continue }
 
-    if (/^Plan\s+\w+$/i.test(line)) {
-      plan = line
-      continue
-    }
-
-    if (/Priced From/i.test(line)) {
-      price = parsePriceFromText(line)
-      continue
-    }
+    if (/Priced From/i.test(line))     { price = parsePriceFromText(line); continue }
 
     if (/^Sq\.?\s*Ft\.?$/i.test(line) && i > 0) {
       const prev = lines[i - 1]
@@ -237,12 +243,10 @@ async function scrapeAvailableHomesPage(context, community) {
     }
 
     const rawCards = await page.evaluate(() => {
-      const qmiSection = document.querySelector("section.quick-move-in")
+      const qmiSection    = document.querySelector("section.quick-move-in")
       if (!qmiSection) return []
-
       const titleLinks    = Array.from(qmiSection.querySelectorAll("a.home-card_content-title"))
       const homesiteLinks = titleLinks.filter(a => a.href && a.href.includes("homesite"))
-
       return homesiteLinks.map(a => {
         let el = a
         for (let i = 0; i < 10; i++) {
@@ -259,10 +263,7 @@ async function scrapeAvailableHomesPage(context, community) {
 
     for (const card of rawCards) {
       const parsed = parseHomeCard(card.rawText, card.href)
-      if (!parsed) {
-        console.log(`    Skipped sold/invalid card (href: ${card.href})`)
-        continue
-      }
+      if (!parsed) { console.log(`    Skipped sold/invalid card`); continue }
       console.log(`    Card: HS${parsed.homesite} "${parsed.address}" ${parsed.plan} $${parsed.price?.toLocaleString() ?? "N/A"} ${parsed.sqft}sqft ${parsed.beds}bd ${parsed.baths}ba`)
       listings.push(parsed)
     }
@@ -281,11 +282,8 @@ async function scrapeAvailableHomesPage(context, community) {
 async function postIngest(payload) {
   const res = await fetch(INGEST_URL, {
     method:  "POST",
-    headers: {
-      "Content-Type":    "application/json",
-      "x-ingest-secret": INGEST_SECRET,
-    },
-    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json", "x-ingest-secret": INGEST_SECRET },
+    body:    JSON.stringify(payload),
   })
   const json = await res.json()
   if (!res.ok) throw new Error(`Ingest error ${res.status}: ${JSON.stringify(json)}`)
@@ -300,6 +298,10 @@ async function main() {
   console.log("Shea Homes Orange County Scraper (diff-based)")
   console.log("=".repeat(60))
 
+  // Step 1: Load community list from Sheet Table 1
+  console.log("\n[Step 1] Reading communities from Google Sheet Table 1...")
+  const sheetCommunities = await getCommunitiesFromSheet()
+
   const browser = await chromium.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"],
@@ -310,76 +312,63 @@ async function main() {
     extraHTTPHeaders: { "Accept-Language": "en-US,en;q=0.9" },
   })
 
-  try {
-    for (let commDef of SHEA_COMMUNITIES) {
-      commDef = { ...commDef, name: await resolveDbCommunityName(commDef.name, BUILDER_NAME, prisma) }
-      console.log(`\n${"─".repeat(60)}`)
-      console.log(`Community: ${commDef.name}`)
+  const summary = { new: 0, priceChanges: 0, sold: 0 }
 
-      // Scrape current available homes
-      const scraped = await scrapeAvailableHomesPage(context, commDef)
+  try {
+    for (const commDef of sheetCommunities) {
+      const resolvedName = await resolveDbCommunityName(commDef.name, BUILDER_NAME, prisma)
+      console.log(`\n${"─".repeat(60)}`)
+      console.log(`Community: ${resolvedName} (${commDef.city}, ${commDef.state})`)
+
+      // Step 2: Scrape available homes
+      const scraped = await scrapeAvailableHomesPage(context, { ...commDef, name: resolvedName })
       console.log(`  Scraped: ${scraped.length}`)
 
-      // Query DB for current active listings
-      const db = await getDbActive(commDef.name, BUILDER_NAME)
-      console.log(`  DB active by address: ${db.byAddress.size} | by lot: ${db.byLotNumber.size}`)
+      // Step 3: Query DB
+      const db = await getDbActive(resolvedName, BUILDER_NAME)
+      console.log(`  DB active: ${db.byAddress.size}`)
 
       const newListings  = []
       const priceUpdates = []
       const soldListings = []
 
-      // Index scraped by address and by lotNumber
       const scrapedByAddress = new Map()
       const scrapedByLot     = new Map()
 
       for (const item of scraped) {
-        const lotNumber = item.homesite ? compositeKey(commDef.name, String(item.homesite).padStart(4, "0")) : null
-        let   rawAddr   = item.address || (lotNumber ? `Homesite ${lotNumber}` : null)
-        if (!rawAddr) continue
-        const address = normalizeAddress(rawAddr.trim())
-        if (!address || address.length < 3) continue
-
-        scrapedByAddress.set(address, { ...item, address, lotNumber })
+        const lotNumber = item.homesite ? compositeKey(resolvedName, String(item.homesite).padStart(4, "0")) : null
+        const rawAddr   = item.address || null
+        if (!rawAddr && !lotNumber) continue
+        const address = rawAddr ? normalizeAddress(rawAddr.trim()) : null
+        if (address) scrapedByAddress.set(address, { ...item, address, lotNumber })
         if (lotNumber) scrapedByLot.set(lotNumber, { ...item, address, lotNumber })
       }
 
       // Detect new and price-changed
       for (const [address, item] of scrapedByAddress) {
-        const price   = item.price || null
-        const lotNumber = item.lotNumber
-
-        // Try match by address first, then by lot
         let dbEntry = db.byAddress.get(address)
-        if (!dbEntry && lotNumber) dbEntry = db.byLotNumber.get(lotNumber)
+        if (!dbEntry && item.lotNumber) dbEntry = db.byLotNumber.get(item.lotNumber)
 
         if (!dbEntry) {
-          // New listing — send full detail
           newListings.push({
             address,
             lotNumber:    item.lotNumber || null,
-            currentPrice: price,
-            moveInDate:   item.moveInDate || null,
+            floorPlan:    item.plan      || null,
+            currentPrice: item.price     || null,
             status:       "active",
             sourceUrl:    item.sourceUrl || null,
-            floorPlan:    item.plan || null,
-            sqft:         item.sqft || null,
-            beds:         item.beds || null,
-            baths:        item.baths || null,
-            floors:       item.floors || null,
-            pricePerSqft: price && item.sqft ? Math.round(price / item.sqft) : null,
+            sqft:         item.sqft      || null,
+            beds:         item.beds      || null,
+            baths:        item.baths     || null,
+            floors:       item.floors    || null,
+            pricePerSqft: item.price && item.sqft ? Math.round(item.price / item.sqft) : null,
           })
-        } else if (price && dbEntry.currentPrice !== price) {
-          // Price changed — minimal payload
-          priceUpdates.push({
-            address,
-            currentPrice: price,
-            status:       "active",
-            sourceUrl:    item.sourceUrl || null,
-          })
+        } else if (item.price && dbEntry.currentPrice !== item.price) {
+          priceUpdates.push({ address, currentPrice: item.price, status: "active", sourceUrl: item.sourceUrl || null })
         }
       }
 
-      // Detect sold (active in DB but not scraped)
+      // Detect sold
       for (const [addr, dbEntry] of db.byAddress) {
         const inScraped    = scrapedByAddress.has(addr)
         const lotInScraped = dbEntry.lotNumber ? scrapedByLot.has(dbEntry.lotNumber) : false
@@ -388,25 +377,45 @@ async function main() {
         }
       }
 
-      console.log(`  New: ${newListings.length} | Price changes: ${priceUpdates.length} | Sold: ${soldListings.length}`)
+      // Step 4: Sync Table 2 placeholders
+      const sheetCounts = await fetchTable2Counts(SHEET_TAB)
+      const commCounts  = sheetCounts[resolvedName] || null
+      const phChanges   = []
+      if (commCounts) {
+        const { toIngest: phIngest, removeIds } = reconcilePlaceholders(commCounts, db.placeholders)
+        phChanges.push(...phIngest)
+        if (removeIds.length > 0) {
+          await prisma.listing.updateMany({ where: { id: { in: removeIds } }, data: { status: "removed" } })
+          console.log(`  Placeholders removed: ${removeIds.length}`)
+        }
+        if (phIngest.length > 0) {
+          console.log(`  Placeholders synced: +${phIngest.filter(l => l.status === "sold").length} sold, +${phIngest.filter(l => l.status === "active").length} avail, +${phIngest.filter(l => l.status === "future").length} future`)
+        }
+      }
 
-      const hasChanges = newListings.length > 0 || priceUpdates.length > 0 || soldListings.length > 0
-      if (!hasChanges) {
+      console.log(`  Diff — New: ${newListings.length}, Price changes: ${priceUpdates.length}, Sold: ${soldListings.length}`)
+
+      const allChanges = [...newListings, ...priceUpdates, ...soldListings, ...phChanges]
+      if (allChanges.length === 0) {
         console.log("  No changes — skipping ingest POST")
         await new Promise(r => setTimeout(r, 2000))
         continue
       }
 
       const payload = {
-        builder:   { name: BUILDER_NAME, websiteUrl: "https://www.sheahomes.com" },
-        community: { name: commDef.name, city: commDef.city, state: commDef.state, url: commDef.url },
-        listings:  [...newListings, ...priceUpdates, ...soldListings],
+        builder:     { name: BUILDER_NAME, websiteUrl: "https://www.sheahomes.com" },
+        community:   { name: resolvedName, city: commDef.city, state: commDef.state, url: commDef.url },
+        listings:    allChanges,
+        scraperMode: true,
       }
 
-      console.log(`  POSTing ${payload.listings.length} listing(s) to ingest...`)
+      console.log(`  POSTing ${allChanges.length} listing change(s) to ingest...`)
       try {
         const result = await postIngest(payload)
-        console.log("  Ingest result:", result)
+        console.log("  Ingest result:", JSON.stringify(result))
+        summary.new          += newListings.length
+        summary.priceChanges += priceUpdates.length
+        summary.sold         += soldListings.length
       } catch (err) {
         console.error("  Ingest failed:", err.message)
       }
@@ -419,8 +428,11 @@ async function main() {
   }
 
   console.log("\n" + "=".repeat(60))
-  console.log("Done.")
+  console.log("SUMMARY")
   console.log("=".repeat(60))
+  console.log(`New listings:   ${summary.new}`)
+  console.log(`Price changes:  ${summary.priceChanges}`)
+  console.log(`Sold listings:  ${summary.sold}`)
 }
 
 main().catch(err => {

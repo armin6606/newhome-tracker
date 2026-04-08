@@ -82,6 +82,34 @@ const TM_COMMUNITIES = [
     sitePlanId: "60weSMjhMgrn8CfuaT2S",
   },
   {
+    name:       "Oliva",
+    city:       "French Valley",
+    state:      "CA",
+    url:        "https://www.taylormorrison.com/ca/southern-california/french-valley/oliva-at-siena",
+    sitePlanId: "ujusiGpCy39rSTvDbfcm",
+  },
+  {
+    name:       "Juniper",
+    city:       "Moreno Valley",
+    state:      "CA",
+    url:        "https://www.taylormorrison.com/ca/southern-california/moreno-valley/juniper-at-alessandro",
+    sitePlanId: "Rdce5w2qvXwtuG5oqpL6",
+  },
+  {
+    name:       "Cobalt",
+    city:       "Moreno Valley",
+    state:      "CA",
+    url:        "https://www.taylormorrison.com/ca/southern-california/moreno-valley/cobalt-at-alessandro",
+    sitePlanId: "7EgWmt3YHNI0oU8NYRh9",
+  },
+  {
+    name:       "Indigo",
+    city:       "Moreno Valley",
+    state:      "CA",
+    url:        "https://www.taylormorrison.com/ca/southern-california/moreno-valley/indigo-at-alessandro",
+    sitePlanId: "kZOPlKofI3Byt3EIkSFJ",
+  },
+  {
     name:       "Viewpoint on Katella",
     city:       "Orange",
     state:      "CA",
@@ -157,6 +185,11 @@ async function scrapeAvailableHomes(browser, community) {
               readyDate: home.readyDate || null,
               viewHomeLink: home.viewHomeLink?.Url || null,
               isModelHome:  home.isModelHome || false,
+              floorPlan: home.floorPlan || null,
+              sqft:      home.sqft      || null,
+              beds:      home.bed       || null,
+              baths:     home.totalBath || null,
+              garages:   home.garages   || null,
             })
           }
         }
@@ -197,9 +230,10 @@ async function getDbActive(communityName) {
 async function postIngest(comm, listings) {
   if (!listings.length) return
   const payload = {
-    builder:   { name: BUILDER_NAME, websiteUrl: BUILDER_URL },
-    community: { name: comm.name, city: comm.city, state: comm.state, url: comm.url },
+    builder:     { name: BUILDER_NAME, websiteUrl: BUILDER_URL },
+    community:   { name: comm.name, city: comm.city, state: comm.state, url: comm.url },
     listings,
+    scraperMode: true,
   }
   const res = await fetch(INGEST_URL, {
     method: "POST",
@@ -281,7 +315,7 @@ async function processCommunity(browser, comm) {
     const srcUrl = home.viewHomeLink
       ? `${BUILDER_URL}${home.viewHomeLink}`
       : comm.url + "/available-homes"
-    priceByAddr.set(addr, { price, readyDate: home.readyDate, sourceUrl: srcUrl })
+    priceByAddr.set(addr, { price, readyDate: home.readyDate, sourceUrl: srcUrl, floorPlan: home.floorPlan || null, sqft: home.sqft || null, beds: home.beds || null, baths: home.baths || null, garages: home.garages || null })
   }
 
   const toIngest = [...soldListings]
@@ -299,6 +333,11 @@ async function processCommunity(browser, comm) {
       moveInDate:   pricing?.readyDate || null,
       status:       "active",
       sourceUrl:    srcUrl,
+      floorPlan:    pricing?.floorPlan  || null,
+      sqft:         pricing?.sqft       || null,
+      beds:         pricing?.beds       || null,
+      baths:        pricing?.baths      || null,
+      garages:      pricing?.garages    || null,
     })
   }
 
@@ -328,7 +367,7 @@ async function processCommunity(browser, comm) {
   const commCounts   = sheetCounts[comm.name] || sheetCounts[comm.name.split(" at ")[0]] || null
   if (commCounts) {
     const { toIngest: phIngest, removeIds } = reconcilePlaceholders(
-      commCounts, db.placeholders, db.realActiveCount
+      commCounts, db.placeholders
     )
     toIngest.push(...phIngest)
     if (removeIds.length > 0) {
@@ -339,10 +378,49 @@ async function processCommunity(browser, comm) {
       console.log(`  Placeholders synced: +${phIngest.filter(l=>l.status==="sold").length} sold, +${phIngest.filter(l=>l.status==="active").length} avail, +${phIngest.filter(l=>l.status==="future").length} future`)
   }
 
+  // Build observedPrices map for validation (address → price from available-homes page)
+  const observedPrices = new Map()
+  for (const [addr, pricing] of priceByAddr.entries()) {
+    if (pricing.price != null) observedPrices.set(addr, pricing.price)
+  }
+
   if (toIngest.length > 0) await postIngest(comm, toIngest)
   else console.log("  No changes")
 
+  await validatePriceSync(comm.name, observedPrices)
+
   return { community: comm.name, changes: toIngest.length }
+}
+
+// ─── Validation ───────────────────────────────────────────────────────────────
+
+async function validatePriceSync(communityName, observedPrices) {
+  if (observedPrices.size === 0) return
+
+  const listings = await prisma.listing.findMany({
+    where: {
+      status:    "active",
+      address:   { not: null },
+      community: { name: communityName, builder: { name: BUILDER_NAME } },
+    },
+    select: { address: true, currentPrice: true },
+  })
+
+  const drifted = []
+  for (const l of listings) {
+    const observed = observedPrices.get(l.address)
+    if (observed == null) continue
+    if (l.currentPrice !== observed)
+      drifted.push({ address: l.address, db: l.currentPrice, site: observed })
+  }
+
+  if (drifted.length === 0) {
+    console.log(`  ✔ Validation: all prices in sync`)
+  } else {
+    console.log(`  ✘ Validation FAILED: ${drifted.length} price drift(s) after ingest:`)
+    for (const d of drifted)
+      console.log(`      ${d.address}: DB=$${d.db?.toLocaleString() ?? "null"} Site=$${d.site?.toLocaleString()}`)
+  }
 }
 
 async function fetchLotsFromPayload(sitePlanId) {

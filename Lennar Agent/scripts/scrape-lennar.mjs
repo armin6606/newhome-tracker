@@ -121,7 +121,7 @@ async function getCommunities() {
 async function getDbActiveListings(communityName) {
   const listings = await prisma.listing.findMany({
     where: { community: { name: communityName, builder: { name: "Lennar" } } },
-    select: { id: true, address: true, lotNumber: true, status: true },
+    select: { id: true, address: true, lotNumber: true, status: true, currentPrice: true },
   })
   const active = listings.filter(l => l.status === "active")
   const byAddress   = new Map(active.filter(l => l.address).map(l => [l.address, l]))
@@ -175,6 +175,8 @@ async function getMapHomesites(communityName, communityUrl) {
                         (!hsCommRef && !hs.url && commKey)
     if (!belongsHere) continue
 
+    const baths = (hs.baths || plan?.baths || 0) + (hs.halfBaths || plan?.halfBaths || 0) * 0.5 || null
+
     homesites.push({
       status:    mapStatus(hs.status),
       address:   stripSuffix(hs.address),
@@ -182,6 +184,10 @@ async function getMapHomesites(communityName, communityUrl) {
       price:     hs.price  || null,
       moveInDate: hs.closeDate || hs.moveInDate || hs.deliveryDate || null,
       sourceUrl: hs.url ? `${LENNAR_BASE}${hs.url}` : null,
+      floorPlan: plan?.name || null,
+      sqft:      hs.sqft   || plan?.sqft  || null,
+      beds:      hs.beds   || plan?.beds  || null,
+      baths,
     })
   }
 
@@ -194,33 +200,46 @@ function diffAndBuild(homesites, dbActive, sheetType) {
   const { byAddress, byLotNumber } = dbActive
   const toIngest = []
 
-  let newCount  = 0
-  let soldCount = 0
+  let newCount   = 0
+  let soldCount  = 0
+  let priceCount = 0
 
-  // Find newly for-sale: active on map, not currently active in DB
+  // Find newly for-sale or price changes on existing active listings
   for (const hs of homesites) {
     if (hs.status !== "active") continue
 
-    const alreadyActive = (hs.address   && byAddress.has(hs.address)) ||
-                          (hs.lotNumber && byLotNumber.has(hs.lotNumber))
-    if (alreadyActive) continue
+    const dbEntry = (hs.address   && byAddress.get(hs.address)) ||
+                    (hs.lotNumber && byLotNumber.get(hs.lotNumber))
 
-    // New for-sale lot — send address + price + moveInDate only
-    // Community-level info (beds, baths, sqft, type, etc.) is already in DB from initial ingest
-    const entry = { status: "active" }
-    if (hs.address)    entry.address    = hs.address
-    if (hs.lotNumber)  entry.lotNumber  = hs.lotNumber
-    if (hs.price)      entry.currentPrice = hs.price
-    if (hs.moveInDate) entry.moveInDate = hs.moveInDate
-    if (hs.sourceUrl)  entry.sourceUrl  = hs.sourceUrl
-    if (sheetType)     entry.propertyType = sheetType
-
-    toIngest.push(entry)
-    newCount++
+    if (!dbEntry) {
+      // New for-sale lot
+      const entry = { status: "active" }
+      if (hs.address)    entry.address      = hs.address
+      if (hs.lotNumber)  entry.lotNumber    = hs.lotNumber
+      if (hs.price)      entry.currentPrice = hs.price
+      if (hs.moveInDate) entry.moveInDate   = hs.moveInDate
+      if (hs.sourceUrl)  entry.sourceUrl    = hs.sourceUrl
+      if (sheetType)     entry.propertyType = sheetType
+      if (hs.floorPlan)  entry.floorPlan    = hs.floorPlan
+      if (hs.sqft)       entry.sqft         = hs.sqft
+      if (hs.beds)       entry.beds         = hs.beds
+      if (hs.baths)      entry.baths        = hs.baths
+      toIngest.push(entry)
+      newCount++
+    } else if (hs.price != null && dbEntry.currentPrice !== hs.price) {
+      // Price changed on existing active listing
+      const entry = { status: "active", currentPrice: hs.price }
+      if (hs.address)    entry.address    = hs.address
+      if (hs.lotNumber)  entry.lotNumber  = hs.lotNumber
+      if (hs.moveInDate) entry.moveInDate = hs.moveInDate
+      if (hs.sourceUrl)  entry.sourceUrl  = hs.sourceUrl
+      toIngest.push(entry)
+      priceCount++
+      console.log(`  ~ Price: ${hs.address || hs.lotNumber} $${dbEntry.currentPrice?.toLocaleString() ?? "—"} → $${hs.price.toLocaleString()}`)
+    }
   }
 
   // Find newly sold: active in DB but now sold on map
-  // Build a fast lookup of sold lots from map
   const mapSoldAddresses  = new Set(homesites.filter(h => h.status === "sold" && h.address).map(h => h.address))
   const mapSoldLotNumbers = new Set(homesites.filter(h => h.status === "sold" && h.lotNumber).map(h => h.lotNumber))
 
@@ -231,7 +250,6 @@ function diffAndBuild(homesites, dbActive, sheetType) {
     }
   }
   for (const [lotNumber] of byLotNumber) {
-    // Only use lotNumber if the listing doesn't have an address (avoid double-counting)
     const listing = byLotNumber.get(lotNumber)
     if (!listing.address && mapSoldLotNumbers.has(lotNumber)) {
       toIngest.push({ lotNumber, status: "sold" })
@@ -239,7 +257,40 @@ function diffAndBuild(homesites, dbActive, sheetType) {
     }
   }
 
-  return { toIngest, newCount, soldCount }
+  return { toIngest, newCount, soldCount, priceCount }
+}
+
+// ── Validation checkpoint ─────────────────────────────────────────────────────
+// After ingest, re-query DB and verify stored prices match what was scraped.
+// Logs a warning for any active listing whose DB price still differs from site.
+
+async function validatePriceSync(communityName, observedPrices) {
+  if (observedPrices.size === 0) return
+
+  const listings = await prisma.listing.findMany({
+    where: {
+      status:    "active",
+      address:   { not: null },
+      community: { name: communityName, builder: { name: "Lennar" } },
+    },
+    select: { address: true, currentPrice: true },
+  })
+
+  const drifted = []
+  for (const l of listings) {
+    const observed = observedPrices.get(l.address)
+    if (observed == null) continue                        // not in this scrape run
+    if (l.currentPrice !== observed)
+      drifted.push({ address: l.address, db: l.currentPrice, site: observed })
+  }
+
+  if (drifted.length === 0) {
+    console.log(`  ✔ Validation: all prices in sync`)
+  } else {
+    console.log(`  ✘ Validation FAILED: ${drifted.length} price drift(s) after ingest:`)
+    for (const d of drifted)
+      console.log(`      ${d.address}: DB=$${d.db?.toLocaleString() ?? "null"} Site=$${d.site?.toLocaleString()}`)
+  }
 }
 
 // ── Step 5: POST to New Key ingest ────────────────────────────────────────────
@@ -248,9 +299,10 @@ async function ingest(communityName, city, url, listings) {
   if (listings.length === 0) return { created: 0, updated: 0, priceChanges: 0 }
 
   const payload = {
-    builder:   { name: "Lennar", websiteUrl: LENNAR_BASE },
-    community: { name: communityName, city, state: "CA", url },
+    builder:     { name: "Lennar", websiteUrl: LENNAR_BASE },
+    community:   { name: communityName, city, state: "CA", url },
     listings,
+    scraperMode: true,
   }
   const res    = await fetch(INGEST_URL, {
     method:  "POST",
@@ -277,6 +329,7 @@ async function main() {
   let successCount = 0
   let totalNew     = 0
   let totalSold    = 0
+  let totalPrice   = 0
   const failures   = []
 
   for (const { name: rawName, url, city, type } of communities) {
@@ -288,14 +341,20 @@ async function main() {
         getDbActiveListings(name),
       ])
 
-      const { toIngest, newCount, soldCount } = diffAndBuild(homesites, dbActive, type)
+      // Build observed price map for validation checkpoint
+      const observedPrices = new Map(
+        homesites.filter(h => h.status === "active" && h.address && h.price)
+                 .map(h => [h.address, h.price])
+      )
+
+      const { toIngest, newCount, soldCount, priceCount } = diffAndBuild(homesites, dbActive, type)
 
       // ── Reconcile placeholder counts against Sheet Table 2 ────────────
       const sheetCounts = await fetchTable2Counts("Lennar Communities")
       const commCounts  = sheetCounts[name] || sheetCounts[rawName] || null
       if (commCounts) {
         const { toIngest: phIngest, removeIds } = reconcilePlaceholders(
-          commCounts, dbActive.placeholders, dbActive.realActiveCount
+          commCounts, dbActive.placeholders
         )
         toIngest.push(...phIngest)
         if (removeIds.length > 0) {
@@ -307,20 +366,26 @@ async function main() {
       }
 
       if (toIngest.length === 0) {
-        console.log(`  ✓ No changes\n`)
+        console.log(`  ✓ No changes`)
+        await validatePriceSync(name, observedPrices)
+        console.log()
         successCount++
         continue
       }
 
       await ingest(name, city, url, toIngest)
 
-      if (newCount  > 0) console.log(`  + ${newCount} newly for-sale`)
-      if (soldCount > 0) console.log(`  ✗ ${soldCount} newly sold`)
+      if (newCount   > 0) console.log(`  + ${newCount} newly for-sale`)
+      if (soldCount  > 0) console.log(`  ✗ ${soldCount} newly sold`)
+      if (priceCount > 0) console.log(`  ~ ${priceCount} price change(s)`)
+
+      await validatePriceSync(name, observedPrices)
       console.log()
 
       successCount++
-      totalNew  += newCount
-      totalSold += soldCount
+      totalNew   += newCount
+      totalSold  += soldCount
+      totalPrice += priceCount
     } catch (err) {
       console.error(`  ✗ ERROR: ${err.message}\n`)
       failures.push({ name, error: err.message })
@@ -336,6 +401,7 @@ async function main() {
   console.log(`  Communities  : ${successCount} / ${communities.length} succeeded`)
   console.log(`  New for-sale : ${totalNew}`)
   console.log(`  Newly sold   : ${totalSold}`)
+  console.log(`  Price changes: ${totalPrice}`)
   if (failures.length > 0) {
     console.log(`  Failures     : ${failures.length}`)
     failures.forEach(f => console.log(`    • ${f.name}: ${f.error}`))
