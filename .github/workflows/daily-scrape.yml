@@ -23,6 +23,7 @@ jobs:
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
+        continue-on-error: true   # missing deps don't exist on all runners; Playwright will retry
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -30,13 +31,30 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Sync DB schema
-        run: npx prisma db push --accept-data-loss
-        continue-on-error: true   # won't block scraper if DIRECT_URL secret is missing
+        # --accept-data-loss removed: safer to let a column-drop fail loudly.
+        # continue-on-error keeps the scraper running even if DIRECT_URL is missing.
+        run: npx prisma db push
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
+      - name: Ping database
+        # Fail fast if the DB is unreachable before spending 50 min on Playwright
+        run: |
+          node -e "
+          const { PrismaClient } = require('./node_modules/@prisma/client');
+          const p = new PrismaClient();
+          p.\$connect()
+            .then(() => { console.log('DB connection OK'); return p.\$disconnect(); })
+            .catch(e => { console.error('DB connection FAILED:', e.message); process.exit(1); });
+          "
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Run scraper
+        # IMPORTANT: if package-lock.json is out of sync with package.json,
+        # npm ci will fail. Always commit package-lock.json after npm install.
         run: npx tsx scripts/run-scraper.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

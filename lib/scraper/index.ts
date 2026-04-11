@@ -194,6 +194,20 @@ function buildListings(
   return listings
 }
 
+// ─── Per-builder timeout ──────────────────────────────────────────────────────
+
+const BUILDER_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes per builder
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`Builder timed out after ${Math.round(ms / 60000)}m: ${label}`)),
+      ms
+    )
+  )
+  return Promise.race([promise, timeout])
+}
+
 // ─── Concurrency helper ───────────────────────────────────────────────────────
 
 async function runWithConcurrency<T>(
@@ -261,6 +275,22 @@ async function scrapeOneCommunity(
     const listings = buildListings(mapResult, row.communityName, row.url)
 
     if (listings.length === 0) {
+      // Check if this community already had listings — if so, 0 results likely means scraper failure
+      const existingCount = await prisma.listing.count({
+        where: {
+          community: { builderId, name: row.communityName },
+          status: { not: "removed" },
+        },
+      })
+      if (existingCount > 3) {
+        const msg = `${row.communityName}: Zero lots returned but community had ${existingCount} active lots in DB — possible scraper/map failure`
+        console.warn(`  [${builder.name}] ALERT: ${msg}`)
+        return {
+          scraped: 0,
+          stats: emptyStats,
+          error: { builder: builder.name, error: msg },
+        }
+      }
       console.log(
         `  [${builder.name}] ${row.communityName}: No lots found — skipping DB update`
       )
@@ -403,8 +433,26 @@ export async function runScraper(): Promise<ChangeDetails> {
   )
 
   // Run builders with concurrency limit (max 3 Playwright browsers at once)
+  // Each builder is wrapped in a 15-minute timeout to prevent a hung Playwright
+  // session from blocking the entire run.
+  const emptyBuilderResult: BuilderResult = {
+    scraped: 0,
+    stats: {
+      added: 0, priceChanges: 0, removed: 0, unchanged: 0,
+      newListings: [], priceChangeDetails: [], removedListings: [], newIncentives: [],
+    },
+    errors: [],
+  }
   const builderResults = await runWithConcurrency(
-    SHEET_BUILDERS.map((config) => () => scrapeOneBuilder(config)),
+    SHEET_BUILDERS.map((config) => async () => {
+      try {
+        return await withTimeout(scrapeOneBuilder(config), BUILDER_TIMEOUT_MS, config.name)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error(`[${config.name}] Fatal/timeout error:`, msg)
+        return { ...emptyBuilderResult, errors: [{ builder: config.name, error: msg }] }
+      }
+    }),
     MAX_CONCURRENT_BUILDERS
   )
 
