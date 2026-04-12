@@ -274,7 +274,9 @@ export default function HomePage() {
     if (maxSqft) params.set("maxSqft", maxSqft)
     if (floors) params.set("floors", floors)
     const res = await fetch(`/api/listings?${params}`)
-    const data: Listing[] = await res.json()
+    const json = await res.json()
+    // API now returns { listings, total, hasMore } — extract the array
+    const data: Listing[] = Array.isArray(json) ? json : (json.listings ?? [])
     setListings(data)
     setLoading(false)
   }, [status, sortBy, sortDir, minPrice, maxPrice, minBeds, minSqft, maxSqft, floors])
