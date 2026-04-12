@@ -55,8 +55,10 @@ export default function IncentivesPage() {
     const params = new URLSearchParams()
     if (citySearch) params.set("city", citySearch)
     if (builderSearch) params.set("builder", builderSearch)
-    const res = await fetch(`/api/incentives?${params}`)
-    const data = await res.json()
+    const res  = await fetch(`/api/incentives?${params}`)
+    const json = await res.json()
+    // API now returns { ok, count, hasMore, grouped } — extract the array
+    const data = Array.isArray(json) ? json : (json.grouped ?? [])
     setOffers(data)
     // Collapsed by default
     setExpandedOffers(new Set())
