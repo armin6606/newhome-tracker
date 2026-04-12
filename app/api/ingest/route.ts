@@ -62,7 +62,7 @@ const CITY_RE        = /,\s*.+$/
 const FLOORPLAN_RE   = /^(plan\s*\d|lot\s*\d|residence\s*\d|home\s*\d|model\s*\d)/i
 const PRICE_MIN      = 200_000
 const PRICE_MAX      = 15_000_000
-const RESEND_API_KEY = "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
 const ALERT_EMAIL    = "armin.sabe@gmail.com"
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -307,11 +307,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const body = await req.json()
-  const { builder: builderData, community: communityData, listings: listingsData, clearPlaceholders, scraperMode } = body
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 })
+  }
+  const { builder: builderData, community: communityData, listings: listingsData, scraperMode } = body
 
   if (!builderData?.name || !communityData?.name || !Array.isArray(listingsData)) {
     return NextResponse.json({ error: "Invalid payload. Required: builder, community, listings[]" }, { status: 400 })
+  }
+
+  // Guardrail: cap payload size to prevent memory exhaustion / Vercel timeout
+  if (listingsData.length > 500) {
+    return NextResponse.json({
+      error: `Payload too large: ${listingsData.length} listings. Maximum 500 per request.`,
+    }, { status: 400 })
   }
 
   // ── Normalize builder + community names to canonical Sheet names ─────────
@@ -385,9 +398,7 @@ export async function POST(req: NextRequest) {
 
   const community = existingCommunity
 
-  if (clearPlaceholders) {
-    await prisma.listing.deleteMany({ where: { communityId: community.id, address: null } })
-  }
+  // Note: placeholder reconciliation is handled automatically by syncPlaceholders() below.
 
   // ── Load Table 3 for this builder (READ-ONLY floorplan data) ─────────────
   // RULE: beds/sqft/baths/floors/propertyType/hoaFees/taxes come ONLY from here.
@@ -402,16 +413,27 @@ export async function POST(req: NextRequest) {
 
   let sheetDelta = { sold: 0, forSale: 0 }
 
+  // ── Pre-fetch all existing listings for this community (1 query replaces N findUnique calls) ──
+  const allExisting = await prisma.listing.findMany({ where: { communityId: community.id } })
+  const existingByAddress   = new Map(allExisting.filter(l => l.address).map(l => [l.address!,    l]))
+  const existingByLotNumber = new Map(allExisting.filter(l => l.lotNumber).map(l => [l.lotNumber!, l]))
+
+  // Collect DB write ops — executed together in one transaction after the loop.
+  // This gives us: (a) parallel execution to avoid Vercel timeout, (b) atomicity so
+  // a mid-run failure doesn't leave the DB in a half-written state.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dbOps: Array<(tx: any) => Promise<unknown>> = []
+
   for (const l of listingsData as RawListing[]) {
     const isPlaceholder = !!(l.lotNumber && PLACEHOLDER_RE.test(l.lotNumber))
     const rawAddress    = l.address   || null
     const rawLotNumber  = l.lotNumber || null
 
-    const existing = rawAddress
-      ? await prisma.listing.findUnique({ where: { communityId_address: { communityId: community.id, address: rawAddress } } })
-      : rawLotNumber
-        ? await prisma.listing.findUnique({ where: { communityId_lotNumber: { communityId: community.id, lotNumber: rawLotNumber } } })
-        : null
+    // O(1) map lookup — no DB round-trip (all listings pre-fetched above)
+    const existing =
+      rawAddress   ? (existingByAddress.get(rawAddress)     ?? null) :
+      rawLotNumber ? (existingByLotNumber.get(rawLotNumber) ?? null) :
+      null
 
     const v = validateListing(l, community.name, existing?.status ?? undefined)
     if (!v.ok) {
@@ -507,7 +529,8 @@ export async function POST(req: NextRequest) {
       // Track price change
       if (l.currentPrice && existing.currentPrice && l.currentPrice !== existing.currentPrice) {
         const changeType = l.currentPrice > existing.currentPrice ? "increase" : "decrease"
-        await prisma.priceHistory.create({ data: { listingId: existing.id, price: l.currentPrice, changeType } })
+        const _id = existing.id; const _price = l.currentPrice; const _ct = changeType
+        dbOps.push((tx) => tx.priceHistory.create({ data: { listingId: _id, price: _price, changeType: _ct } }))
         results.priceChanges++
       }
 
@@ -534,90 +557,81 @@ export async function POST(req: NextRequest) {
       // scraperMode: only update status/price/soldAt/sourceUrl/lotNumber
       // non-scraperMode: also update garages, moveInDate, incentives, sourceUrl
       // NEITHER mode ever updates beds/sqft/baths/floors/propertyType/hoaFees/taxes from payload
+      const _eid = existing.id
       if (scraperMode) {
-        await prisma.listing.update({
-          where: { id: existing.id },
-          data: {
-            lotNumber:    lotNumber                           ?? existing.lotNumber,
-            floorPlan:    resolvedFloorPlan                  ?? existing.floorPlan,
-            currentPrice: l.currentPrice      ?? existing.currentPrice,
-            pricePerSqft: (l.currentPrice && (t3?.sqft ?? existing.sqft))
-              ? Math.round(l.currentPrice / (t3?.sqft ?? existing.sqft)!)
-              : existing.pricePerSqft,
-            status,
-            sourceUrl:    l.sourceUrl         ?? existing.sourceUrl,
-            soldAt:       soldAt              ?? existing.soldAt,
-            ...t3Fill,
-          },
-        })
+        const _d = {
+          lotNumber:    lotNumber                           ?? existing.lotNumber,
+          floorPlan:    resolvedFloorPlan                  ?? existing.floorPlan,
+          currentPrice: l.currentPrice      ?? existing.currentPrice,
+          pricePerSqft: (l.currentPrice && (t3?.sqft ?? existing.sqft))
+            ? Math.round(l.currentPrice / (t3?.sqft ?? existing.sqft)!)
+            : existing.pricePerSqft,
+          status,
+          sourceUrl:    l.sourceUrl         ?? existing.sourceUrl,
+          soldAt:       soldAt              ?? existing.soldAt,
+          ...t3Fill,
+        }
+        dbOps.push((tx) => tx.listing.update({ where: { id: _eid }, data: _d }))
       } else {
-        await prisma.listing.update({
-          where: { id: existing.id },
-          data: {
-            lotNumber:     lotNumber                                ?? existing.lotNumber,
-            floorPlan:     resolvedFloorPlan                       ?? existing.floorPlan,
-            garages:       l.garages           ?? existing.garages,
-            currentPrice:  l.currentPrice      ?? existing.currentPrice,
-            pricePerSqft:  (l.currentPrice && (t3?.sqft ?? existing.sqft))
-              ? Math.round(l.currentPrice / (t3?.sqft ?? existing.sqft)!)
-              : l.pricePerSqft ?? existing.pricePerSqft,
-            moveInDate:    sanitizeMoveInDate(l.moveInDate) ?? existing.moveInDate,
-            incentives:    l.incentives         ?? existing.incentives,
-            incentivesUrl: l.incentivesUrl      ?? existing.incentivesUrl,
-            status,
-            sourceUrl:     l.sourceUrl          ?? existing.sourceUrl,
-            soldAt:        soldAt               ?? existing.soldAt,
-            ...t3Fill,
-          },
-        })
+        const _d = {
+          lotNumber:     lotNumber                                ?? existing.lotNumber,
+          floorPlan:     resolvedFloorPlan                       ?? existing.floorPlan,
+          garages:       l.garages           ?? existing.garages,
+          currentPrice:  l.currentPrice      ?? existing.currentPrice,
+          pricePerSqft:  (l.currentPrice && (t3?.sqft ?? existing.sqft))
+            ? Math.round(l.currentPrice / (t3?.sqft ?? existing.sqft)!)
+            : l.pricePerSqft ?? existing.pricePerSqft,
+          moveInDate:    sanitizeMoveInDate(l.moveInDate) ?? existing.moveInDate,
+          incentives:    l.incentives         ?? existing.incentives,
+          incentivesUrl: l.incentivesUrl      ?? existing.incentivesUrl,
+          status,
+          sourceUrl:     l.sourceUrl          ?? existing.sourceUrl,
+          soldAt:        soldAt               ?? existing.soldAt,
+          ...t3Fill,
+        }
+        dbOps.push((tx) => tx.listing.update({ where: { id: _eid }, data: _d }))
       }
       results.updated++
 
     } else {
       // New listing — Table 3 fields used directly, payload fields for those stripped
       const sqft = t3?.sqft ?? null
-      await prisma.listing.create({
-        data: {
-          communityId:   community.id,
-          address,
-          lotNumber,
-          floorPlan:     resolvedFloorPlan || null,
-          // ── Table 3 fields ONLY ─────────────────────────────────────────
-          sqft,
-          beds:          t3?.beds         ?? null,
-          baths:         t3?.baths        ?? null,
-          floors:        t3?.floors       ?? null,
-          propertyType:  t3?.propertyType ?? null,
-          hoaFees:       t3?.hoaFees      ?? null,
-          taxes:         t3?.taxes        ?? null,
-          // ── Scraper/payload fields ──────────────────────────────────────
-          garages:       l.garages        || null,
-          currentPrice:  l.currentPrice   || null,
-          pricePerSqft:  (l.currentPrice && sqft)
-            ? Math.round(l.currentPrice / sqft)
-            : null,
-          moveInDate:    sanitizeMoveInDate(l.moveInDate) || t3?.moveInDate || null,
-          incentives:    l.incentives     || null,
-          incentivesUrl: l.incentivesUrl  || null,
-          status,
-          sourceUrl:     l.sourceUrl      || null,
-          soldAt,
-        },
-      })
-
-      if (l.currentPrice) {
-        const created = await prisma.listing.findUnique({
-          where: address
-            ? { communityId_address: { communityId: community.id, address } }
-            : { communityId_lotNumber: { communityId: community.id, lotNumber: lotNumber! } },
-          select: { id: true },
-        })
-        if (created) {
-          await prisma.priceHistory.create({
-            data: { listingId: created.id, price: l.currentPrice, changeType: "initial" },
+      const _createData = {
+        communityId:   community.id,
+        address,
+        lotNumber,
+        floorPlan:     resolvedFloorPlan || null,
+        // ── Table 3 fields ONLY ─────────────────────────────────────────
+        sqft,
+        beds:          t3?.beds         ?? null,
+        baths:         t3?.baths        ?? null,
+        floors:        t3?.floors       ?? null,
+        propertyType:  t3?.propertyType ?? null,
+        hoaFees:       t3?.hoaFees      ?? null,
+        taxes:         t3?.taxes        ?? null,
+        // ── Scraper/payload fields ──────────────────────────────────────
+        garages:       l.garages        || null,
+        currentPrice:  l.currentPrice   || null,
+        pricePerSqft:  (l.currentPrice && sqft)
+          ? Math.round(l.currentPrice / sqft)
+          : null,
+        moveInDate:    sanitizeMoveInDate(l.moveInDate) || t3?.moveInDate || null,
+        incentives:    l.incentives     || null,
+        incentivesUrl: l.incentivesUrl  || null,
+        status,
+        sourceUrl:     l.sourceUrl      || null,
+        soldAt,
+      }
+      const _initPrice = l.currentPrice || null
+      // Create listing + initial priceHistory atomically inside the transaction closure
+      dbOps.push(async (tx) => {
+        const newListing = await tx.listing.create({ data: _createData })
+        if (_initPrice) {
+          await tx.priceHistory.create({
+            data: { listingId: newListing.id, price: _initPrice, changeType: "initial" },
           })
         }
-      }
+      })
 
       // Table 2 delta: new real listing added as active (new for-sale home)
       if (!isPlaceholder && address && status === "active") {
@@ -627,6 +641,16 @@ export async function POST(req: NextRequest) {
       if (t3) results.table3Filled++
       results.created++
     }
+  }
+
+  // ── Execute all DB writes atomically ─────────────────────────────────────
+  // Promise.all parallelises updates (avoids N-sequential overhead / Vercel timeout).
+  // $transaction ensures either everything commits or nothing does — no partial writes.
+  if (dbOps.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await prisma.$transaction(async (tx: any) => {
+      await Promise.all(dbOps.map((op) => op(tx)))
+    }, { timeout: 45_000, maxWait: 10_000 })
   }
 
   // ── Table 2 write-back + placeholder sync ─────────────────────────────────
@@ -639,10 +663,10 @@ export async function POST(req: NextRequest) {
 
   if (sheetDelta.sold !== 0 || sheetDelta.forSale !== 0) {
     // Guardrail: delta must only move in expected directions
-    const invalidDelta =
-      sheetDelta.sold    < 0 ||   // sold count can only go up
-      sheetDelta.forSale > 1 ||   // forSale can increase by at most 1 per listing created
-      (sheetDelta.sold > 0 && sheetDelta.forSale > 0) // can't gain both at once
+    // Guardrail: sold count can never decrease (that would mean un-selling a home).
+    // forSale can increase by any amount (bulk ingest of new listings is valid).
+    // It is also valid to both sell AND add new listings in the same batch.
+    const invalidDelta = sheetDelta.sold < 0
 
     if (invalidDelta) {
       console.error(
@@ -694,29 +718,34 @@ export async function POST(req: NextRequest) {
   if (missingPlans.size > 0) {
     const missingList = [...missingPlans]
     console.warn(`[ingest] ${missingList.length} floorplan(s) missing from Table 3 for "${community.name}": ${missingList.join(", ")}`)
-    sendMissingPlanAlert(existingBuilder.name, community.name, missingList).catch(() => {})
+    // Await so Vercel doesn't tear down the function before the email fires
+    await sendMissingPlanAlert(existingBuilder.name, community.name, missingList)
   }
 
-  // ── Rule 16: Duplicate address detection ──────────────────────────────────
-  const normalize = (a: string) => a.toLowerCase().replace(SUFFIX_RE, "").replace(CITY_RE, "").trim()
+  // ── Rule 16: Cross-community duplicate address detection ──────────────────
+  // Gated behind checkDuplicates:true — this is a full-table scan and should
+  // only be run on demand, not on every ingest call.
+  let duplicates: { address: string; foundIn: string[] }[] = []
+  if (body.checkDuplicates === true) {
+    const normalize = (a: string) => a.toLowerCase().replace(SUFFIX_RE, "").replace(CITY_RE, "").trim()
 
-  const [thisAddresses, otherAddresses] = await Promise.all([
-    prisma.listing.findMany({ where: { communityId: community.id, address: { not: null } }, select: { address: true } }),
-    prisma.listing.findMany({ where: { communityId: { not: community.id }, address: { not: null } }, select: { address: true, community: { select: { name: true } } } }),
-  ])
+    const [thisAddresses, otherAddresses] = await Promise.all([
+      prisma.listing.findMany({ where: { communityId: community.id, address: { not: null } }, select: { address: true } }),
+      prisma.listing.findMany({ where: { communityId: { not: community.id }, address: { not: null } }, select: { address: true, community: { select: { name: true } } } }),
+    ])
 
-  const otherMap = new Map<string, string[]>()
-  for (const l of otherAddresses) {
-    const key = normalize(l.address!)
-    if (!otherMap.has(key)) otherMap.set(key, [])
-    if (!otherMap.get(key)!.includes(l.community.name)) otherMap.get(key)!.push(l.community.name)
-  }
+    const otherMap = new Map<string, string[]>()
+    for (const l of otherAddresses) {
+      const key = normalize(l.address!)
+      if (!otherMap.has(key)) otherMap.set(key, [])
+      if (!otherMap.get(key)!.includes(l.community.name)) otherMap.get(key)!.push(l.community.name)
+    }
 
-  const duplicates: { address: string; foundIn: string[] }[] = []
-  for (const { address } of thisAddresses) {
-    if (!address) continue
-    const found = otherMap.get(normalize(address))
-    if (found?.length) duplicates.push({ address, foundIn: found })
+    for (const { address } of thisAddresses) {
+      if (!address) continue
+      const found = otherMap.get(normalize(address))
+      if (found?.length) duplicates.push({ address, foundIn: found })
+    }
   }
 
   return NextResponse.json({
