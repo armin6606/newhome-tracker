@@ -8,8 +8,10 @@ on:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Capture 11 PM snapshot
         run: |
-          curl -sf -X GET "https://www.newkey.us/api/cron/hourly-scrape" \
+          curl --fail-with-body --max-time 30 -X GET \
+            "https://www.newkey.us/api/cron/hourly-scrape" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

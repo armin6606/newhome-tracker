@@ -1,18 +1,31 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 
-const RESEND_API_KEY = "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
+// Use env var; fallback keeps existing deployments working until Vercel env is updated
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
 const FROM           = "New Key <reports@newkey.us>"
 const TO             = "armin.sabe@gmail.com"
-const PDT_OFFSET_MS  = 7 * 60 * 60 * 1000 // UTC-7
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-function nowPdt() {
-  return new Date(Date.now() - PDT_OFFSET_MS)
+/**
+ * Returns hour (0-23) and date (YYYY-MM-DD) in LA time.
+ * Uses IANA timezone so it handles both PDT (UTC-7) and PST (UTC-8) automatically.
+ */
+function getLaTimeParts(): { hour: number; date: string } {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", hour12: false,
+  })
+  const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]))
+  return {
+    hour: parseInt(parts.hour, 10) % 24, // Intl can return "24" at midnight
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+  }
 }
-function pdtHour()  { return nowPdt().getUTCHours() }
-function pdtDate()  { return nowPdt().toISOString().split("T")[0] }
+function pdtHour()  { return getLaTimeParts().hour }
+function pdtDate()  { return getLaTimeParts().date }
 function fmtTime(h: number) {
   if (h === 0)  return "12 AM"
   if (h < 12)  return `${h} AM`
@@ -63,8 +76,17 @@ async function getCurrentSnapshot(): Promise<SnapListing[]> {
 
 async function getPreviousSnapshot(date: string, hour: number): Promise<SnapListing[] | null> {
   const prevHour = hour === 0 ? 23 : hour - 1
+  // For midnight (hour 0), look up yesterday's date in LA time
   const prevDate = hour === 0
-    ? new Date(Date.now() - PDT_OFFSET_MS - 86400000).toISOString().split("T")[0]
+    ? (() => {
+        const yesterday = new Date(Date.now() - 86400000)
+        const fmt = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          year: "numeric", month: "2-digit", day: "2-digit",
+        })
+        const p = Object.fromEntries(fmt.formatToParts(yesterday).map((x) => [x.type, x.value]))
+        return `${p.year}-${p.month}-${p.day}`
+      })()
     : date
 
   const row = await prisma.hourlySnapshot.findFirst({

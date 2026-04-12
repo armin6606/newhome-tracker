@@ -1,15 +1,21 @@
-name: Snapshot 2 AM
+name: Snapshot 3 AM
 
 on:
   schedule:
-    - cron: '0 9 * * *'   # 9 AM UTC = 2 AM PDT
+    # 10 AM UTC = 3 AM PDT / 2 AM PST
+    # Intentionally AFTER the daily scrape (0 9 * * * = 2 AM PDT, ~50 min run)
+    # NOTE: was 0 9 * * * (2 AM PDT) which collided with daily scrape AND was
+    #       always skipped by the API's own hour-1/2 guard. Fixed 2026-04-12.
+    - cron: '0 10 * * *'
   workflow_dispatch:
 
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Capture 2 AM snapshot
+      - name: Capture 3 AM snapshot
         run: |
-          curl -sf -X GET "https://www.newkey.us/api/cron/hourly-scrape" \
+          curl --fail-with-body --max-time 30 -X GET \
+            "https://www.newkey.us/api/cron/hourly-scrape" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
