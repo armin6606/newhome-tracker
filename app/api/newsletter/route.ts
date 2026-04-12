@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getResend, FROM_EMAIL } from "@/lib/email/resend"
 
+const MAX_EMAIL_LEN = 254  // RFC 5321 maximum email address length
+
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json()
+    let body: Record<string, unknown> = {}
+    try { body = await req.json() } catch { /* malformed JSON → treat as empty */ }
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const email = typeof body.email === "string" ? body.email.trim() : ""
+
+    if (
+      !email ||
+      email.length > MAX_EMAIL_LEN ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 })
     }
 
@@ -19,12 +28,12 @@ export async function POST(req: NextRequest) {
     // Create subscriber
     await prisma.newsletterSubscriber.create({ data: { email } })
 
-    // Notify admin about new subscriber
+    // Notify admin — fire-and-forget (never block the subscriber response)
     try {
       const resend = getResend()
       await resend.emails.send({
-        from: FROM_EMAIL,
-        to: "info@newkey.us",
+        from:    FROM_EMAIL,
+        to:      "info@newkey.us",
         subject: "New Newsletter Subscriber",
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
@@ -40,13 +49,13 @@ export async function POST(req: NextRequest) {
         `,
       })
     } catch (emailErr) {
-      console.error("Failed to send admin notification:", emailErr)
+      console.error("[/api/newsletter] Admin notification failed:", emailErr)
       // Don't fail the subscription if admin email fails
     }
 
     return NextResponse.json({ message: "Successfully subscribed!" })
   } catch (err) {
-    console.error("Newsletter subscribe error:", err)
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
+    console.error("[/api/newsletter] Unhandled error:", err)
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
   }
 }
