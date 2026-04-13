@@ -13,10 +13,10 @@ const LISTING_SELECT = {
   soldAt:        true,
 } as const
 
-// salesByWeek: only show the last N days to keep the response lean and the
-// loop fast — the frontend chart doesn't need data older than this.
-const SALES_WINDOW_DAYS = 90
-const DAY_MS            = 24 * 60 * 60 * 1000
+// salesByWeek: show from fixed tracking start date so the chart is consistent
+// across all page loads (not a rolling window that shifts every day).
+const CHART_START_MS = new Date("2026-03-25T00:00:00Z").getTime()
+const DAY_MS         = 24 * 60 * 60 * 1000
 const PLACEHOLDER_RE    = /^(sold|avail|future)-\d+$/
 
 // One warn-once set per process so placeholder-mismatch warnings don't flood logs
@@ -114,6 +114,7 @@ export async function GET() {
       // salesPerMonth: only meaningful if we have at least 7 days of data
       const observedSales = c.listings.filter(
         (l) =>
+          l.status === "sold" &&
           l.soldAt !== null &&
           l.soldAt >= trackingStart &&
           l.address !== null
@@ -125,7 +126,7 @@ export async function GET() {
         salesPerMonth    = parseFloat((observedSales.length / spanMonths).toFixed(1))
       }
 
-      const soldWithDates  = c.listings.filter((l) => l.soldAt && l.firstDetected)
+      const soldWithDates  = c.listings.filter((l) => l.status === "sold" && l.soldAt && l.firstDetected)
       const avgDaysOnMarket =
         soldWithDates.length > 0
           ? Math.round(
@@ -149,15 +150,14 @@ export async function GET() {
       // one filter-pass per day (avoids O(communities × days × listings) cost).
       const soldDateMap = new Map<string, number>()
       for (const l of c.listings) {
-        if (!l.soldAt || !l.address) continue  // skip placeholders and unsold
+        if (l.status !== "sold" || !l.soldAt || !l.address) continue  // only real sold listings
         const d     = l.soldAt
         const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`
         soldDateMap.set(label, (soldDateMap.get(label) ?? 0) + 1)
       }
 
       const salesByWeek: { week: string; sold: number }[] = []
-      const windowStart = Date.now() - SALES_WINDOW_DAYS * DAY_MS
-      for (let dStart = windowStart; dStart <= Date.now(); dStart += DAY_MS) {
+      for (let dStart = CHART_START_MS; dStart <= Date.now(); dStart += DAY_MS) {
         const d     = new Date(dStart)
         const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`
         salesByWeek.push({ week: label, sold: soldDateMap.get(label) ?? 0 })
