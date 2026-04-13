@@ -151,6 +151,10 @@ export async function GET() {
       const soldDateMap = new Map<string, number>()
       for (const l of c.listings) {
         if (l.status !== "sold" || !l.soldAt || !l.address) continue  // only real sold listings
+        // Skip lots that were already sold at first ingestion — soldAt equals firstDetected
+        // because we never observed the active→sold transition. These cause a false spike
+        // on the day tracking started. Only plot sales we actually witnessed.
+        if (Math.abs(l.soldAt.getTime() - l.firstDetected.getTime()) < DAY_MS) continue
         const d     = l.soldAt
         const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`
         soldDateMap.set(label, (soldDateMap.get(label) ?? 0) + 1)
