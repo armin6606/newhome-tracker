@@ -205,7 +205,10 @@ function validateListing(l: RawListing, communityName: string, existingStatus?: 
       return { ok: false, reason: `Address "${l.address}" does not start with a street number` }
     }
     const forcedStatus  = (status === "active" && !l.currentPrice) ? "future" : undefined
-    const forcedSoldAt  = (status === "sold" && !l.soldAt) ? new Date() : undefined
+    // forcedSoldAt is intentionally NOT set on new lots that arrive already-sold.
+    // We only know soldAt when we observe the active→sold transition on an existing lot.
+    // Setting soldAt=now on first ingestion causes false sales spikes on the chart.
+    const forcedSoldAt  = undefined
 
     if (l.currentPrice) {
       if (l.currentPrice < PRICE_MIN) warnings.push(`Price $${l.currentPrice.toLocaleString()} below minimum`)
