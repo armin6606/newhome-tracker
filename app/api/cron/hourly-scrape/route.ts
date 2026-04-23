@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db"
 // Use env var; fallback keeps existing deployments working until Vercel env is updated
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
 const FROM           = "New Key <reports@newkey.us>"
-const TO             = "armin.sabe@gmail.com"
+const TO             = process.env.REPORT_EMAIL ?? ""
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -340,18 +340,22 @@ export async function GET(req: Request) {
 
       const html = buildDailyHtml(diffs, perf, date, snapshotsToday.length)
 
-      const res = await fetch("https://api.resend.com/emails", {
-        method:  "POST",
-        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          from:    FROM,
-          to:      TO,
-          subject: `New Key Site Report — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} (${snapshotsToday.length} snapshots, ${diffs.reduce((s,d) => s+d.newListings.length+d.soldListings.length+d.priceChanges.length, 0)} changes)`,
-          html,
-        }),
-      })
-      const emailData = await res.json()
-      if (!res.ok) throw new Error(`Resend error: ${JSON.stringify(emailData)}`)
+      let emailId: string | undefined
+      if (TO) {
+        const res = await fetch("https://api.resend.com/emails", {
+          method:  "POST",
+          headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body:    JSON.stringify({
+            from:    FROM,
+            to:      TO,
+            subject: `New Key Site Report — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} (${snapshotsToday.length} snapshots, ${diffs.reduce((s,d) => s+d.newListings.length+d.soldListings.length+d.priceChanges.length, 0)} changes)`,
+            html,
+          }),
+        })
+        const emailData = await res.json()
+        if (!res.ok) throw new Error(`Resend error: ${JSON.stringify(emailData)}`)
+        emailId = emailData.id
+      }
 
       // Cleanup snapshots older than 48 hours
       const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
@@ -359,7 +363,7 @@ export async function GET(req: Request) {
 
       return NextResponse.json({
         ok: true, hour, date, snapshotsSaved: snapshotsToday.length,
-        emailId: emailData.id,
+        emailId,
         changes: diffs.reduce((s,d) => ({
           new:   s.new   + d.newListings.length,
           sold:  s.sold  + d.soldListings.length,
