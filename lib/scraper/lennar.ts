@@ -864,9 +864,18 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           if (!address || seenAddresses.has(address)) continue
           seenAddresses.add(address)
 
+          // Lennar status mapping:
+          // UNDEFINED       = available for sale (Lennar's label for released, priced lots)
+          // MOVE_IN_READY   = active (ready now)
+          // UNDER_CONSTRUCTION = active (being built, has price)
+          // SOLD / CLOSED   = sold
+          // anything else   = future
           const listingStatus: "active" | "sold" | "future" =
-            raw.status === "SOLD"      ? "sold" :
-            raw.status === "UNDEFINED" ? "future" : "active"
+            (raw.status === "SOLD" || raw.status === "CLOSED")      ? "sold"   :
+            (raw.status === "UNDEFINED" ||
+             raw.status === "MOVE_IN_READY" ||
+             raw.status === "UNDER_CONSTRUCTION")                    ? "active" :
+                                                                       "future"
 
           let moveInDate: string | undefined
           if (raw.status === "MOVE_IN_READY")          moveInDate = "Move-In Ready"
