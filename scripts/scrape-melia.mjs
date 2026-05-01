@@ -11,7 +11,7 @@
  */
 
 import { createRequire } from "module"
-import { readFileSync, existsSync } from "fs"
+import { readFileSync, existsSync, writeFileSync } from "fs"
 import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 import { chromium } from "playwright"
@@ -249,6 +249,27 @@ async function postIngest(payload, retries = 3) {
 }
 
 // ---------------------------------------------------------------------------
+// Append this builder's result to the shared CI results file
+// ---------------------------------------------------------------------------
+function appendResultsFile(builderName, communityCount, errors) {
+  try {
+    const path = "/tmp/scrape-results.json"
+    let existing = {}
+    try { existing = JSON.parse(readFileSync(path, "utf8")) } catch {}
+    existing[builderName] = {
+      status:       errors.length === 0 ? "success" : "failure",
+      communities:  communityCount,
+      errorCount:   errors.length,
+      errors:       errors.slice(0, 3),
+    }
+    writeFileSync(path, JSON.stringify(existing))
+    console.log(`Wrote CI results for ${builderName}`)
+  } catch (e) {
+    console.warn("Could not write /tmp/scrape-results.json:", e.message)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
@@ -276,6 +297,8 @@ async function main() {
     userAgent: USER_AGENT,
     extraHTTPHeaders: { "Accept-Language": "en-US,en;q=0.9" },
   })
+
+  const communityErrors = []
 
   try {
     for (const comm of MELIA_COMMUNITIES) {
@@ -362,14 +385,19 @@ async function main() {
         console.log("  Ingest result:", result)
       } catch (err) {
         console.error("  Ingest failed:", err.message)
+        communityErrors.push(`${comm.name}: ingest failed — ${err.message}`)
       }
 
       await new Promise(r => setTimeout(r, 1000))
     }
+  } catch (err) {
+    communityErrors.push(`Fatal: ${err.message}`)
   } finally {
     await browser.close()
     await prisma.$disconnect()
   }
+
+  appendResultsFile("Melia Homes (standalone)", MELIA_COMMUNITIES.length, communityErrors)
 
   console.log("\n" + "=".repeat(60))
   console.log("Done.")

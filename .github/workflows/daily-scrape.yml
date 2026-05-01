@@ -81,50 +81,61 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM: ${{ secrets.RESEND_FROM_EMAIL }}
-          SHEA_RESULT: ${{ steps.shea.outcome }}
-          MELIA_RESULT: ${{ steps.melia.outcome }}
         run: |
           DATE=$(date '+%Y-%m-%d')
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          # Build one HTML row per builder from the results file written by run-scraper.ts
-          BUILDER_ROWS=$(node -e "
+          # All 9 builders write to /tmp/scrape-results.json — build the full email table from it
+          node -e "
             const fs = require('fs');
-            const icon = s => s === 'success' ? '✅' : '❌';
+            let data = {};
+            try { data = JSON.parse(fs.readFileSync('/tmp/scrape-results.json', 'utf8')); } catch(e) {}
+
+            const th = s => '<th style=\"padding:6px 16px 6px 0;text-align:left;border-bottom:2px solid #ddd;font-size:13px;color:#555\">' + s + '</th>';
+            const td = (s, opts='') => '<td style=\"padding:5px 16px 5px 0;font-size:13px;' + opts + '\">' + s + '</td>';
+
+            let anyFail = false;
             let rows = '';
-            try {
-              const r = JSON.parse(fs.readFileSync('/tmp/scrape-results.json', 'utf8'));
-              rows = Object.entries(r).map(([name, data]) => {
-                const d = data;
-                const errNote = d.errorCount > 0
-                  ? ' <span style=\"color:red\">(' + d.errorCount + ' error' + (d.errorCount>1?'s':'') + ')</span>'
-                  : '';
-                const detail = d.communities > 0
-                  ? ' <span style=\"color:#666;font-size:12px\">' + d.communities + ' communities</span>'
-                  : '';
-                return '<tr><td style=\"padding:4px 12px 4px 0\">' + icon(d.status) + ' ' + name + detail + errNote + '</td><td><b>' + d.status + '</b></td></tr>';
-              }).join('');
-            } catch(e) {
-              rows = '<tr><td colspan=2>⚠️ Main scraper results unavailable</td></tr>';
+            for (const [name, d] of Object.entries(data)) {
+              const ok   = d.communities - d.errorCount;
+              const fail = d.errorCount;
+              if (fail > 0) anyFail = true;
+              const icon = fail === 0 ? '✅' : '❌';
+              rows += '<tr>';
+              rows += td(icon + ' ' + name);
+              rows += td(String(d.communities), 'text-align:center');
+              rows += td(String(ok),   'text-align:center;color:green');
+              rows += td(fail > 0 ? '<b style=\"color:red\">' + fail + '</b>' : '0', 'text-align:center');
+              rows += '</tr>';
+              if (d.errors && d.errors.length > 0) {
+                rows += '<tr><td colspan=4 style=\"padding:0 0 6px 22px;font-size:11px;color:#c00\">' +
+                  d.errors.map(e => '• ' + e).join('<br>') + '</td></tr>';
+              }
             }
-            process.stdout.write(rows);
-          ")
 
-          # Shea and Melia standalone have their own step outcomes
-          SHEA_ICON=$([ "$SHEA_RESULT" = "success" ] && echo "✅" || echo "❌")
-          MELIA_ICON=$([ "$MELIA_RESULT" = "success" ] && echo "✅" || echo "❌")
-          SHEA_ROW="<tr><td style='padding:4px 12px 4px 0'>$SHEA_ICON Shea Homes</td><td><b>$SHEA_RESULT</b></td></tr>"
-          MELIA_ROW="<tr><td style='padding:4px 12px 4px 0'>$MELIA_ICON Melia Homes (standalone)</td><td><b>$MELIA_RESULT</b></td></tr>"
+            if (!rows) {
+              rows = '<tr><td colspan=4 style=\"color:orange\">⚠️ No results written — scraper may have failed before completing</td></tr>';
+              anyFail = true;
+            }
 
-          # Subject: fail if any step failed
-          if [ "$SHEA_RESULT" != "success" ] || [ "$MELIA_RESULT" != "success" ] || \
-             node -e "try{const r=JSON.parse(require('fs').readFileSync('/tmp/scrape-results.json'));if(Object.values(r).some(v=>v!=='success'))process.exit(1)}catch{process.exit(1)}"; then
-            SUBJECT="⚠️ New Key Scrape Issues — $DATE"
-          else
-            SUBJECT="✅ New Key Scrape Complete — $DATE"
-          fi
+            const subject = anyFail
+              ? '⚠️ New Key Scrape Issues — $DATE'
+              : '✅ New Key Scrape Complete — $DATE';
 
-          HTML="<p><b>Daily scrape report — $DATE</b></p><table style='border-collapse:collapse;margin-top:8px'>$BUILDER_ROWS$SHEA_ROW$MELIA_ROW</table><br><a href='$RUN_URL'>View full logs →</a>"
+            const html =
+              '<p style=\"font-family:sans-serif\"><b>Daily scrape report — $DATE</b></p>' +
+              '<table style=\"border-collapse:collapse;font-family:sans-serif\">' +
+              '<thead><tr>' + th('Builder') + th('Total') + th('✅ OK') + th('❌ Failed') + '</tr></thead>' +
+              '<tbody>' + rows + '</tbody></table>' +
+              '<br><a href=\"$RUN_URL\" style=\"font-family:sans-serif\">View full logs →</a>';
+
+            const out = JSON.stringify({ subject, html });
+            fs.writeFileSync('/tmp/email-payload.json', out);
+            process.stdout.write('Subject: ' + subject + '\n');
+          "
+
+          SUBJECT=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/email-payload.json')).subject)")
+          HTML=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/email-payload.json')).html)")
 
           curl -s -X POST "https://api.resend.com/emails" \
             -H "Authorization: Bearer $RESEND_API_KEY" \
