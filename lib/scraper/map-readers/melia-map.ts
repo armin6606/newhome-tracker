@@ -30,7 +30,7 @@ export async function readMeliaMap(
 
   try {
     console.log(`[Melia] Loading map: ${url}`)
-    await page.goto(url, { waitUntil: "networkidle", timeout: 60000 })
+    await page.goto(url, { waitUntil: "load", timeout: 60000 })
     await page.waitForTimeout(randomDelayMs(2000, 4000))
 
     // Try to navigate to the site plan section

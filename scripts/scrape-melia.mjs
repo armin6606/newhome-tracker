@@ -36,22 +36,28 @@ const USER_AGENT    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537
 
 const MELIA_COMMUNITIES = [
   {
-    name:  "Breckyn",
-    city:  "Garden Grove",
-    state: "CA",
-    url:   "https://meliahomes.com/new-homes/ca/garden-grove/breckyn/",
-  },
-  {
-    name:  "Cerise at Citrus Square",
+    name:  "Cerise",
     city:  "Cypress",
     state: "CA",
     url:   "https://meliahomes.com/new-homes/ca/cypress/cerise-at-citrus-square/",
   },
   {
-    name:  "Townes at Orange",
+    name:  "Towns at Orange",
     city:  "Anaheim",
     state: "CA",
     url:   "https://meliahomes.com/new-homes/ca/anaheim/townes-at-orange/",
+  },
+  {
+    name:  "Indigo",
+    city:  "Hawthorne",
+    state: "CA",
+    url:   "https://meliahomes.com/new-homes/ca/hawthorne/indigo/",
+  },
+  {
+    name:  "Elara",
+    city:  "Whittier",
+    state: "CA",
+    url:   "https://meliahomes.com/new-homes/ca/whittier/elara/",
   },
 ]
 
@@ -220,18 +226,26 @@ function normalizeListingAddress(addr) {
 // ---------------------------------------------------------------------------
 // POST to ingest endpoint
 // ---------------------------------------------------------------------------
-async function postIngest(payload) {
-  const res = await fetch(INGEST_URL, {
-    method:  "POST",
-    headers: {
-      "Content-Type":    "application/json",
-      "x-ingest-secret": INGEST_SECRET,
-    },
-    body: JSON.stringify(payload),
-  })
-  const json = await res.json()
-  if (!res.ok) throw new Error(`Ingest error ${res.status}: ${JSON.stringify(json)}`)
-  return json
+async function postIngest(payload, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(INGEST_URL, {
+        method:  "POST",
+        headers: {
+          "Content-Type":    "application/json",
+          "x-ingest-secret": INGEST_SECRET,
+        },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(`Ingest error ${res.status}: ${JSON.stringify(json)}`)
+      return json
+    } catch (err) {
+      if (attempt === retries) throw err
+      console.log(`  Ingest attempt ${attempt} failed (${err.message}) — retrying in 3s...`)
+      await new Promise(r => setTimeout(r, 3000))
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

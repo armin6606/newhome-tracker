@@ -55,6 +55,22 @@ export async function detectAndApplyChanges(
   const communityName = community?.name ?? "Unknown"
 
   const existingByAddress = new Map(existing.map((l) => [normalizeAddress(l.address), l]))
+  // Secondary lookup by lotNumber — catches cases where address changed between scrapes
+  // (e.g. Lennar lot stored as "Lot 10041" then later gets a real street address)
+  const existingByLotNumber = new Map(
+    existing.filter((l) => l.lotNumber).map((l) => [l.lotNumber!, l])
+  )
+
+  // Removed listings also hold their lotNumber in the unique index.
+  // When we need to assign that lotNumber to an active listing, we must first
+  // clear it from the removed row — otherwise Prisma throws P2002.
+  const removedListings = await prisma.listing.findMany({
+    where: { communityId, status: "removed" },
+    select: { id: true, lotNumber: true },
+  })
+  const removedByLotNumber = new Map(
+    removedListings.filter((l) => l.lotNumber).map((l) => [l.lotNumber!, l.id])
+  )
   const scrapedAddresses = new Set(scrapedListings.map((l) => normalizeAddress(l.address)))
 
   const stats: ChangeDetails = {
@@ -72,9 +88,21 @@ export async function detectAndApplyChanges(
   // Process each scraped listing
   for (const scraped of scrapedListings) {
     const key = normalizeAddress(scraped.address)
+    // Primary lookup by address; fallback to lotNumber if address changed
     const existing = existingByAddress.get(key)
+      ?? (scraped.lotNumber ? existingByLotNumber.get(scraped.lotNumber) : undefined)
 
     if (!existing) {
+      // If a *removed* listing is holding this lotNumber, clear it first so the
+      // INSERT doesn't hit the unique constraint on (communityId, lotNumber).
+      if (scraped.lotNumber) {
+        const removedOwnerId = removedByLotNumber.get(scraped.lotNumber)
+        if (removedOwnerId !== undefined) {
+          await prisma.listing.update({ where: { id: removedOwnerId }, data: { lotNumber: null } })
+          removedByLotNumber.delete(scraped.lotNumber)
+        }
+      }
+
       // New listing — use upsert to handle any duplicate addresses gracefully
       const listing = await prisma.listing.upsert({
         where: { communityId_address: { communityId, address: scraped.address } },
@@ -126,9 +154,33 @@ export async function detectAndApplyChanges(
       }
     } else {
       // Existing listing — update status and check for price change
+
+      // Guard: only update lotNumber if it won't collide with a different listing's unique key.
+      // This can happen when two scrape entries swap lot numbers between runs — one listing is
+      // found by address, but the scraped.lotNumber is already owned by a *different* DB row.
+      const newLotNumber = scraped.lotNumber ?? existing.lotNumber
+      const lotNumberOwner = newLotNumber ? existingByLotNumber.get(newLotNumber) : undefined
+      const lotNumberConflicts =
+        newLotNumber !== existing.lotNumber &&
+        lotNumberOwner !== undefined &&
+        lotNumberOwner.id !== existing.id
+
+      // If a *removed* listing is holding this lotNumber, clear it first so our update can claim it.
+      if (
+        newLotNumber &&
+        newLotNumber !== existing.lotNumber &&
+        !lotNumberConflicts
+      ) {
+        const removedOwnerId = removedByLotNumber.get(newLotNumber)
+        if (removedOwnerId !== undefined) {
+          await prisma.listing.update({ where: { id: removedOwnerId }, data: { lotNumber: null } })
+          removedByLotNumber.delete(newLotNumber)
+        }
+      }
+
       const updates: Record<string, unknown> = {
         status: scraped.status ?? existing.status,   // persist status transitions (future→active etc.)
-        lotNumber: scraped.lotNumber ?? existing.lotNumber,
+        lotNumber: lotNumberConflicts ? existing.lotNumber : newLotNumber,
         floorPlan: scraped.floorPlan ?? existing.floorPlan,
         sqft: scraped.sqft ?? existing.sqft,
         beds: scraped.beds ?? existing.beds,

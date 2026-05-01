@@ -60,3 +60,24 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+
+      - name: Run Shea Homes scraper
+        run: node scripts/scrape-shea.mjs
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run Melia Homes scraper
+        run: node scripts/scrape-melia.mjs
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: WhatsApp alert on failure
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.twilio.com/2010-04-01/Accounts/${{ secrets.TWILIO_ACCOUNT_SID }}/Messages.json" \
+            --user "${{ secrets.TWILIO_ACCOUNT_SID }}:${{ secrets.TWILIO_AUTH_TOKEN }}" \
+            --data-urlencode "From=${{ secrets.TWILIO_WHATSAPP_FROM }}" \
+            --data-urlencode "To=${{ secrets.TWILIO_WHATSAPP_TO }}" \
+            --data-urlencode "Body=⚠️ New Key daily scrape FAILED on $(date '+%Y-%m-%d'). Check GitHub Actions: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

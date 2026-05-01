@@ -127,9 +127,12 @@ function buildListings(
   // If we have per-lot data from the map reader, use it directly
   if (result.lots && result.lots.length > 0) {
     return result.lots.map((lot) => {
-      // No-price rule: if no price, status must be future (not active)
+      // No-price rule: lots marked active without a price are downgraded to future —
+      // UNLESS the map reader provided a real street address (e.g. Del Webb QMI lots).
+      // A real address means the map reader is certain this is a for-sale home.
+      const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
       const status: string =
-        lot.status === "active" && !lot.price ? "future" : lot.status
+        lot.status === "active" && !lot.price && !hasRealAddress ? "future" : lot.status
 
       return {
         communityName,

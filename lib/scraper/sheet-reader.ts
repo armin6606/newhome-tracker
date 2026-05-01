@@ -73,8 +73,8 @@ export async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[
     const cols = parseCsvLine(line)
     const communityName = cols[0]?.trim() || ""
     const url = cols[1]?.trim() || ""
-    // Skip rows without a name or URL
-    if (!communityName || !url) continue
+    // Skip rows without a name or a valid URL (filters out Table 2/3 rows where col B is a city name)
+    if (!communityName || !url || !url.startsWith("http")) continue
 
     // Col D (index 3) = Table 2 community name (ignored — we use col A)
     // Col E (index 4) = Sold, Col F (index 5) = For-Sale, Col G (index 6) = Future, Col H (index 7) = Total

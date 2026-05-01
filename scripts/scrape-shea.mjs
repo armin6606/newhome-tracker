@@ -270,18 +270,26 @@ async function scrapeAvailableHomesPage(context, community) {
 // ---------------------------------------------------------------------------
 // POST to ingest endpoint
 // ---------------------------------------------------------------------------
-async function postIngest(payload) {
-  const res = await fetch(INGEST_URL, {
-    method:  "POST",
-    headers: {
-      "Content-Type":    "application/json",
-      "x-ingest-secret": INGEST_SECRET,
-    },
-    body: JSON.stringify(payload),
-  })
-  const json = await res.json()
-  if (!res.ok) throw new Error(`Ingest error ${res.status}: ${JSON.stringify(json)}`)
-  return json
+async function postIngest(payload, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(INGEST_URL, {
+        method:  "POST",
+        headers: {
+          "Content-Type":    "application/json",
+          "x-ingest-secret": INGEST_SECRET,
+        },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(`Ingest error ${res.status}: ${JSON.stringify(json)}`)
+      return json
+    } catch (err) {
+      if (attempt === retries) throw err
+      console.log(`  Ingest attempt ${attempt} failed (${err.message}) — retrying in 3s...`)
+      await new Promise(r => setTimeout(r, 3000))
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
