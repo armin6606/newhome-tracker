@@ -81,23 +81,45 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM: ${{ secrets.RESEND_FROM_EMAIL }}
-          MAIN_RESULT: ${{ steps.main.outcome }}
           SHEA_RESULT: ${{ steps.shea.outcome }}
           MELIA_RESULT: ${{ steps.melia.outcome }}
         run: |
           DATE=$(date '+%Y-%m-%d')
-          icon() { [ "$1" = "success" ] && echo "✅" || echo "❌"; }
-          MAIN_ICON=$(icon "$MAIN_RESULT")
-          SHEA_ICON=$(icon "$SHEA_RESULT")
-          MELIA_ICON=$(icon "$MELIA_RESULT")
-          ALL_OK=$( [ "$MAIN_RESULT" = "success" ] && [ "$SHEA_RESULT" = "success" ] && [ "$MELIA_RESULT" = "success" ] && echo "true" || echo "false" )
-          if [ "$ALL_OK" = "true" ]; then
-            SUBJECT="✅ New Key Scrape Complete — $DATE"
-          else
-            SUBJECT="⚠️ New Key Scrape Issues — $DATE"
-          fi
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Build one HTML row per builder from the results file written by run-scraper.ts
+          BUILDER_ROWS=$(node -e "
+            const fs = require('fs');
+            const icon = s => s === 'success' ? '✅' : '❌';
+            let rows = '';
+            try {
+              const r = JSON.parse(fs.readFileSync('/tmp/scrape-results.json', 'utf8'));
+              rows = Object.entries(r).map(([name, status]) =>
+                '<tr><td style=\"padding:4px 12px 4px 0\">' + icon(status) + ' ' + name + '</td><td><b>' + status + '</b></td></tr>'
+              ).join('');
+            } catch(e) {
+              rows = '<tr><td colspan=2>⚠️ Main scraper results unavailable</td></tr>';
+            }
+            process.stdout.write(rows);
+          ")
+
+          # Shea and Melia standalone have their own step outcomes
+          SHEA_ICON=$([ "$SHEA_RESULT" = "success" ] && echo "✅" || echo "❌")
+          MELIA_ICON=$([ "$MELIA_RESULT" = "success" ] && echo "✅" || echo "❌")
+          SHEA_ROW="<tr><td style='padding:4px 12px 4px 0'>$SHEA_ICON Shea Homes</td><td><b>$SHEA_RESULT</b></td></tr>"
+          MELIA_ROW="<tr><td style='padding:4px 12px 4px 0'>$MELIA_ICON Melia Homes (standalone)</td><td><b>$MELIA_RESULT</b></td></tr>"
+
+          # Subject: fail if any step failed
+          if [ "$SHEA_RESULT" != "success" ] || [ "$MELIA_RESULT" != "success" ] || \
+             node -e "try{const r=JSON.parse(require('fs').readFileSync('/tmp/scrape-results.json'));if(Object.values(r).some(v=>v!=='success'))process.exit(1)}catch{process.exit(1)}"; then
+            SUBJECT="⚠️ New Key Scrape Issues — $DATE"
+          else
+            SUBJECT="✅ New Key Scrape Complete — $DATE"
+          fi
+
+          HTML="<p><b>Daily scrape report — $DATE</b></p><table style='border-collapse:collapse;margin-top:8px'>$BUILDER_ROWS$SHEA_ROW$MELIA_ROW</table><br><a href='$RUN_URL'>View full logs →</a>"
+
           curl -s -X POST "https://api.resend.com/emails" \
             -H "Authorization: Bearer $RESEND_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"from\":\"$RESEND_FROM\",\"to\":[\"armin.sabe@gmail.com\"],\"subject\":\"$SUBJECT\",\"html\":\"<p><b>Daily scrape report — $DATE</b></p><table style='border-collapse:collapse;margin-top:8px'><tr><td style='padding:4px 12px 4px 0'>$MAIN_ICON Toll Brothers, Lennar, Pulte, Del Webb, KB Home, Taylor Morrison, Melia (map)</td><td><b>$MAIN_RESULT</b></td></tr><tr><td style='padding:4px 12px 4px 0'>$SHEA_ICON Shea Homes</td><td><b>$SHEA_RESULT</b></td></tr><tr><td style='padding:4px 12px 4px 0'>$MELIA_ICON Melia Homes (standalone)</td><td><b>$MELIA_RESULT</b></td></tr></table><br><a href='$RUN_URL'>View full logs →</a>\"}"
+            -d "{\"from\":\"$RESEND_FROM\",\"to\":[\"armin.sabe@gmail.com\"],\"subject\":\"$SUBJECT\",\"html\":\"$HTML\"}"

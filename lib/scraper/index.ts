@@ -13,6 +13,7 @@
  * Max 3 concurrent Playwright browsers.
  */
 
+import { writeFileSync } from "fs"
 import { prisma } from "@/lib/db"
 import { detectAndApplyChanges, type ChangeDetails } from "./detect-changes"
 import { sendScrapeSummary } from "./scrape-summary"
@@ -449,11 +450,12 @@ export async function runScraper(): Promise<ChangeDetails> {
   const builderResults = await runWithConcurrency(
     SHEET_BUILDERS.map((config) => async () => {
       try {
-        return await withTimeout(scrapeOneBuilder(config), BUILDER_TIMEOUT_MS, config.name)
+        const result = await withTimeout(scrapeOneBuilder(config), BUILDER_TIMEOUT_MS, config.name)
+        return { ...result, builderName: config.name }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         console.error(`[${config.name}] Fatal/timeout error:`, msg)
-        return { ...emptyBuilderResult, errors: [{ builder: config.name, error: msg }] }
+        return { ...emptyBuilderResult, errors: [{ builder: config.name, error: msg }], builderName: config.name }
       }
     }),
     MAX_CONCURRENT_BUILDERS
@@ -484,6 +486,18 @@ export async function runScraper(): Promise<ChangeDetails> {
     totalStats.removedListings.push(...r.stats.removedListings)
     totalStats.newIncentives.push(...r.stats.newIncentives)
     allErrors.push(...r.errors)
+  }
+
+  // Write per-builder outcomes so the CI email step can show one row per builder
+  try {
+    const outcomes: Record<string, string> = {}
+    for (const r of builderResults) {
+      outcomes[r.builderName] = r.errors.length === 0 ? "success" : "failure"
+    }
+    writeFileSync("/tmp/scrape-results.json", JSON.stringify(outcomes))
+    console.log("Wrote per-builder outcomes to /tmp/scrape-results.json:", outcomes)
+  } catch (e) {
+    console.warn("Could not write /tmp/scrape-results.json:", e)
   }
 
   const elapsed = ((Date.now() - scrapeStartTime.getTime()) / 1000).toFixed(1)
