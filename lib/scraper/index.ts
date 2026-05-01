@@ -353,6 +353,7 @@ async function scrapeOneCommunity(
 
 interface BuilderResult {
   scraped: number
+  communityCount: number
   stats: ChangeDetails
   errors: { builder: string; error: string }[]
 }
@@ -384,12 +385,12 @@ async function scrapeOneBuilder(
     const msg = err instanceof Error ? err.message : String(err)
     console.error(`[${config.name}] Failed to fetch sheet:`, err)
     errors.push({ builder: config.name, error: `Sheet fetch failed: ${msg}` })
-    return { scraped: 0, stats: combinedStats, errors }
+    return { scraped: 0, communityCount: 0, stats: combinedStats, errors }
   }
 
   if (communities.length === 0) {
     console.log(`[${config.name}] No communities found in sheet — skipping`)
-    return { scraped: 0, stats: combinedStats, errors }
+    return { scraped: 0, communityCount: 0, stats: combinedStats, errors }
   }
 
   // Upsert builder record once
@@ -422,7 +423,7 @@ async function scrapeOneBuilder(
     if (result.error) errors.push(result.error)
   }
 
-  return { scraped: totalScraped, stats: combinedStats, errors }
+  return { scraped: totalScraped, communityCount: communities.length, stats: combinedStats, errors }
 }
 
 // ─── Main exported entry point ────────────────────────────────────────────────
@@ -441,6 +442,7 @@ export async function runScraper(): Promise<ChangeDetails> {
   // session from blocking the entire run.
   const emptyBuilderResult: BuilderResult = {
     scraped: 0,
+    communityCount: 0,
     stats: {
       added: 0, priceChanges: 0, removed: 0, unchanged: 0,
       newListings: [], priceChangeDetails: [], removedListings: [], newIncentives: [],
@@ -490,12 +492,17 @@ export async function runScraper(): Promise<ChangeDetails> {
 
   // Write per-builder outcomes so the CI email step can show one row per builder
   try {
-    const outcomes: Record<string, string> = {}
+    const outcomes: Record<string, { status: string; communities: number; errorCount: number; errors: string[] }> = {}
     for (const r of builderResults) {
-      outcomes[r.builderName] = r.errors.length === 0 ? "success" : "failure"
+      outcomes[r.builderName] = {
+        status: r.errors.length === 0 ? "success" : "failure",
+        communities: r.communityCount,
+        errorCount: r.errors.length,
+        errors: r.errors.map((e) => e.error).slice(0, 3), // cap at 3 to keep email readable
+      }
     }
     writeFileSync("/tmp/scrape-results.json", JSON.stringify(outcomes))
-    console.log("Wrote per-builder outcomes to /tmp/scrape-results.json:", outcomes)
+    console.log("Wrote per-builder outcomes to /tmp/scrape-results.json")
   } catch (e) {
     console.warn("Could not write /tmp/scrape-results.json:", e)
   }

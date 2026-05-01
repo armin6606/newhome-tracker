@@ -94,9 +94,16 @@ jobs:
             let rows = '';
             try {
               const r = JSON.parse(fs.readFileSync('/tmp/scrape-results.json', 'utf8'));
-              rows = Object.entries(r).map(([name, status]) =>
-                '<tr><td style=\"padding:4px 12px 4px 0\">' + icon(status) + ' ' + name + '</td><td><b>' + status + '</b></td></tr>'
-              ).join('');
+              rows = Object.entries(r).map(([name, data]) => {
+                const d = data;
+                const errNote = d.errorCount > 0
+                  ? ' <span style=\"color:red\">(' + d.errorCount + ' error' + (d.errorCount>1?'s':'') + ')</span>'
+                  : '';
+                const detail = d.communities > 0
+                  ? ' <span style=\"color:#666;font-size:12px\">' + d.communities + ' communities</span>'
+                  : '';
+                return '<tr><td style=\"padding:4px 12px 4px 0\">' + icon(d.status) + ' ' + name + detail + errNote + '</td><td><b>' + d.status + '</b></td></tr>';
+              }).join('');
             } catch(e) {
               rows = '<tr><td colspan=2>⚠️ Main scraper results unavailable</td></tr>';
             }
