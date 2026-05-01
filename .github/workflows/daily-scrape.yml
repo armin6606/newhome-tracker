@@ -52,8 +52,8 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - name: Run scraper
-        id: lennar
+      - name: Run main scraper (Toll Brothers, Lennar, Pulte, Del Webb, KB Home, Taylor Morrison, Melia)
+        id: main
         # IMPORTANT: if package-lock.json is out of sync with package.json,
         # npm ci will fail. Always commit package-lock.json after npm install.
         run: npx tsx scripts/run-scraper.ts
@@ -81,16 +81,16 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM: ${{ secrets.RESEND_FROM_EMAIL }}
-          LENNAR_RESULT: ${{ steps.lennar.outcome }}
+          MAIN_RESULT: ${{ steps.main.outcome }}
           SHEA_RESULT: ${{ steps.shea.outcome }}
           MELIA_RESULT: ${{ steps.melia.outcome }}
         run: |
           DATE=$(date '+%Y-%m-%d')
           icon() { [ "$1" = "success" ] && echo "✅" || echo "❌"; }
-          LENNAR_ICON=$(icon "$LENNAR_RESULT")
+          MAIN_ICON=$(icon "$MAIN_RESULT")
           SHEA_ICON=$(icon "$SHEA_RESULT")
           MELIA_ICON=$(icon "$MELIA_RESULT")
-          ALL_OK=$( [ "$LENNAR_RESULT" = "success" ] && [ "$SHEA_RESULT" = "success" ] && [ "$MELIA_RESULT" = "success" ] && echo "true" || echo "false" )
+          ALL_OK=$( [ "$MAIN_RESULT" = "success" ] && [ "$SHEA_RESULT" = "success" ] && [ "$MELIA_RESULT" = "success" ] && echo "true" || echo "false" )
           if [ "$ALL_OK" = "true" ]; then
             SUBJECT="✅ New Key Scrape Complete — $DATE"
           else
@@ -100,4 +100,4 @@ jobs:
           curl -s -X POST "https://api.resend.com/emails" \
             -H "Authorization: Bearer $RESEND_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"from\":\"$RESEND_FROM\",\"to\":[\"armin.sabe@gmail.com\"],\"subject\":\"$SUBJECT\",\"html\":\"<p><b>Daily scrape report — $DATE</b></p><table style='border-collapse:collapse;margin-top:8px'><tr><td style='padding:4px 12px 4px 0'>$LENNAR_ICON Lennar</td><td><b>$LENNAR_RESULT</b></td></tr><tr><td style='padding:4px 12px 4px 0'>$SHEA_ICON Shea Homes</td><td><b>$SHEA_RESULT</b></td></tr><tr><td style='padding:4px 12px 4px 0'>$MELIA_ICON Melia Homes</td><td><b>$MELIA_RESULT</b></td></tr></table><br><a href='$RUN_URL'>View full logs →</a>\"}"
+            -d "{\"from\":\"$RESEND_FROM\",\"to\":[\"armin.sabe@gmail.com\"],\"subject\":\"$SUBJECT\",\"html\":\"<p><b>Daily scrape report — $DATE</b></p><table style='border-collapse:collapse;margin-top:8px'><tr><td style='padding:4px 12px 4px 0'>$MAIN_ICON Toll Brothers, Lennar, Pulte, Del Webb, KB Home, Taylor Morrison, Melia (map)</td><td><b>$MAIN_RESULT</b></td></tr><tr><td style='padding:4px 12px 4px 0'>$SHEA_ICON Shea Homes</td><td><b>$SHEA_RESULT</b></td></tr><tr><td style='padding:4px 12px 4px 0'>$MELIA_ICON Melia Homes (standalone)</td><td><b>$MELIA_RESULT</b></td></tr></table><br><a href='$RUN_URL'>View full logs →</a>\"}"
