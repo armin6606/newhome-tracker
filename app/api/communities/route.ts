@@ -78,34 +78,23 @@ export async function GET() {
 
     // ── Build response for each community ────────────────────────────────────
     const result = allowedCommunities.map((c) => {
-      // ── IMMUTABLE RULE: counts come ONLY from placeholder lots ──────────────
+      // ── Sold / Future / Total — from placeholder lots (Sheet Table 2 source of truth) ──
       const placeholders = c.listings.filter(
         (l) => l.lotNumber && PLACEHOLDER_RE.test(l.lotNumber)
       )
 
-      // Warn once per community if real listings exist but no placeholders
-      const realListings = c.listings.filter((l) => l.address !== null)
-      if (realListings.length > 0 && placeholders.length === 0) {
-        if (!warnedCommunities.has(c.name)) {
-          warnedCommunities.add(c.name)
-          console.warn(
-            `[communities] "${c.name}" (${c.builder.name}) has ${realListings.length} ` +
-            `real listing(s) but 0 placeholders. Table 2 sync may be needed.`
-          )
-        }
-      }
-
-      const active = placeholders.filter((l) => l.status === "active").length
       const sold   = placeholders.filter((l) => l.status === "sold").length
       const future = placeholders.filter((l) => l.status === "future").length
       const total  = placeholders.filter((l) => l.status !== "removed").length
 
-      if (total !== active + sold + future) {
-        console.error(
-          `[communities] Placeholder mismatch for "${c.name}": ` +
-          `active=${active} + sold=${sold} + future=${future} ≠ total=${total}.`
-        )
-      }
+      // ── For Sale — from real (scraped) listings on the listing page ──────────
+      // A real listing: has an address and is NOT a placeholder lot number.
+      const active = c.listings.filter(
+        (l) =>
+          l.address !== null &&
+          !(l.lotNumber && PLACEHOLDER_RE.test(l.lotNumber)) &&
+          l.status === "active"
+      ).length
 
       // Guard: clamp firstDetected to now so future-dated entries don't skew stats
       const rawStart     = c.firstDetected?.getTime() ?? Date.now()
