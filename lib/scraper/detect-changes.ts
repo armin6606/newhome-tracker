@@ -220,8 +220,30 @@ export async function detectAndApplyChanges(
         })
       }
 
+      // Placeholder sync: when a real listing goes active → sold the scraper
+      // flips one avail-N placeholder to sold so Table 2 card counts stay accurate.
+      // We only do this for explicit "sold" status (not "removed") because "removed"
+      // could mean de-listed, not necessarily sold.
+      if (existing.status === "active" && scraped.status === "sold") {
+        const availPlaceholder = await prisma.listing.findFirst({
+          where: {
+            communityId,
+            lotNumber: { startsWith: "avail-" },
+            status: "active",
+          },
+        })
+        if (availPlaceholder) {
+          await prisma.listing.update({
+            where: { id: availPlaceholder.id },
+            data: { status: "sold", soldAt: new Date() },
+          })
+          console.log(`  [placeholder-sync] ${communityName}: flipped ${availPlaceholder.lotNumber} → sold`)
+        }
+      }
+
       // Reactivation: listing was sold/removed but scraper sees it as active again
-      // Clear soldAt so the sales-pace chart is not skewed by the false sale
+      // Clear soldAt so the sales-pace chart is not skewed by the false sale.
+      // Also flip one avail-N placeholder back to active so Table 2 stays in sync.
       if (
         (existing.status === "sold" || existing.status === "removed") &&
         scraped.status === "active"
@@ -234,6 +256,24 @@ export async function detectAndApplyChanges(
           community: communityName,
         })
         console.log(`  [reactivated] ${communityName}: ${scraped.address} (was ${existing.status} → active)`)
+
+        // Flip the matching avail-N placeholder back to active
+        if (existing.status === "sold") {
+          const soldAvailPlaceholder = await prisma.listing.findFirst({
+            where: {
+              communityId,
+              lotNumber: { startsWith: "avail-" },
+              status: "sold",
+            },
+          })
+          if (soldAvailPlaceholder) {
+            await prisma.listing.update({
+              where: { id: soldAvailPlaceholder.id },
+              data: { status: "active", soldAt: null },
+            })
+            console.log(`  [placeholder-sync] ${communityName}: flipped ${soldAvailPlaceholder.lotNumber} back → active`)
+          }
+        }
       }
 
       if (scraped.price && scraped.price !== existing.currentPrice) {

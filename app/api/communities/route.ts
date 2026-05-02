@@ -78,11 +78,14 @@ export async function GET() {
 
     // ── Build response for each community ────────────────────────────────────
     const result = allowedCommunities.map((c) => {
-      // ── Sold / Future / Total — from placeholder lots (Sheet Table 2 source of truth) ──
+      // ── Placeholder lots — Table 2 source of truth for Total and Future ──
       const placeholders = c.listings.filter(
         (l) => l.lotNumber && PLACEHOLDER_RE.test(l.lotNumber)
       )
 
+      // Total, Sold, Future: always from Table 2 (placeholder lots)
+      // When the scraper observes a real active→sold transition it flips one
+      // avail-N placeholder to sold, keeping these counts in sync automatically.
       const sold   = placeholders.filter((l) => l.status === "sold").length
       const future = placeholders.filter((l) => l.status === "future").length
       const total  = placeholders.filter((l) => l.status !== "removed").length
