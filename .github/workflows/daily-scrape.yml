@@ -93,6 +93,13 @@ jobs:
 
             const th = s => '<th style=\"padding:6px 16px 6px 0;text-align:left;border-bottom:2px solid #ddd;font-size:13px;color:#555\">' + s + '</th>';
             const td = (s, opts='') => '<td style=\"padding:5px 16px 5px 0;font-size:13px;' + opts + '\">' + s + '</td>';
+            const fmt = n => n ? '$' + Number(n).toLocaleString() : '';
+            const lotAddr = (l) => {
+              const parts = [];
+              if (l.lotNumber) parts.push('Lot ' + l.lotNumber);
+              if (l.address && !l.address.match(/^(avail|sold|future|lot)-/i)) parts.push(l.address);
+              return parts.join(' / ') || l.address || '';
+            };
 
             let anyFail = false;
             let rows = '';
@@ -108,8 +115,23 @@ jobs:
               rows += td(fail > 0 ? '<b style=\"color:red\">' + fail + '</b>' : '0', 'text-align:center');
               rows += '</tr>';
               if (d.errors && d.errors.length > 0) {
-                rows += '<tr><td colspan=4 style=\"padding:0 0 6px 22px;font-size:11px;color:#c00\">' +
+                rows += '<tr><td colspan=4 style=\"padding:0 0 4px 22px;font-size:11px;color:#c00\">' +
                   d.errors.map(e => '• ' + e).join('<br>') + '</td></tr>';
+              }
+              if (d.newListings && d.newListings.length > 0) {
+                rows += '<tr><td colspan=4 style=\"padding:0 0 2px 22px;font-size:11px;color:#1a7f37\"><b>New (' + d.newListings.length + '):</b> ' +
+                  d.newListings.map(l => lotAddr(l) + (l.price ? ' — ' + fmt(l.price) : '') + ' (' + l.community + ')').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') +
+                  '</td></tr>';
+              }
+              if (d.priceChanges && d.priceChanges.length > 0) {
+                rows += '<tr><td colspan=4 style=\"padding:0 0 2px 22px;font-size:11px;color:#b36800\"><b>Price changes (' + d.priceChanges.length + '):</b> ' +
+                  d.priceChanges.map(l => lotAddr(l) + ' — ' + fmt(l.oldPrice) + ' → ' + fmt(l.newPrice) + ' (' + l.community + ')').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') +
+                  '</td></tr>';
+              }
+              if (d.soldListings && d.soldListings.length > 0) {
+                rows += '<tr><td colspan=4 style=\"padding:0 0 6px 22px;font-size:11px;color:#888\"><b>Sold/removed (' + d.soldListings.length + '):</b> ' +
+                  d.soldListings.map(l => lotAddr(l) + ' (' + l.community + ')').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') +
+                  '</td></tr>';
               }
             }
 

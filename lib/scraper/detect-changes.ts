@@ -4,6 +4,7 @@ import { notifyPriceChange, notifyNewListings } from "./notifications"
 
 export interface NewListingDetail {
   address: string | null
+  lotNumber: string | null
   community: string
   builder: string
   price: number | null
@@ -11,6 +12,7 @@ export interface NewListingDetail {
 
 export interface PriceChangeDetail {
   address: string | null
+  lotNumber: string | null
   community: string
   oldPrice: number
   newPrice: number
@@ -18,6 +20,7 @@ export interface PriceChangeDetail {
 
 export interface RemovedListingDetail {
   address: string | null
+  lotNumber: string | null
   community: string
 }
 
@@ -141,6 +144,7 @@ export async function detectAndApplyChanges(
       stats.added++
       stats.newListings.push({
         address: scraped.address,
+        lotNumber: scraped.lotNumber ?? null,
         community: communityName,
         builder: builderName ?? "Unknown",
         price: scraped.price ?? null,
@@ -232,6 +236,7 @@ export async function detectAndApplyChanges(
         stats.priceChanges++
         stats.priceChangeDetails.push({
           address: scraped.address,
+          lotNumber: scraped.lotNumber ?? existing.lotNumber ?? null,
           community: communityName,
           oldPrice: existing.currentPrice!,
           newPrice: scraped.price,
@@ -259,6 +264,7 @@ export async function detectAndApplyChanges(
       stats.removed++
       stats.removedListings.push({
         address: listing.address,
+        lotNumber: listing.lotNumber ?? null,
         community: communityName,
       })
     }

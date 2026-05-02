@@ -492,13 +492,27 @@ export async function runScraper(): Promise<ChangeDetails> {
 
   // Write per-builder outcomes so the CI email step can show one row per builder
   try {
-    const outcomes: Record<string, { status: string; communities: number; errorCount: number; errors: string[] }> = {}
+    const outcomes: Record<string, {
+      status: string; communities: number; errorCount: number; errors: string[]
+      newListings: { address: string | null; lotNumber: string | null; community: string; price: number | null }[]
+      priceChanges: { address: string | null; lotNumber: string | null; community: string; oldPrice: number; newPrice: number }[]
+      soldListings: { address: string | null; lotNumber: string | null; community: string }[]
+    }> = {}
     for (const r of builderResults) {
       outcomes[r.builderName] = {
         status: r.errors.length === 0 ? "success" : "failure",
         communities: r.communityCount,
         errorCount: r.errors.length,
-        errors: r.errors.map((e) => e.error).slice(0, 3), // cap at 3 to keep email readable
+        errors: r.errors.map((e) => e.error).slice(0, 3),
+        newListings: r.stats.newListings.slice(0, 20).map((l) => ({
+          address: l.address, lotNumber: l.lotNumber ?? null, community: l.community, price: l.price,
+        })),
+        priceChanges: r.stats.priceChangeDetails.slice(0, 20).map((l) => ({
+          address: l.address, lotNumber: l.lotNumber ?? null, community: l.community, oldPrice: l.oldPrice, newPrice: l.newPrice,
+        })),
+        soldListings: r.stats.removedListings.slice(0, 20).map((l) => ({
+          address: l.address, lotNumber: l.lotNumber ?? null, community: l.community,
+        })),
       }
     }
     writeFileSync("/tmp/scrape-results.json", JSON.stringify(outcomes))
