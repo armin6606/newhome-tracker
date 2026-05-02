@@ -366,9 +366,11 @@ async function scrapeOneBuilder(
     priceChanges: 0,
     removed: 0,
     unchanged: 0,
+    reactivated: 0,
     newListings: [],
     priceChangeDetails: [],
     removedListings: [],
+    reactivatedListings: [],
     newIncentives: [],
   }
   const errors: { builder: string; error: string }[] = []
@@ -415,9 +417,11 @@ async function scrapeOneBuilder(
     combinedStats.priceChanges += result.stats.priceChanges
     combinedStats.removed += result.stats.removed
     combinedStats.unchanged += result.stats.unchanged
+    combinedStats.reactivated += result.stats.reactivated
     combinedStats.newListings.push(...result.stats.newListings)
     combinedStats.priceChangeDetails.push(...result.stats.priceChangeDetails)
     combinedStats.removedListings.push(...result.stats.removedListings)
+    combinedStats.reactivatedListings.push(...result.stats.reactivatedListings)
     combinedStats.newIncentives.push(...result.stats.newIncentives)
 
     if (result.error) errors.push(result.error)
@@ -469,9 +473,11 @@ export async function runScraper(): Promise<ChangeDetails> {
     priceChanges: 0,
     removed: 0,
     unchanged: 0,
+    reactivated: 0,
     newListings: [],
     priceChangeDetails: [],
     removedListings: [],
+    reactivatedListings: [],
     newIncentives: [],
   }
   let totalScraped = 0
@@ -483,9 +489,11 @@ export async function runScraper(): Promise<ChangeDetails> {
     totalStats.priceChanges += r.stats.priceChanges
     totalStats.removed += r.stats.removed
     totalStats.unchanged += r.stats.unchanged
+    totalStats.reactivated += r.stats.reactivated
     totalStats.newListings.push(...r.stats.newListings)
     totalStats.priceChangeDetails.push(...r.stats.priceChangeDetails)
     totalStats.removedListings.push(...r.stats.removedListings)
+    totalStats.reactivatedListings.push(...r.stats.reactivatedListings)
     totalStats.newIncentives.push(...r.stats.newIncentives)
     allErrors.push(...r.errors)
   }
@@ -511,6 +519,9 @@ export async function runScraper(): Promise<ChangeDetails> {
           address: l.address, lotNumber: l.lotNumber ?? null, community: l.community, oldPrice: l.oldPrice, newPrice: l.newPrice,
         })),
         soldListings: r.stats.removedListings.slice(0, 20).map((l) => ({
+          address: l.address, lotNumber: l.lotNumber ?? null, community: l.community,
+        })),
+        reactivated: r.stats.reactivatedListings.slice(0, 20).map((l) => ({
           address: l.address, lotNumber: l.lotNumber ?? null, community: l.community,
         })),
       }

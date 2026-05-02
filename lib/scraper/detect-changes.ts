@@ -30,14 +30,22 @@ export interface IncentiveDetail {
   incentives: string
 }
 
+export interface ReactivatedListingDetail {
+  address: string | null
+  lotNumber: string | null
+  community: string
+}
+
 export interface ChangeDetails {
   added: number
   priceChanges: number
   removed: number
   unchanged: number
+  reactivated: number
   newListings: NewListingDetail[]
   priceChangeDetails: PriceChangeDetail[]
   removedListings: RemovedListingDetail[]
+  reactivatedListings: ReactivatedListingDetail[]
   newIncentives: IncentiveDetail[]
 }
 
@@ -81,9 +89,11 @@ export async function detectAndApplyChanges(
     priceChanges: 0,
     removed: 0,
     unchanged: 0,
+    reactivated: 0,
     newListings: [],
     priceChangeDetails: [],
     removedListings: [],
+    reactivatedListings: [],
     newIncentives: [],
   }
   const newListingIds: number[] = []
@@ -208,6 +218,22 @@ export async function detectAndApplyChanges(
           community: communityName,
           incentives: scraped.incentives,
         })
+      }
+
+      // Reactivation: listing was sold/removed but scraper sees it as active again
+      // Clear soldAt so the sales-pace chart is not skewed by the false sale
+      if (
+        (existing.status === "sold" || existing.status === "removed") &&
+        scraped.status === "active"
+      ) {
+        updates.soldAt = null
+        stats.reactivated++
+        stats.reactivatedListings.push({
+          address: scraped.address,
+          lotNumber: scraped.lotNumber ?? existing.lotNumber ?? null,
+          community: communityName,
+        })
+        console.log(`  [reactivated] ${communityName}: ${scraped.address} (was ${existing.status} → active)`)
       }
 
       if (scraped.price && scraped.price !== existing.currentPrice) {

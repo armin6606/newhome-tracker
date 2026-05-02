@@ -129,8 +129,13 @@ jobs:
                   '</td></tr>';
               }
               if (d.soldListings && d.soldListings.length > 0) {
-                rows += '<tr><td colspan=4 style=\"padding:0 0 6px 22px;font-size:11px;color:#888\"><b>Sold/removed (' + d.soldListings.length + '):</b> ' +
+                rows += '<tr><td colspan=4 style=\"padding:0 0 2px 22px;font-size:11px;color:#888\"><b>Sold/removed (' + d.soldListings.length + '):</b> ' +
                   d.soldListings.map(l => lotAddr(l) + ' (' + l.community + ')').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') +
+                  '</td></tr>';
+              }
+              if (d.reactivated && d.reactivated.length > 0) {
+                rows += '<tr><td colspan=4 style=\"padding:0 0 6px 22px;font-size:11px;color:#6f42c1\"><b>↩ Reactivated (' + d.reactivated.length + '):</b> ' +
+                  d.reactivated.map(l => lotAddr(l) + ' (' + l.community + ')').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') +
                   '</td></tr>';
               }
             }
