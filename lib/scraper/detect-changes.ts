@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db"
 import type { ScrapedListing } from "./toll-brothers"
 import { notifyPriceChange, notifyNewListings } from "./notifications"
+import { updateTable2 } from "@/lib/sheet-writer"
+
+// Matches placeholder lot numbers created by the ingest route (avail-N, sold-N, future-N)
+const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
 
 export interface NewListingDetail {
   address: string | null
@@ -166,6 +170,32 @@ export async function detectAndApplyChanges(
           incentives: scraped.incentives,
         })
       }
+
+      // New real active listing = a future lot was just released for sale.
+      // 1. Update the sheet's ForSale +1 so its Future formula auto-decrements.
+      // 2. Flip one future-N placeholder → active so the card reflects the new future count.
+      // Only applies to genuinely new active listings (not placeholder ingests, not sold).
+      if (
+        (scraped.status ?? "active") === "active" &&
+        (!scraped.lotNumber || !PLACEHOLDER_RE.test(scraped.lotNumber))
+      ) {
+        // Sheet update (fire-and-forget) — future formula auto-recalculates
+        if (builderName && builderName !== "Unknown") {
+          updateTable2(builderName, communityName, { forSale: +1 })
+            .catch((e) => console.error(`[sheet-writer] ${communityName} new listing:`, e))
+        }
+        // DB: flip one future-N placeholder → active to mirror the formula result
+        const futurePlaceholder = await prisma.listing.findFirst({
+          where: { communityId, lotNumber: { startsWith: "future-" }, status: "future" },
+        })
+        if (futurePlaceholder) {
+          await prisma.listing.update({
+            where: { id: futurePlaceholder.id },
+            data: { status: "active" },
+          })
+          console.log(`  [placeholder-sync] ${communityName}: flipped ${futurePlaceholder.lotNumber} → active (new listing released)`)
+        }
+      }
     } else {
       // Existing listing — update status and check for price change
 
@@ -220,11 +250,10 @@ export async function detectAndApplyChanges(
         })
       }
 
-      // Placeholder sync: when a real listing goes active → sold the scraper
-      // flips one avail-N placeholder to sold so Table 2 card counts stay accurate.
-      // We only do this for explicit "sold" status (not "removed") because "removed"
-      // could mean de-listed, not necessarily sold.
+      // Placeholder sync + sheet update: when a real listing goes active → sold
+      // (explicit sold status only — "removed" could mean de-listed, not sold).
       if (existing.status === "active" && scraped.status === "sold") {
+        // DB: flip one avail-N placeholder so Table 2 card counts stay accurate
         const availPlaceholder = await prisma.listing.findFirst({
           where: {
             communityId,
@@ -239,6 +268,9 @@ export async function detectAndApplyChanges(
           })
           console.log(`  [placeholder-sync] ${communityName}: flipped ${availPlaceholder.lotNumber} → sold`)
         }
+        // Sheet: sold +1, forSale -1  (future column is never touched)
+        updateTable2(builderName ?? "Unknown", communityName, { sold: +1, forSale: -1 })
+          .catch((e) => console.error(`[sheet-writer] ${communityName} active→sold:`, e))
       }
 
       // Reactivation: listing was sold/removed but scraper sees it as active again
@@ -257,7 +289,7 @@ export async function detectAndApplyChanges(
         })
         console.log(`  [reactivated] ${communityName}: ${scraped.address} (was ${existing.status} → active)`)
 
-        // Flip the matching avail-N placeholder back to active
+        // DB: flip one avail-N placeholder back to active
         if (existing.status === "sold") {
           const soldAvailPlaceholder = await prisma.listing.findFirst({
             where: {
@@ -273,6 +305,9 @@ export async function detectAndApplyChanges(
             })
             console.log(`  [placeholder-sync] ${communityName}: flipped ${soldAvailPlaceholder.lotNumber} back → active`)
           }
+          // Sheet: sold -1, forSale +1  (future column is never touched)
+          updateTable2(builderName ?? "Unknown", communityName, { sold: -1, forSale: +1 })
+            .catch((e) => console.error(`[sheet-writer] ${communityName} reactivation:`, e))
         }
       }
 
