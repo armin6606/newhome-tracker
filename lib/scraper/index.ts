@@ -258,9 +258,11 @@ async function scrapeOneCommunity(
     priceChanges: 0,
     removed: 0,
     unchanged: 0,
+    reactivated: 0,
     newListings: [],
     priceChangeDetails: [],
     removedListings: [],
+    reactivatedListings: [],
     newIncentives: [],
   }
 
@@ -448,8 +450,8 @@ export async function runScraper(): Promise<ChangeDetails> {
     scraped: 0,
     communityCount: 0,
     stats: {
-      added: 0, priceChanges: 0, removed: 0, unchanged: 0,
-      newListings: [], priceChangeDetails: [], removedListings: [], newIncentives: [],
+      added: 0, priceChanges: 0, removed: 0, unchanged: 0, reactivated: 0,
+      newListings: [], priceChangeDetails: [], removedListings: [], reactivatedListings: [], newIncentives: [],
     },
     errors: [],
   }
