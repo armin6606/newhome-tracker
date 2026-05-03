@@ -339,7 +339,7 @@ async function main() {
       const scrapedByLot     = new Map()
 
       for (const item of scraped) {
-        const lotNumber = item.homesite ? compositeKey(resolvedName, String(item.homesite).padStart(4, "0")) : null
+        const lotNumber = item.homesite ? String(parseInt(String(item.homesite), 10)) || null : null
         const rawAddr   = item.address || null
         if (!rawAddr && !lotNumber) continue
         const address = rawAddr ? normalizeAddress(rawAddr.trim()) : null

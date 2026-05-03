@@ -329,7 +329,7 @@ async function processCommunity(browser, comm) {
     console.log(`  + New: ${lot.address || lot.lotName} $${price?.toLocaleString() ?? "TBD"}`)
     toIngest.push({
       address:      lot.address,
-      lotNumber:    lot.lotName ? compositeKey(comm.name, lot.lotName) : null,
+      lotNumber:    lot.lotName ? String(parseInt((lot.lotName.match(/\d+/) || [])[0] ?? "", 10)) || null : null,
       currentPrice: price,
       moveInDate:   pricing?.readyDate || null,
       status:       "active",
@@ -354,7 +354,7 @@ async function processCommunity(browser, comm) {
       console.log(`  ~ Price: ${lot.address} $${dbEntry.currentPrice?.toLocaleString()} → $${price.toLocaleString()}`)
       toIngest.push({
         address:      lot.address,
-        lotNumber:    lot.lotName ? compositeKey(comm.name, lot.lotName) : null,
+        lotNumber:    lot.lotName ? String(parseInt((lot.lotName.match(/\d+/) || [])[0] ?? "", 10)) || null : null,
         currentPrice: price,
         moveInDate:   pricing?.readyDate || null,
         status:       "active",

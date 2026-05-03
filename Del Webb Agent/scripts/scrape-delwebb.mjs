@@ -136,7 +136,7 @@ async function fetchZondaLots(olaId, communityName) {
     result.push({
       status,
       address,
-      lotNumber: lot.LotNumber ? compositeKey(communityName, lot.LotNumber) : null,
+      lotNumber: lot.LotNumber ? String(parseInt((String(lot.LotNumber).match(/\d+/) || [])[0] ?? "", 10)) || null : null,
       moveInDate: formatMoveIn(moveIn),
       planName:  attrs["preplotted_plan"] || attrs["homes"] || null,
     })

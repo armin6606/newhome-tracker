@@ -245,13 +245,13 @@ async function processCommunity(comm) {
     if (!dbEntry) {
       console.log(`  + New: ${lot.address || `Lot ${lot.lotNumber}`} $${price?.toLocaleString() ?? "TBD"}`)
       const planDetails = (comm.plans && lot.planName) ? (comm.plans[lot.planName] || {}) : {}
-      const entry = { address: lot.address, lotNumber: lot.lotNumber ? compositeKey(comm.name, lot.lotNumber) : null, currentPrice: price, moveInDate: moveIn, status: "active", sourceUrl: srcUrl, floorPlan: lot.planName || null, ...planDetails }
+      const entry = { address: lot.address, lotNumber: lot.lotNumber ? String(parseInt((String(lot.lotNumber).match(/\d+/) || [])[0] ?? "", 10)) || null : null, currentPrice: price, moveInDate: moveIn, status: "active", sourceUrl: srcUrl, floorPlan: lot.planName || null, ...planDetails }
       toIngest.push(entry)
       if (lot.address) newAddresses.push(lot.address)
     } else if (price !== null && dbEntry.currentPrice !== price) {
       console.log(`  ~ Price: ${lot.address} $${dbEntry.currentPrice?.toLocaleString()} → $${price.toLocaleString()}`)
       if (lot.address) priceDetails.push({ address: lot.address, from: dbEntry.currentPrice ?? 0, to: price })
-      toIngest.push({ address: lot.address, lotNumber: lot.lotNumber ? compositeKey(comm.name, lot.lotNumber) : null, currentPrice: price, moveInDate: moveIn, status: "active", sourceUrl: srcUrl })
+      toIngest.push({ address: lot.address, lotNumber: lot.lotNumber ? String(parseInt((String(lot.lotNumber).match(/\d+/) || [])[0] ?? "", 10)) || null : null, currentPrice: price, moveInDate: moveIn, status: "active", sourceUrl: srcUrl })
     }
   }
 
