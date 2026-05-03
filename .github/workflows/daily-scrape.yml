@@ -8,7 +8,7 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
 
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +39,20 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
+      - name: Validate required secrets
+        run: |
+          MISSING=""
+          [ -z "$DATABASE_URL" ]    && MISSING="$MISSING DATABASE_URL"
+          [ -z "$RESEND_API_KEY" ]  && MISSING="$MISSING RESEND_API_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "❌ Missing required secrets:$MISSING"
+            exit 1
+          fi
+          echo "✅ All required secrets present"
+        env:
+          DATABASE_URL:   ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
       - name: Ping database
         # Fail fast if the DB is unreachable before spending 50 min on Playwright
         run: |
@@ -56,7 +70,7 @@ jobs:
         id: main
         # IMPORTANT: if package-lock.json is out of sync with package.json,
         # npm ci will fail. Always commit package-lock.json after npm install.
-        run: npx tsx scripts/run-scraper.ts
+        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/run-scraper.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}

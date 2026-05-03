@@ -121,31 +121,67 @@ export async function detectAndApplyChanges(
       }
 
       // New listing — use upsert to handle any duplicate addresses gracefully
-      const listing = await prisma.listing.upsert({
-        where: { communityId_address: { communityId, address: scraped.address } },
-        create: {
-          communityId,
-          address: scraped.address,
-          lotNumber: scraped.lotNumber,
-          floorPlan: scraped.floorPlan,
-          sqft: scraped.sqft,
-          beds: scraped.beds,
-          baths: scraped.baths,
-          garages: scraped.garages,
-          floors: scraped.floors,
-          currentPrice: scraped.price,
-          pricePerSqft: scraped.pricePerSqft,
-          propertyType: scraped.propertyType,
-          hoaFees: scraped.hoaFees,
-          taxes: scraped.taxes,
-          moveInDate: scraped.moveInDate,
-          schools: scraped.schools,
-          incentives: scraped.incentives,
-          sourceUrl: scraped.sourceUrl,
-          status: scraped.status ?? "active",
-        },
-        update: { status: scraped.status ?? "active" },
-      })
+      let listing: { id: number }
+      try {
+        listing = await prisma.listing.upsert({
+          where: { communityId_address: { communityId, address: scraped.address } },
+          create: {
+            communityId,
+            address: scraped.address,
+            lotNumber: scraped.lotNumber,
+            floorPlan: scraped.floorPlan,
+            sqft: scraped.sqft,
+            beds: scraped.beds,
+            baths: scraped.baths,
+            garages: scraped.garages,
+            floors: scraped.floors,
+            currentPrice: scraped.price,
+            pricePerSqft: scraped.pricePerSqft,
+            propertyType: scraped.propertyType,
+            hoaFees: scraped.hoaFees,
+            taxes: scraped.taxes,
+            moveInDate: scraped.moveInDate,
+            schools: scraped.schools,
+            incentives: scraped.incentives,
+            sourceUrl: scraped.sourceUrl,
+            status: scraped.status ?? "active",
+          },
+          update: { status: scraped.status ?? "active" },
+        })
+      } catch (err: unknown) {
+        const code = (err as { code?: string }).code
+        if (code === "P2002" && scraped.lotNumber) {
+          // Lot number conflict — retry without lot number
+          console.warn(`  [detect-changes] P2002 creating ${scraped.address} with lot ${scraped.lotNumber} — retrying without lot number`)
+          listing = await prisma.listing.upsert({
+            where: { communityId_address: { communityId, address: scraped.address } },
+            create: {
+              communityId,
+              address: scraped.address,
+              lotNumber: null,
+              floorPlan: scraped.floorPlan,
+              sqft: scraped.sqft,
+              beds: scraped.beds,
+              baths: scraped.baths,
+              garages: scraped.garages,
+              floors: scraped.floors,
+              currentPrice: scraped.price,
+              pricePerSqft: scraped.pricePerSqft,
+              propertyType: scraped.propertyType,
+              hoaFees: scraped.hoaFees,
+              taxes: scraped.taxes,
+              moveInDate: scraped.moveInDate,
+              schools: scraped.schools,
+              incentives: scraped.incentives,
+              sourceUrl: scraped.sourceUrl,
+              status: scraped.status ?? "active",
+            },
+            update: { status: scraped.status ?? "active" },
+          })
+        } else {
+          throw err
+        }
+      }
       if (scraped.price) {
         const existingPrice = await prisma.priceHistory.findFirst({ where: { listingId: listing.id } })
         if (!existingPrice) {
@@ -346,7 +382,20 @@ export async function detectAndApplyChanges(
         stats.unchanged++
       }
 
-      await prisma.listing.update({ where: { id: existing.id }, data: updates })
+      try {
+        await prisma.listing.update({ where: { id: existing.id }, data: updates })
+      } catch (err: unknown) {
+        // P2002 = unique constraint violation on (communityId, lotNumber).
+        // Clear the conflicting lot number and retry — this happens when two scrape
+        // entries swap lot numbers between runs.
+        const code = (err as { code?: string }).code
+        if (code === "P2002") {
+          console.warn(`  [detect-changes] P2002 on lot ${updates.lotNumber as string} — clearing lot number and retrying`)
+          await prisma.listing.update({ where: { id: existing.id }, data: { ...updates, lotNumber: null } })
+        } else {
+          throw err
+        }
+      }
     }
   }
 

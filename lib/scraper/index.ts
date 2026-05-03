@@ -200,7 +200,7 @@ function buildListings(
 
 // ─── Per-builder timeout ──────────────────────────────────────────────────────
 
-const BUILDER_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes per builder
+const BUILDER_TIMEOUT_MS = 45 * 60 * 1000 // 45 minutes per builder
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   const timeout = new Promise<never>((_, reject) =>
@@ -271,36 +271,58 @@ async function scrapeOneCommunity(
       `  [${builder.name}] Scraping: ${row.communityName} → ${row.url}`
     )
 
-    // Random 1-3s delay between map reads
-    await randomDelayMs(1000, 3000)
+    // Random 1-3 minute delay between map reads
+    await randomDelayMs(60_000, 180_000)
 
-    // Read the interactive map
-    const mapResult = await builder.readMap(row.url, row.communityName)
+    // Retry once after 60s on failure or zero results
+    let mapResult = await builder.readMap(row.url, row.communityName).catch(async (err: unknown) => {
+      console.warn(`  [${builder.name}] ${row.communityName}: First attempt failed (${err instanceof Error ? err.message : String(err)}), retrying in 60s...`)
+      await new Promise(r => setTimeout(r, 60_000))
+      return builder.readMap(row.url, row.communityName)
+    })
+
+    // If first attempt returned 0 lots but DB has data, retry once after 60s
+    const firstAttemptTotal = (mapResult.lots?.length ?? 0) + mapResult.sold + mapResult.forSale + mapResult.future + mapResult.total
+    if (firstAttemptTotal === 0) {
+      const dbCount = await prisma.listing.count({
+        where: { community: { builderId, name: row.communityName }, status: { not: "removed" } }
+      })
+      if (dbCount > 3) {
+        console.warn(`  [${builder.name}] ${row.communityName}: Got 0 lots but DB has ${dbCount}, retrying in 60s...`)
+        await new Promise(r => setTimeout(r, 60_000))
+        mapResult = await builder.readMap(row.url, row.communityName).catch((err: unknown) => {
+          console.warn(`  [${builder.name}] ${row.communityName}: Retry also failed: ${err instanceof Error ? err.message : String(err)}`)
+          return mapResult // return original empty result
+        })
+      }
+    }
 
     // Build ScrapedListing[] from the map result
     const listings = buildListings(mapResult, row.communityName, row.url)
 
+    // Zero-result guard: if scraper returned nothing, check against DB
+    const existingCount = await prisma.listing.count({
+      where: {
+        community: { builderId, name: row.communityName },
+        status: { not: "removed" },
+      },
+    })
+
     if (listings.length === 0) {
-      // Check if this community already had listings — if so, 0 results likely means scraper failure
-      const existingCount = await prisma.listing.count({
-        where: {
-          community: { builderId, name: row.communityName },
-          status: { not: "removed" },
-        },
-      })
       if (existingCount > 3) {
-        const msg = `${row.communityName}: Zero lots returned but community had ${existingCount} active lots in DB — possible scraper/map failure`
+        const msg = `${row.communityName}: Zero lots returned but community had ${existingCount} lots in DB — possible scraper/map failure, skipping DB update`
         console.warn(`  [${builder.name}] ALERT: ${msg}`)
-        return {
-          scraped: 0,
-          stats: emptyStats,
-          error: { builder: builder.name, error: msg },
-        }
+        return { scraped: 0, stats: emptyStats, error: { builder: builder.name, error: msg } }
       }
-      console.log(
-        `  [${builder.name}] ${row.communityName}: No lots found — skipping DB update`
-      )
+      console.log(`  [${builder.name}] ${row.communityName}: No lots found — skipping DB update`)
       return { scraped: 0, stats: emptyStats }
+    }
+
+    // Partial-result guard: if scraped count < 50% of DB count, likely a scrape failure
+    if (existingCount > 10 && listings.length < existingCount * 0.5) {
+      const msg = `${row.communityName}: Only ${listings.length} lots scraped but DB has ${existingCount} — result looks incomplete, skipping DB update`
+      console.warn(`  [${builder.name}] ALERT: ${msg}`)
+      return { scraped: 0, stats: emptyStats, error: { builder: builder.name, error: msg } }
     }
 
     // Upsert community
@@ -320,9 +342,23 @@ async function scrapeOneCommunity(
       })
     )
 
+    // Deduplicate by address then by lotNumber — prevents P2002 when scraper
+    // returns duplicate entries for the same physical lot.
+    const seenAddrs = new Map<string, ScrapedListing>()
+    const seenLots  = new Map<string, ScrapedListing>()
+    for (const l of listings) {
+      const normAddr = (l.address ?? "").toLowerCase().trim()
+      if (normAddr && !/^(avail|sold|future)-/.test(normAddr)) {
+        seenAddrs.set(normAddr, l)
+      } else if (l.lotNumber) {
+        seenLots.set(l.lotNumber, l)
+      }
+    }
+    const dedupedListings = [...seenAddrs.values(), ...seenLots.values()]
+
     // Detect and apply changes
     const stats = await detectAndApplyChanges(
-      listings,
+      dedupedListings,
       community.id,
       builder.name
     )
@@ -333,7 +369,7 @@ async function scrapeOneCommunity(
         `${stats.unchanged} unchanged`
     )
 
-    return { scraped: listings.length, stats }
+    return { scraped: dedupedListings.length, stats }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err)
     console.error(
