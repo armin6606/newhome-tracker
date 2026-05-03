@@ -305,6 +305,7 @@ async function syncPlaceholders(communityId: number, counts: Table2Counts): Prom
 // ── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  try {
   const secret = req.headers.get("x-ingest-secret")
   if (secret !== process.env.INGEST_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -543,6 +544,16 @@ export async function POST(req: NextRequest) {
         sheetDelta.forSale -= 1
       }
 
+      // Guard: only update lotNumber if it won't collide with a different listing's unique key.
+      // Mirrors the same guard in detect-changes.ts to prevent P2002 on (communityId, lotNumber).
+      const candidateLotNumber = lotNumber ?? existing.lotNumber
+      const lotOwner = candidateLotNumber ? existingByLotNumber.get(candidateLotNumber) : undefined
+      const lotNumberConflicts =
+        candidateLotNumber !== existing.lotNumber &&
+        lotOwner !== undefined &&
+        lotOwner.id !== existing.id
+      const safeLotNumber = lotNumberConflicts ? existing.lotNumber : candidateLotNumber
+
       // Apply Table 3 values — always overwrite, Table 3 is the source of truth.
       const t3Fill = t3 ? {
         ...(t3.beds         != null ? { beds:         t3.beds         } : {}),
@@ -563,7 +574,7 @@ export async function POST(req: NextRequest) {
       const _eid = existing.id
       if (scraperMode) {
         const _d = {
-          lotNumber:    lotNumber                           ?? existing.lotNumber,
+          lotNumber:    safeLotNumber,
           floorPlan:    resolvedFloorPlan                  ?? existing.floorPlan,
           currentPrice: l.currentPrice      ?? existing.currentPrice,
           pricePerSqft: (l.currentPrice && (t3?.sqft ?? existing.sqft))
@@ -577,7 +588,7 @@ export async function POST(req: NextRequest) {
         dbOps.push((tx) => tx.listing.update({ where: { id: _eid }, data: _d }))
       } else {
         const _d = {
-          lotNumber:     lotNumber                                ?? existing.lotNumber,
+          lotNumber:     safeLotNumber,
           floorPlan:     resolvedFloorPlan                       ?? existing.floorPlan,
           garages:       l.garages           ?? existing.garages,
           currentPrice:  l.currentPrice      ?? existing.currentPrice,
@@ -763,4 +774,9 @@ export async function POST(req: NextRequest) {
     duplicates:     duplicates.length ? duplicates            : undefined,
     table2Update:   table2Update                             ?? undefined,
   })
+  } catch (err) {
+    console.error("[/api/ingest] Unhandled error:", err)
+    const msg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: "Internal server error", detail: msg }, { status: 500 })
+  }
 }

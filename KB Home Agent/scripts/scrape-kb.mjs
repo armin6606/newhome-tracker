@@ -3,14 +3,23 @@
  *
  * 1. Fetches real OC community list from window.regionMapData
  * 2. Fetches all Move-In Ready listing URLs from the MIR listing page
- * 3. Queries DB for current active listings per community
- * 4. Diffs scraped URLs vs DB:
- *    - New listings  → visit detail page, then POST to ingest as "active"
- *    - Sold listings → POST to ingest as "sold" (no detail page visit needed)
- *    - Price changes → detected from listing-page price vs DB price, POST update
- * 5. Only POSTs to ingest if changes exist
+ * 3. For each community, also fetches the Firebase siteplan payload to get
+ *    homesites that have a real address + price (coming-soon / available / sold)
+ *    but haven't yet appeared on the MIR listing page.
+ * 4. Queries DB for current active listings per community
+ * 5. Diffs (MIR + siteplan) vs DB:
+ *    - New listings  → POST to ingest as "active"
+ *    - Sold listings → POST to ingest as "sold"
+ *    - Price changes → POST update
+ * 6. Only POSTs to ingest if changes exist
  *
- * Run: node scripts/scrape-kb-oc.mjs
+ * Siteplan rule: only homesites with BOTH a real street address AND a price
+ * are considered for-sale. Status mapping:
+ *   coming-soon / available / inventory / pending / reserved + address + price → active
+ *   sold + address → sold
+ *   sales-model / future-phase / no address / no price → skip
+ *
+ * Run: node scripts/scrape-kb.mjs
  */
 
 import { createRequire } from "module"
@@ -20,6 +29,7 @@ import { fileURLToPath } from "url"
 import { chromium } from "playwright"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
 import { fetchTable2Counts, reconcilePlaceholders } from "../../lib/sheet-table2.mjs"
+import { sendWhatsApp, buildSummary } from "../../lib/notify.mjs"
 
 const require   = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -121,6 +131,87 @@ async function postIngest(payload) {
     throw new Error(`Ingest API error ${res.status}: ${text}`)
   }
   return res.json()
+}
+
+// ─────────────────────────────────────────────────────────────
+// Siteplan: statuses that mean "for sale" (address + price required)
+// ─────────────────────────────────────────────────────────────
+const FOR_SALE_STATUSES = new Set(["coming-soon", "available", "inventory", "pending", "reserved"])
+
+/**
+ * Visit the community page, intercept the Firebase siteplan payload, and
+ * return an array of homesites that have a real address.
+ * Returns [] if the siteplan cannot be loaded.
+ */
+async function getSiteplanHomesites(browser, communityUrl) {
+  const page = await browser.newPage()
+  let payload = null
+
+  page.on("response", async (res) => {
+    try {
+      if (
+        res.url().includes("firebasestorage.googleapis.com") &&
+        res.url().includes("payload.json") &&
+        res.status() === 200
+      ) {
+        payload = await res.json()
+      }
+    } catch (_) {}
+  })
+
+  try {
+    await page.goto(communityUrl, { waitUntil: "domcontentloaded", timeout: 60000 })
+    await page.waitForTimeout(5000)
+    // Click the Homesites anchor to trigger siteplan load
+    await page.evaluate(() => {
+      const el = document.querySelector('a[data-section="homesite-options"]')
+      if (el) el.click()
+    })
+    await page.waitForTimeout(5000)
+  } catch (err) {
+    console.warn(`  [siteplan] Failed to load ${communityUrl}: ${err.message}`)
+  } finally {
+    await page.close()
+  }
+
+  if (!payload?.site?.segments) return []
+  return payload.site.segments
+}
+
+/**
+ * Convert raw siteplan segments into ingest-ready listing objects.
+ * Only homesites with BOTH a real street address AND a non-zero price are included.
+ *
+ * Returns: { forSale: [...], sold: [...] }
+ *   forSale → status active (coming-soon / available / inventory / pending / reserved)
+ *   sold    → status sold
+ */
+function parseSiteplanListings(segments, communityName, communityUrl) {
+  const forSale = []
+  const sold    = []
+
+  for (const seg of segments) {
+    const rawAddr = (seg.address || seg.shortAddress || "").trim()
+    // Price is stored as homePrice on the segment (base price before lot premium)
+    const price   = seg.homePrice ? parseInt(String(seg.homePrice).replace(/[^0-9]/g, ""), 10) : null
+    const status  = (seg.status || "").toLowerCase()
+    const lotNum  = seg.lotName ? communityName.replace(/\s+/g, "") + seg.lotName.replace(/\s+/g, "") : null
+
+    // Must have a real street address (not null / empty)
+    if (!rawAddr) continue
+
+    // Normalize address: "301 Pluto, Irvine, 92618" → "301 Pluto"
+    const address = normalizeAddress(rawAddr.replace(/,.*$/, "").trim())
+    if (!address || !/^\d/.test(address)) continue
+
+    if (FOR_SALE_STATUSES.has(status) && price) {
+      forSale.push({ address, lotNumber: lotNum, currentPrice: price, status: "active", sourceUrl: communityUrl })
+    } else if (status === "sold") {
+      sold.push({ address, lotNumber: lotNum, currentPrice: price || null, status: "sold", sourceUrl: communityUrl })
+    }
+  }
+
+  return { forSale, sold }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -366,6 +457,7 @@ async function validatePriceSync(communityName, observedPrices) {
 // Main
 // ─────────────────────────────────────────────────────────────
 async function main() {
+  const startTime = Date.now()
   console.log("=".repeat(60))
   console.log("KB Home Orange County Scraper (diff-based)")
   console.log("=".repeat(60))
@@ -384,6 +476,7 @@ async function main() {
     priceChanges:     0,
     sold:             0,
   }
+  const results = []
 
   try {
     // ── Step 1: Get OC communities ──
@@ -436,14 +529,20 @@ async function main() {
         }
       }
 
-      console.log(`  Listing-page entries: ${pageListings.length}`)
+      console.log(`  MIR listing-page entries: ${pageListings.length}`)
+
+      // ── Fetch Firebase siteplan for this community ──────────────────────
+      console.log(`  Fetching siteplan...`)
+      const siteplanSegments = await getSiteplanHomesites(context, communityUrl)
+      const { forSale: spForSale, sold: spSold } = parseSiteplanListings(siteplanSegments, resolvedName, communityUrl)
+      console.log(`  Siteplan: ${spForSale.length} for-sale, ${spSold.length} sold (with address+price)`)
 
       // Query DB active listings for this community
       const db = await getDbActive(resolvedName, BUILDER_NAME)
       const dbActiveCount = db.byAddress.size
       console.log(`  DB active listings:   ${dbActiveCount}`)
 
-      // Build a set of normalized addresses and lot numbers currently scraped
+      // Build a unified set of all scraped addresses (MIR + siteplan for-sale)
       const scrapedNormAddrs = new Set()
       const scrapedLots      = new Set()
       for (const pl of pageListings) {
@@ -451,46 +550,90 @@ async function main() {
         if (norm) scrapedNormAddrs.add(norm)
         if (pl.hotsiteLabel) scrapedLots.add(pl.hotsiteLabel)
       }
+      for (const sp of spForSale) {
+        const norm = normalizeAddress(sp.address || "")
+        if (norm) scrapedNormAddrs.add(norm)
+      }
 
-      const newListings  = []  // need detail page visit
-      const priceChanges = []  // listing-page price differs from DB
+      const newListings  = []  // MIR only — need detail page visit
+      const priceChanges = []  // price differs from DB
       const soldEntries  = []  // in DB, not on site
+      const newSiteplan  = []  // siteplan for-sale not yet in DB
 
-      // ── Classify each page listing ──
+      // ── Classify each MIR page listing ──
       for (const pl of pageListings) {
-        const normAddr = normalizeAddress(pl.address || "")
-        const lotStr   = pl.hotsiteLabel || null
+        const normAddr  = normalizeAddress(pl.address || "")
+        const lotStr    = pl.hotsiteLabel || null
         const pagePrice = parsePriceInt(pl.price)
 
-        // Check DB
+        // DB stores lot numbers as composite keys (e.g. "Rhythm071"), but the MIR
+        // page gives us the raw hotsiteLabel ("071"). Always look up the full key.
+        const compositeLotStr = lotStr ? compositeKey(resolvedName, lotStr) : null
         let dbEntry = normAddr ? db.byAddress.get(normAddr) : null
-        if (!dbEntry && lotStr) dbEntry = db.byLotNumber.get(lotStr)
+        if (!dbEntry && compositeLotStr) dbEntry = db.byLotNumber.get(compositeLotStr)
 
         if (!dbEntry) {
-          // New — need to visit detail page
-          newListings.push(pl)
+          newListings.push(pl)  // new MIR — visit detail page
         } else if (pagePrice != null && dbEntry.currentPrice !== pagePrice) {
-          // Price changed — no detail page needed
-          const sourceUrl = `${BASE_URL}${pl.mirUrl}`
           priceChanges.push({
             address:      pl.address || null,
             lotNumber:    lotStr ? compositeKey(resolvedName, lotStr) : null,
             currentPrice: pagePrice,
             moveInDate:   null,
             status:       "active",
-            sourceUrl,
+            sourceUrl:    `${BASE_URL}${pl.mirUrl}`,
           })
         }
-        // else: no change, skip
       }
 
-      // ── Detect sold (active in DB, not in scraped) ──
+      // ── Classify siteplan for-sale listings ──
+      // Build a set of addresses already classified as MIR new listings so we
+      // don't add the same home to both newDetailedListings (MIR) and newSiteplan.
+      // Duplicate addresses in the same ingest payload → P2002 unique constraint → 500.
+      const mirNewNormAddrs = new Set(newListings.map(pl => normalizeAddress(pl.address || "")))
+
+      for (const sp of spForSale) {
+        const normAddr = normalizeAddress(sp.address || "")
+        const dbEntry  = normAddr ? db.byAddress.get(normAddr) : null
+
+        if (!dbEntry) {
+          // Skip if already classified as a MIR new listing (detail page will handle it)
+          if (mirNewNormAddrs.has(normAddr)) continue
+          // New — add directly (siteplan already has address + price, no detail page needed)
+          newSiteplan.push(sp)
+        } else if (sp.currentPrice && dbEntry.currentPrice !== sp.currentPrice) {
+          priceChanges.push({ ...sp })
+        }
+        // else: no change
+      }
+
+      // ── Classify siteplan sold listings ──
+      for (const sp of spSold) {
+        const normAddr = normalizeAddress(sp.address || "")
+        const dbEntry  = normAddr ? db.byAddress.get(normAddr) : null
+        if (dbEntry && dbEntry.status !== "sold") {
+          soldEntries.push({ address: dbEntry.address, lotNumber: dbEntry.lotNumber || null, status: "sold", sourceUrl: communityUrl })
+        } else if (!dbEntry) {
+          // Never seen this address — add as sold directly
+          soldEntries.push({ ...sp })
+        }
+      }
+
+      // ── Detect sold (active in DB, missing from both MIR + siteplan for-sale) ──
+      // Build lot-number set from siteplan-sold entries already added above
+      // to avoid pushing the same physical lot twice (spSold vs DB-detection).
+      // Address-string mismatches (e.g. "Ave." vs "Ave") cause false "not seen" in
+      // spSold loop; the lot number is a reliable dedup key.
+      const siteplanSoldLots = new Set(
+        soldEntries.filter(s => s.lotNumber).map(s => s.lotNumber)
+      )
       for (const [normAddr, dbEntry] of db.byAddress.entries()) {
-        const inScraped = scrapedNormAddrs.has(normAddr)
-        const byLot     = dbEntry.lotNumber
-          ? scrapedLots.has(String(dbEntry.lotNumber))
-          : false
-        if (!inScraped && !byLot) {
+        const inMIR      = scrapedNormAddrs.has(normAddr)
+        const byLot      = dbEntry.lotNumber ? scrapedLots.has(String(dbEntry.lotNumber)) : false
+        const inSiteplan = spForSale.some(sp => normalizeAddress(sp.address || "") === normAddr)
+        // Skip if the siteplan sold loop already added an entry for this lot number
+        const inSiteSold = dbEntry.lotNumber ? siteplanSoldLots.has(dbEntry.lotNumber) : false
+        if (!inMIR && !byLot && !inSiteplan && !inSiteSold) {
           soldEntries.push({
             address:   dbEntry.address,
             lotNumber: dbEntry.lotNumber || null,
@@ -501,19 +644,19 @@ async function main() {
       }
 
       console.log(
-        `  Diff — New: ${newListings.length}, Price changes: ${priceChanges.length}, Sold: ${soldEntries.length}`
+        `  Diff — MIR new: ${newListings.length}, Siteplan new: ${newSiteplan.length}, ` +
+        `Price changes: ${priceChanges.length}, Sold: ${soldEntries.length}`
       )
 
-      // ── Visit detail pages only for NEW listings ──
+      // ── Visit detail pages only for NEW MIR listings ──
       const newDetailedListings = []
       for (const pl of newListings) {
         if (!pl.mirUrl) continue
-        console.log(`  Visiting detail page (new): ${pl.mirUrl}`)
+        console.log(`  Visiting MIR detail page (new): ${pl.mirUrl}`)
         const detail = await getMIRDetail(context, pl.mirUrl)
         summary.detailPageVisits++
 
         if (detail) {
-          // Merge listing-page data as fallback
           detail.communityName  = detail.communityName  || pl.communityName
           detail.city           = detail.city           || (pl.cityState?.split(",")[0]?.trim()) || city
           detail.beds           = detail.beds           || pl.beds
@@ -522,7 +665,6 @@ async function main() {
           detail.garages        = detail.garages        || pl.garages
           detail.price          = detail.price          || pl.price?.replace(/[^0-9]/g, "")
           detail.isAvailableNow = detail.isAvailableNow || pl.isAvailableNow
-          detail.mirPath        = pl.mirUrl
 
           const sourceUrl = `${BASE_URL}${pl.mirUrl}`
           newDetailedListings.push({
@@ -532,7 +674,6 @@ async function main() {
             moveInDate:   detail.moveInDate || null,
             status:       "active",
             sourceUrl,
-            // Full details for first ingest
             floorPlan:    detail.floorPlan   || null,
             beds:         parseFloatSafe(detail.beds),
             baths:        parseFloatSafe(detail.baths),
@@ -546,6 +687,9 @@ async function main() {
 
         await new Promise((r) => setTimeout(r, 800))
       }
+
+      // Siteplan new listings go in directly (no detail page needed)
+      newDetailedListings.push(...newSiteplan)
 
       // ── Reconcile placeholder counts against Sheet Table 2 ──────────────
       const sheetCounts = await fetchTable2Counts(SHEET_TAB)
@@ -576,6 +720,7 @@ async function main() {
       const allChanges = [...newDetailedListings, ...priceChanges, ...soldEntries, ...phChanges]
       if (allChanges.length === 0) {
         console.log("  No changes — skipping ingest POST")
+        results.push({ community: resolvedName, changes: 0 })
         await validatePriceSync(resolvedName, observedPrices)
         continue
       }
@@ -604,6 +749,17 @@ async function main() {
       summary.new          += newDetailedListings.length
       summary.priceChanges += priceChanges.length
       summary.sold         += soldEntries.length
+      results.push({
+        community:     resolvedName,
+        changes:       newDetailedListings.length + priceChanges.length + soldEntries.length,
+        newCount:      newDetailedListings.length,
+        soldCount:     soldEntries.length,
+        priceCount:    priceChanges.length,
+        newAddresses:  newDetailedListings.map(l => l.address).filter(Boolean),
+        soldAddresses: soldEntries.map(l => l.address).filter(Boolean),
+        priceDetails:  priceChanges.map(l => ({ address: l.address, from: 0, to: l.currentPrice ?? 0 })),
+        siteplanNew:   newSiteplan.length,
+      })
     }
   } finally {
     await browser.close()
@@ -619,10 +775,14 @@ async function main() {
   console.log(`New listings ingested:  ${summary.new}`)
   console.log(`Price changes ingested: ${summary.priceChanges}`)
   console.log(`Sold listings ingested: ${summary.sold}`)
+
+  await sendWhatsApp(buildSummary("KB Home", results, ((Date.now() - startTime) / 1000).toFixed(1)))
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error("Fatal error:", err)
   prisma.$disconnect()
+  const root = (err.stack || err.message || String(err)).split("\n").slice(0, 4).join("\n")
+  await sendWhatsApp(`🚨 *New Key — KB Home Scraper CRASHED*\n\n${root}`)
   process.exit(1)
 })
