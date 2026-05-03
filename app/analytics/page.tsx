@@ -5,7 +5,7 @@ import { formatPrice, cleanCommunityName } from "@/lib/utils"
 import { ContentGate } from "@/app/_components/ContentGate"
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis, ComposedChart, Area,
+  ResponsiveContainer, Cell, ComposedChart, Area,
   Legend,
 } from "recharts"
 
@@ -15,6 +15,22 @@ const CHART_COLORS = [
   "#8848A8", "#3EA0C0", "#A09038", "#A85878", "#5888C8",
 ]
 
+// ── City → County map (client-side, same as server) ──────────────────────────
+const CITY_COUNTY: Record<string, string> = {
+  "irvine": "Orange County", "orange": "Orange County", "anaheim": "Orange County",
+  "tustin": "Orange County", "fullerton": "Orange County", "garden grove": "Orange County",
+  "huntington beach": "Orange County", "newport beach": "Orange County", "lake forest": "Orange County",
+  "mission viejo": "Orange County", "aliso viejo": "Orange County", "laguna niguel": "Orange County",
+  "rancho mission viejo": "Orange County", "yorba linda": "Orange County", "brea": "Orange County",
+  "long beach": "Los Angeles County", "los angeles": "Los Angeles County", "torrance": "Los Angeles County",
+  "hacienda heights": "Los Angeles County", "chino hills": "San Bernardino County",
+  "french valley": "Riverside County", "murrieta": "Riverside County", "temecula": "Riverside County",
+  "menifee": "Riverside County", "riverside": "Riverside County", "moreno valley": "Riverside County",
+  "perris": "Riverside County", "winchester": "Riverside County", "wildomar": "Riverside County",
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 type Community = {
   name: string; builderName: string; active: number; sold: number; total: number;
   avgPrice: number | null; minPrice: number | null; maxPrice: number | null;
@@ -22,7 +38,6 @@ type Community = {
 }
 
 type AnalyticsData = {
-  scatterData: { sqft: number; price: number; community: string }[]
   avgPricePerSqftByCommunity: { community: string; avgPricePerSqft: number }[]
   priceRangeByCommunity: { community: string; min: number; max: number; avg: number; count: number }[]
   avgPriceByMonth: { month: string; avgPrice: number }[]
@@ -36,7 +51,32 @@ type MetaData = {
   cities: string[]
   builders: string[]
   communities: string[]
+  counties: string[]
 }
+
+type ChartFilters = {
+  builders: string[]
+  cities: string[]
+  counties: string[]
+  communities: string[]
+}
+
+const EMPTY_FILTERS: ChartFilters = { builders: [], cities: [], counties: [], communities: [] }
+
+function hasAnyFilter(f: ChartFilters) {
+  return f.builders.length > 0 || f.cities.length > 0 || f.counties.length > 0 || f.communities.length > 0
+}
+
+function filtersToParams(f: ChartFilters): URLSearchParams {
+  const p = new URLSearchParams()
+  f.builders.forEach((b) => p.append("builder", b))
+  f.cities.forEach((c) => p.append("city", c))
+  f.counties.forEach((co) => p.append("county", co))
+  f.communities.forEach((c) => p.append("community", c))
+  return p
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const shortName = cleanCommunityName
 
@@ -52,11 +92,11 @@ function fmtPrice(v: number): string {
   return `$${v}`
 }
 
-// ── Multi-select dropdown ────────────────────────────────────────────────────
+// ── Multi-select dropdown ─────────────────────────────────────────────────────
 function MultiSelect({
   label, options, selected, onChange, placeholder, width = "w-44",
 }: {
-  label: string
+  label?: string
   options: string[]
   selected: string[]
   onChange: (v: string[]) => void
@@ -88,7 +128,9 @@ function MultiSelect({
 
   return (
     <div className="flex flex-col gap-1" ref={ref}>
-      <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">{label}</label>
+      {label && (
+        <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">{label}</label>
+      )}
       <div className="relative">
         <button
           type="button"
@@ -103,7 +145,6 @@ function MultiSelect({
 
         {open && (
           <div className="absolute z-50 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg min-w-full max-h-60 overflow-y-auto">
-            {/* Clear all */}
             {selected.length > 0 && (
               <button
                 type="button"
@@ -134,13 +175,98 @@ function MultiSelect({
   )
 }
 
+// ── Per-chart filter bar ──────────────────────────────────────────────────────
+function ChartFilterBar({
+  filters, onChange, meta, loading,
+}: {
+  filters: ChartFilters
+  onChange: (f: ChartFilters) => void
+  meta: MetaData | null
+  loading?: boolean
+}) {
+  const active = hasAnyFilter(filters)
+  return (
+    <div className={`flex flex-wrap items-center gap-2 py-2.5 px-3 rounded-lg mb-4 border transition-colors ${
+      active ? "bg-amber-50 border-amber-200" : "bg-stone-50 border-stone-100"
+    }`}>
+      <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mr-0.5">
+        {loading ? "Loading…" : "Filter chart:"}
+      </span>
+      <MultiSelect
+        options={meta?.builders ?? []}
+        selected={filters.builders}
+        onChange={(v) => onChange({ ...filters, builders: v })}
+        placeholder="Builder"
+        width="w-32"
+      />
+      <MultiSelect
+        options={meta?.cities ?? []}
+        selected={filters.cities}
+        onChange={(v) => onChange({ ...filters, cities: v })}
+        placeholder="City"
+        width="w-28"
+      />
+      <MultiSelect
+        options={meta?.counties ?? []}
+        selected={filters.counties}
+        onChange={(v) => onChange({ ...filters, counties: v })}
+        placeholder="County"
+        width="w-36"
+      />
+      <MultiSelect
+        options={(meta?.communities ?? []).map(shortName)}
+        selected={filters.communities}
+        onChange={(v) => onChange({ ...filters, communities: v })}
+        placeholder="Community"
+        width="w-44"
+      />
+      {active && (
+        <button
+          onClick={() => onChange(EMPTY_FILTERS)}
+          className="text-xs text-amber-600 hover:text-amber-800 px-2 py-1.5 rounded border border-amber-200 bg-white hover:bg-amber-50 transition-colors"
+        >
+          ↺ Clear
+        </button>
+      )}
+      {active && (
+        <div className="ml-auto flex gap-1 flex-wrap">
+          {filters.builders.map((b)   => <span key={b}  className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-medium">{b}</span>)}
+          {filters.cities.map((c)     => <span key={c}  className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-medium">{c}</span>)}
+          {filters.counties.map((co)  => <span key={co} className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-medium">{co}</span>)}
+          {filters.communities.map((c)=> <span key={c}  className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-medium">{c}</span>)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
 export default function AnalyticsPage() {
   const [data, setData]       = useState<AnalyticsData | null>(null)
   const [meta, setMeta]       = useState<MetaData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [cities, setCities]         = useState<string[]>([])
-  const [builders, setBuilders]     = useState<string[]>([])
-  const [communities, setCommunities] = useState<string[]>([])
+
+  // Global filters
+  const [cities, setCities]             = useState<string[]>(["Irvine"])
+  const [builders, setBuilders]         = useState<string[]>(["Toll Brothers"])
+  const [communities, setCommunities]   = useState<string[]>([])
+  const [counties, setCounties]         = useState<string[]>([])
+
+  // Per-chart filter state
+  const [avgPriceFilters, setAvgPriceFilters]     = useState<ChartFilters>(EMPTY_FILTERS)
+  const [salesPaceFilters, setSalesPaceFilters]   = useState<ChartFilters>(EMPTY_FILTERS)
+  const [salesTrendFilters, setSalesTrendFilters] = useState<ChartFilters>(EMPTY_FILTERS)
+
+  // Per-chart override data (null = use global data)
+  const [avgPriceData, setAvgPriceData]     = useState<AnalyticsData | null>(null)
+  const [salesPaceData, setSalesPaceData]   = useState<AnalyticsData | null>(null)
+  const [salesTrendData, setSalesTrendData] = useState<AnalyticsData | null>(null)
+
+  // Per-chart loading states
+  const [avgPriceLoading, setAvgPriceLoading]     = useState(false)
+  const [salesPaceLoading, setSalesPaceLoading]   = useState(false)
+  const [salesTrendLoading, setSalesTrendLoading] = useState(false)
 
   useEffect(() => {
     fetch("/api/analytics/meta")
@@ -148,35 +274,61 @@ export default function AnalyticsPage() {
       .then(setMeta)
   }, [])
 
+  // Global data fetch
   const fetchData = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
     cities.forEach((c) => params.append("city", c))
     builders.forEach((b) => params.append("builder", b))
     communities.forEach((c) => params.append("community", c))
+    counties.forEach((co) => params.append("county", co))
     const res = await fetch(`/api/analytics?${params}`)
     setData(await res.json())
     setLoading(false)
-  }, [cities, builders, communities])
+  }, [cities, builders, communities, counties])
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // Per-chart fetches
+  useEffect(() => {
+    if (!hasAnyFilter(avgPriceFilters)) { setAvgPriceData(null); return }
+    setAvgPriceLoading(true)
+    fetch(`/api/analytics?${filtersToParams(avgPriceFilters)}`)
+      .then((r) => r.json())
+      .then((d) => { setAvgPriceData(d); setAvgPriceLoading(false) })
+      .catch(() => setAvgPriceLoading(false))
+  }, [avgPriceFilters])
+
+  useEffect(() => {
+    if (!hasAnyFilter(salesPaceFilters)) { setSalesPaceData(null); return }
+    setSalesPaceLoading(true)
+    fetch(`/api/analytics?${filtersToParams(salesPaceFilters)}`)
+      .then((r) => r.json())
+      .then((d) => { setSalesPaceData(d); setSalesPaceLoading(false) })
+      .catch(() => setSalesPaceLoading(false))
+  }, [salesPaceFilters])
+
+  useEffect(() => {
+    if (!hasAnyFilter(salesTrendFilters)) { setSalesTrendData(null); return }
+    setSalesTrendLoading(true)
+    fetch(`/api/analytics?${filtersToParams(salesTrendFilters)}`)
+      .then((r) => r.json())
+      .then((d) => { setSalesTrendData(d); setSalesTrendLoading(false) })
+      .catch(() => setSalesTrendLoading(false))
+  }, [salesTrendFilters])
+
   function resetFilters() {
-    setCities([])
-    setBuilders([])
-    setCommunities([])
+    setCities([]); setBuilders([]); setCommunities([]); setCounties([])
   }
 
-  const hasFilters = cities.length > 0 || builders.length > 0 || communities.length > 0
-  const ppsqftHeight    = data ? Math.max(260, data.avgPricePerSqftByCommunity.length * 48) : 260
-  const priceRangeHeight = data ? Math.max(260, data.priceRangeByCommunity.length * 48)     : 260
+  const hasGlobalFilters = cities.length > 0 || builders.length > 0 || communities.length > 0 || counties.length > 0
+  const ppsqftHeight    = 320
 
-  const scatterByCommunity = (data?.scatterData ?? []).reduce((acc, pt) => {
-    if (!acc[pt.community]) acc[pt.community] = []
-    acc[pt.community].push(pt)
-    return acc
-  }, {} as Record<string, { sqft: number; price: number; community: string }[]>)
-  const scatterCommunities = Object.keys(scatterByCommunity)
+
+  // Resolved chart data (per-chart override or global fallback)
+  const avgPriceMonthData  = (avgPriceData ?? data)?.avgPriceByMonth  ?? []
+  const salesPaceWeekData  = (salesPaceData ?? data)?.soldByWeek      ?? []
+  const salesTrendMonthData = (salesTrendData ?? data)?.soldByMonth   ?? []
 
   return (
     <div>
@@ -212,7 +364,7 @@ export default function AnalyticsPage() {
       </div>
 
       <ContentGate>
-      {/* Filters */}
+      {/* Global Filters */}
       <div className="bg-white rounded-xl border border-stone-200 shadow-sm px-4 py-3 mb-6">
         <div className="flex flex-wrap items-end gap-3">
           <MultiSelect
@@ -222,6 +374,14 @@ export default function AnalyticsPage() {
             onChange={(v) => { setCities(v); setCommunities([]) }}
             placeholder="All Cities"
             width="w-36"
+          />
+          <MultiSelect
+            label="County"
+            options={meta?.counties ?? []}
+            selected={counties}
+            onChange={(v) => { setCounties(v); setCommunities([]) }}
+            placeholder="All Counties"
+            width="w-40"
           />
           <MultiSelect
             label="Builder"
@@ -245,7 +405,7 @@ export default function AnalyticsPage() {
             <button
               onClick={resetFilters}
               className={`h-[34px] px-3 rounded-lg text-xs border transition-colors ${
-                hasFilters
+                hasGlobalFilters
                   ? "text-amber-600 border-amber-300 bg-amber-50 hover:bg-amber-100"
                   : "text-stone-400 border-stone-200 hover:bg-stone-50 hover:text-stone-600"
               }`}
@@ -260,12 +420,18 @@ export default function AnalyticsPage() {
           )}
         </div>
         {/* Active filter chips */}
-        {hasFilters && (
+        {hasGlobalFilters && (
           <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-stone-100">
             {cities.map((c) => (
               <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
                 {c}
                 <button onClick={() => setCities(cities.filter((x) => x !== c))} className="hover:text-blue-900">✕</button>
+              </span>
+            ))}
+            {counties.map((co) => (
+              <span key={co} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-xs font-medium">
+                {co}
+                <button onClick={() => setCounties(counties.filter((x) => x !== co))} className="hover:text-violet-900">✕</button>
               </span>
             ))}
             {builders.map((b) => (
@@ -289,58 +455,19 @@ export default function AnalyticsPage() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
-            {/* 1. Price vs Sqft */}
+            {/* 1. Avg $/sqft */}
             <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm">
-              <h2 className="font-semibold text-stone-900 mb-1">Price vs Square Footage</h2>
-              <p className="text-xs text-stone-400 mb-4">Active listings only — each dot = one home</p>
-              <ResponsiveContainer width="100%" height={260}>
-                <ScatterChart margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis type="number" dataKey="sqft" name="Sqft"
-                    domain={[0, "auto"]}
-                    ticks={[1000, 2000, 3000, 4000, 5000, 6000]}
-                    tickFormatter={(v) => v.toLocaleString()}
-                    tick={{ fontSize: 11 }}
-                    label={{ value: "Sq Ft", position: "insideBottomRight", offset: -4, fontSize: 11, fill: "#78716c" }} />
-                  <YAxis type="number" dataKey="price" name="Price"
-                    tickFormatter={fmtPrice}
-                    tick={{ fontSize: 11 }} width={62} />
-                  <ZAxis range={[30, 30]} />
-                  <Tooltip cursor={{ strokeDasharray: "3 3" }}
-                    formatter={(v, name) => name === "Price" ? formatPrice(Number(v)) : `${Number(v).toLocaleString()} sqft`}
-                    labelFormatter={(_, payload) => payload?.[0]?.payload?.community ? shortName(payload[0].payload.community) : ""} />
-                  {scatterCommunities.map((name, i) => (
-                    <Scatter key={name} name={shortName(name)} data={scatterByCommunity[name]}
-                      fill={CHART_COLORS[i % CHART_COLORS.length]} opacity={0.8} />
-                  ))}
-                </ScatterChart>
-              </ResponsiveContainer>
-              {scatterCommunities.length > 0 && (
-                <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-stone-100">
-                  {scatterCommunities.map((name, i) => (
-                    <div key={name} className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full flex-none"
-                        style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                      <span className="text-[11px] text-stone-500">{shortName(name)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 2. Avg $/sqft */}
-            <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm">
-              <h2 className="font-semibold text-stone-900 mb-1">Avg Price / Sqft by Community</h2>
+              <h2 className="font-semibold text-stone-900 mb-1">Average Price / Sqft</h2>
               <p className="text-xs text-stone-400 mb-4">Active listings only</p>
               <ResponsiveContainer width="100%" height={ppsqftHeight}>
                 <BarChart
                   data={data.avgPricePerSqftByCommunity.map((d) => ({ ...d, community: shortName(d.community) }))}
-                  layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                  <XAxis type="number" domain={[500, "auto"]} tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="community" tick={{ fontSize: 11 }} width={130} interval={0} />
+                  margin={{ top: 4, right: 16, bottom: 60, left: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                  <XAxis type="category" dataKey="community" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" />
+                  <YAxis type="number" domain={[500, "auto"]} tickFormatter={(v) => `$${v.toLocaleString()}`} tick={{ fontSize: 11 }} width={62} />
                   <Tooltip formatter={(v) => `$${Number(v).toLocaleString()}/sqft`} />
-                  <Bar dataKey="avgPricePerSqft" name="$/sqft" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="avgPricePerSqft" name="$/sqft" radius={[4, 4, 0, 0]}>
                     {data.avgPricePerSqftByCommunity.map((_, i) => (
                       <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                     ))}
@@ -349,63 +476,54 @@ export default function AnalyticsPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* 3. Price Range */}
-            <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm">
-              <h2 className="font-semibold text-stone-900 mb-1">Price Range by Community</h2>
-              <p className="text-xs text-stone-400 mb-4">Min · Avg · Max — active listings only</p>
-              <ResponsiveContainer width="100%" height={priceRangeHeight}>
-                <BarChart
-                  data={data.priceRangeByCommunity.map((d) => ({ ...d, community: shortName(d.community) }))}
-                  layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                  <XAxis type="number" domain={[500000, "auto"]} tickFormatter={fmtPrice} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="community" tick={{ fontSize: 11 }} width={130} interval={0} />
-                  <Tooltip formatter={(v) => formatPrice(Number(v))} />
-                  <Bar dataKey="min" name="Min" fill="#59AE7F" stackId="a" />
-                  <Bar dataKey="avg" name="Avg" fill="#C4B040" stackId="b" />
-                  <Bar dataKey="max" name="Max" fill="#C46060" radius={[0, 4, 4, 0]} stackId="c" />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="flex gap-4 mt-2 pt-2 border-t border-stone-100">
-                {[{ label: "Min", color: "#59AE7F" }, { label: "Avg", color: "#C4B040" }, { label: "Max", color: "#C46060" }].map(({ label, color }) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-sm flex-none" style={{ backgroundColor: color }} />
-                    <span className="text-[11px] text-stone-500">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 4. Price Over Time */}
+            {/* 4. Average Price Over Time */}
             <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm">
               <h2 className="font-semibold text-stone-900 mb-1">Average Price Over Time</h2>
-              <p className="text-xs text-stone-400 mb-4">Monthly avg of active listing prices</p>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={data.avgPriceByMonth} margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} width={60} />
-                  <Tooltip formatter={(v) => formatPrice(Number(v))} />
-                  <Line type="monotone" dataKey="avgPrice" name="Avg Price"
-                    stroke="#6B9AC4" strokeWidth={2.5} dot={{ r: 4, fill: "#6B9AC4" }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              <p className="text-xs text-stone-400 mb-3">Monthly avg of active listing prices</p>
+              <ChartFilterBar
+                filters={avgPriceFilters}
+                onChange={setAvgPriceFilters}
+                meta={meta}
+                loading={avgPriceLoading}
+              />
+              {avgPriceLoading ? (
+                <div className="h-[260px] flex items-center justify-center text-stone-400 text-sm">Loading…</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={avgPriceMonthData} margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} width={60} />
+                    <Tooltip formatter={(v) => formatPrice(Number(v))} />
+                    <Line type="monotone" dataKey="avgPrice" name="Avg Price"
+                      stroke="#6B9AC4" strokeWidth={2.5} dot={{ r: 4, fill: "#6B9AC4" }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
             {/* 5. Sales Pace — weekly */}
             <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm lg:col-span-2">
               <h2 className="font-semibold text-stone-900 mb-1">Sales Pace</h2>
-              <p className="text-xs text-stone-400 mb-4">Homes sold vs. new listings added per week</p>
-              {data.soldByWeek.length > 0 ? (
+              <p className="text-xs text-stone-400 mb-3">Homes sold vs. new listings added per week</p>
+              <ChartFilterBar
+                filters={salesPaceFilters}
+                onChange={setSalesPaceFilters}
+                meta={meta}
+                loading={salesPaceLoading}
+              />
+              {salesPaceLoading ? (
+                <div className="h-[260px] flex items-center justify-center text-stone-400 text-sm">Loading…</div>
+              ) : salesPaceWeekData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
-                  <ComposedChart data={data.soldByWeek} margin={{ top: 4, right: 16, bottom: 24, left: 8 }}>
+                  <ComposedChart data={salesPaceWeekData} margin={{ top: 4, right: 16, bottom: 24, left: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis
                       dataKey="week"
                       tick={{ fontSize: 10 }}
                       angle={-45}
                       textAnchor="end"
-                      interval={Math.max(0, Math.floor(data.soldByWeek.length / 12) - 1)}
+                      interval={Math.max(0, Math.floor(salesPaceWeekData.length / 12) - 1)}
                     />
                     <YAxis tick={{ fontSize: 11 }} width={28} allowDecimals={false} />
                     <Tooltip
@@ -444,16 +562,24 @@ export default function AnalyticsPage() {
             {/* 6. Sales Trend (monthly) */}
             <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm lg:col-span-2">
               <h2 className="font-semibold text-stone-900 mb-1">Sales Trend</h2>
-              <p className="text-xs text-stone-400 mb-4">Listings marked sold or removed from builder site per month</p>
-              {data.soldByMonth.length > 0 ? (
+              <p className="text-xs text-stone-400 mb-3">Listings marked sold or removed from builder site per month</p>
+              <ChartFilterBar
+                filters={salesTrendFilters}
+                onChange={setSalesTrendFilters}
+                meta={meta}
+                loading={salesTrendLoading}
+              />
+              {salesTrendLoading ? (
+                <div className="h-[220px] flex items-center justify-center text-stone-400 text-sm">Loading…</div>
+              ) : salesTrendMonthData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={data.soldByMonth} margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
+                  <BarChart data={salesTrendMonthData} margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} width={30} allowDecimals={false} />
                     <Tooltip />
                     <Bar dataKey="count" name="Sold" radius={[4, 4, 0, 0]}>
-                      {data.soldByMonth.map((_, i) => (
+                      {salesTrendMonthData.map((_, i) => (
                         <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                       ))}
                     </Bar>

@@ -19,6 +19,7 @@ import { fileURLToPath } from "url"
 import { chromium } from "playwright"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
 import { fetchTable2Counts, reconcilePlaceholders } from "../../lib/sheet-table2.mjs"
+import { sendWhatsApp, buildSummary } from "../../lib/notify.mjs"
 
 const require   = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -294,6 +295,7 @@ async function postIngest(payload) {
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
+  const startTime = Date.now()
   console.log("=".repeat(60))
   console.log("Shea Homes Orange County Scraper (diff-based)")
   console.log("=".repeat(60))
@@ -313,6 +315,7 @@ async function main() {
   })
 
   const summary = { new: 0, priceChanges: 0, sold: 0 }
+  const results = []
 
   try {
     for (const commDef of sheetCommunities) {
@@ -398,6 +401,7 @@ async function main() {
       const allChanges = [...newListings, ...priceUpdates, ...soldListings, ...phChanges]
       if (allChanges.length === 0) {
         console.log("  No changes — skipping ingest POST")
+        results.push({ community: resolvedName, changes: 0 })
         await new Promise(r => setTimeout(r, 2000))
         continue
       }
@@ -416,6 +420,16 @@ async function main() {
         summary.new          += newListings.length
         summary.priceChanges += priceUpdates.length
         summary.sold         += soldListings.length
+        results.push({
+          community:     resolvedName,
+          changes:       newListings.length + priceUpdates.length + soldListings.length,
+          newCount:      newListings.length,
+          soldCount:     soldListings.length,
+          priceCount:    priceUpdates.length,
+          newAddresses:  newListings.map(l => l.address).filter(Boolean),
+          soldAddresses: soldListings.map(l => l.address).filter(Boolean),
+          priceDetails:  priceUpdates.map(l => ({ address: l.address, from: 0, to: l.currentPrice ?? 0 })),
+        })
       } catch (err) {
         console.error("  Ingest failed:", err.message)
       }
@@ -433,10 +447,14 @@ async function main() {
   console.log(`New listings:   ${summary.new}`)
   console.log(`Price changes:  ${summary.priceChanges}`)
   console.log(`Sold listings:  ${summary.sold}`)
+
+  await sendWhatsApp(buildSummary("Shea Homes", results, ((Date.now() - startTime) / 1000).toFixed(1)))
 }
 
-main().catch(err => {
+main().catch(async err => {
   console.error("Fatal error:", err)
   prisma.$disconnect()
+  const root = (err.stack || err.message || String(err)).split("\n").slice(0, 4).join("\n")
+  await sendWhatsApp(`🚨 *New Key — Shea Homes Scraper CRASHED*\n\n${root}`)
   process.exit(1)
 })

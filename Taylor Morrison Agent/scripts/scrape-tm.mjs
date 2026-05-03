@@ -30,6 +30,7 @@ import { fileURLToPath } from "url"
 import { chromium } from "playwright"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
 import { fetchTable2Counts, reconcilePlaceholders } from "../../lib/sheet-table2.mjs"
+import { sendWhatsApp, buildSummary } from "../../lib/notify.mjs"
 
 const require   = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -389,7 +390,18 @@ async function processCommunity(browser, comm) {
 
   await validatePriceSync(comm.name, observedPrices)
 
-  return { community: comm.name, changes: toIngest.length }
+  const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
+  const realActive = toIngest.filter(l => l.status === "active" && l.address && !PLACEHOLDER_RE.test(l.lotNumber ?? ""))
+  const priceChanges = realActive.filter(l => !newLots.some(n => (n.address && n.address === l.address) || (n.lotName && n.lotName === l.lotNumber?.replace(/^\S+/, ""))))
+  return {
+    community:     comm.name,
+    changes:       toIngest.length,
+    newCount:      newLots.length,
+    soldCount:     soldListings.length,
+    priceCount:    priceChanges.length,
+    newAddresses:  newLots.map(l => l.address || l.lotName).filter(Boolean),
+    soldAddresses: soldListings.map(l => l.address).filter(Boolean),
+  }
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -431,6 +443,7 @@ async function fetchLotsFromPayload(sitePlanId) {
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
+  const startTime = Date.now()
   console.log("=".repeat(60))
   console.log("Taylor Morrison Agent — Map-Based Scraper")
   console.log(`${new Date().toISOString()}`)
@@ -464,6 +477,14 @@ async function main() {
     if (r.error) console.log(`  ${r.community}: ERROR — ${r.error}`)
     else console.log(`  ${r.community}: ${r.changes} change(s)`)
   }
+
+  await sendWhatsApp(buildSummary("Taylor Morrison", results, ((Date.now() - startTime) / 1000).toFixed(1)))
 }
 
-main().catch(e => { console.error("Fatal:", e); prisma.$disconnect(); process.exit(1) })
+main().catch(async e => {
+  console.error("Fatal:", e)
+  prisma.$disconnect()
+  const root = (e.stack || e.message || String(e)).split("\n").slice(0, 4).join("\n")
+  await sendWhatsApp(`🚨 *New Key — Taylor Morrison Scraper CRASHED*\n\n${root}`)
+  process.exit(1)
+})

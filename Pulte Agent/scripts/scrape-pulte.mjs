@@ -22,6 +22,7 @@ import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
 import { fetchTable2Counts, reconcilePlaceholders } from "../../lib/sheet-table2.mjs"
+import { sendWhatsApp, buildSummary } from "../../lib/notify.mjs"
 
 const require   = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -227,7 +228,10 @@ async function processCommunity(comm) {
   const zondaByAddr    = new Map(zondaLots.filter(l => l.address).map(l => [l.address, l]))
   const zondaByLotNum  = new Map(zondaLots.filter(l => l.lotNumber).map(l => [l.lotNumber, l]))
 
-  const toIngest = []
+  const toIngest      = []
+  const newAddresses  = []
+  const soldAddresses = []
+  const priceDetails  = []
 
   for (const lot of forSaleLots) {
     const qmi    = qmiPrices.get(lot.address) || null
@@ -243,8 +247,10 @@ async function processCommunity(comm) {
       const planDetails = (comm.plans && lot.planName) ? (comm.plans[lot.planName] || {}) : {}
       const entry = { address: lot.address, lotNumber: lot.lotNumber ? compositeKey(comm.name, lot.lotNumber) : null, currentPrice: price, moveInDate: moveIn, status: "active", sourceUrl: srcUrl, floorPlan: lot.planName || null, ...planDetails }
       toIngest.push(entry)
+      if (lot.address) newAddresses.push(lot.address)
     } else if (price !== null && dbEntry.currentPrice !== price) {
       console.log(`  ~ Price: ${lot.address} $${dbEntry.currentPrice?.toLocaleString()} → $${price.toLocaleString()}`)
+      if (lot.address) priceDetails.push({ address: lot.address, from: dbEntry.currentPrice ?? 0, to: price })
       toIngest.push({ address: lot.address, lotNumber: lot.lotNumber ? compositeKey(comm.name, lot.lotNumber) : null, currentPrice: price, moveInDate: moveIn, status: "active", sourceUrl: srcUrl })
     }
   }
@@ -259,6 +265,7 @@ async function processCommunity(comm) {
       if (zondaEntry?.status === "Sold") {
         console.log(`  - Sold: ${addr} (Zonda status: Sold)`)
         toIngest.push({ address: addr, lotNumber: dbEntry.lotNumber, status: "sold" })
+        soldAddresses.push(addr)
       } else {
         console.log(`  ? ${addr} not in for-sale (Zonda: ${zondaEntry?.status ?? "not found"}) — skipped`)
       }
@@ -296,7 +303,16 @@ async function processCommunity(comm) {
 
   await validatePriceSync(comm.name, observedPrices)
 
-  return { community: comm.name, changes: toIngest.length }
+  return {
+    community:     comm.name,
+    changes:       toIngest.length,
+    newCount:      newAddresses.length,
+    soldCount:     soldAddresses.length,
+    priceCount:    priceDetails.length,
+    newAddresses,
+    soldAddresses,
+    priceDetails,
+  }
 }
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -333,6 +349,7 @@ async function validatePriceSync(communityName, observedPrices) {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
+  const startTime = Date.now()
   console.log("=".repeat(60))
   console.log("Pulte Agent — Map-Based Scraper")
   console.log(`${new Date().toISOString()}`)
@@ -355,7 +372,15 @@ async function main() {
     else console.log(`  ${r.community}: ${r.changes} change(s)`)
   }
 
+  await sendWhatsApp(buildSummary("Pulte", results, ((Date.now() - startTime) / 1000).toFixed(1)))
+
   await prisma.$disconnect()
 }
 
-main().catch(e => { console.error("Fatal:", e); prisma.$disconnect(); process.exit(1) })
+main().catch(async e => {
+  console.error("Fatal:", e)
+  prisma.$disconnect()
+  const root = (e.stack || e.message || String(e)).split("\n").slice(0, 4).join("\n")
+  await sendWhatsApp(`🚨 *New Key — Pulte Scraper CRASHED*\n\n${root}`)
+  process.exit(1)
+})

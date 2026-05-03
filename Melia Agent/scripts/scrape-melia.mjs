@@ -23,6 +23,7 @@ import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
 import { fetchTable2Counts, reconcilePlaceholders } from "../../lib/sheet-table2.mjs"
+import { sendWhatsApp, buildSummary } from "../../lib/notify.mjs"
 
 const require   = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -214,6 +215,8 @@ async function validatePriceSync(communityName, observedPrices) {
 // ---------------------------------------------------------------------------
 
 async function main() {
+  const startTime = Date.now()
+  const results   = []
   console.log("=".repeat(60))
   console.log(`Melia Homes Scraper — Map-Based`)
   console.log(`${new Date().toISOString()}`)
@@ -299,15 +302,24 @@ async function main() {
       if (toIngest.length === 0) {
         console.log("  ✓ No changes")
         await validatePriceSync(comm.name, observedPrices)
+        results.push({ community: comm.name, changes: 0 })
         continue
       }
 
       const result = await postIngest(comm, toIngest)
       console.log(`  Ingest OK — created:${result?.created ?? "?"} updated:${result?.updated ?? "?"} priceChanges:${result?.priceChanges ?? "?"}`)
       await validatePriceSync(comm.name, observedPrices)
+      results.push({
+        community:     comm.name,
+        changes:       newCount + soldCount + priceCount,
+        newCount, soldCount, priceCount,
+        newAddresses:  toIngest.filter(l => l.status === "active"  && l.address).map(l => l.address),
+        soldAddresses: toIngest.filter(l => l.status === "sold"    && (l.address || l.lotNumber)).map(l => l.address || l.lotNumber),
+      })
 
     } catch (err) {
       console.error(`  ✗ ERROR: ${err.message}`)
+      results.push({ community: comm.name, error: err.message })
     }
   }
 
@@ -316,10 +328,14 @@ async function main() {
   console.log("\n" + "=".repeat(60))
   console.log("Done.")
   console.log("=".repeat(60))
+
+  await sendWhatsApp(buildSummary("Melia Homes", results, ((Date.now() - startTime) / 1000).toFixed(1)))
 }
 
-main().catch(err => {
+main().catch(async err => {
   console.error("Fatal error:", err)
   prisma.$disconnect()
+  const root = (err.stack || err.message || String(err)).split("\n").slice(0, 4).join("\n")
+  await sendWhatsApp(`🚨 *New Key — Melia Homes Scraper CRASHED*\n\n${root}`)
   process.exit(1)
 })

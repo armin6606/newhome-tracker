@@ -22,6 +22,7 @@ import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
 import { fetchTable2Counts, reconcilePlaceholders } from "../../lib/sheet-table2.mjs"
+import { sendWhatsApp, buildSummary } from "../../lib/notify.mjs"
 
 const require   = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -247,7 +248,10 @@ async function processCommunity(comm) {
     if (lot.lotNumber) mapForSaleByLot.set(lot.lotNumber, lot)
   }
 
-  const toIngest = []
+  const toIngest      = []
+  const newAddresses  = []
+  const soldAddresses = []
+  const priceDetails  = []
 
   // ── New for-sale + price changes ──
   for (const lot of forSaleLots) {
@@ -264,8 +268,10 @@ async function processCommunity(comm) {
       console.log(`  + New: ${lot.address || `Lot ${lot.lotNumber}`} $${price?.toLocaleString() ?? "TBD"}`)
       const planDetails = (comm.plans && lot.planName) ? (comm.plans[lot.planName] || {}) : {}
       toIngest.push({ address: lot.address, lotNumber: lot.lotNumber, currentPrice: price, moveInDate: moveIn, status: "active", sourceUrl: srcUrl, floorPlan: lot.planName || null, ...planDetails })
+      if (lot.address) newAddresses.push(lot.address)
     } else if (price !== null && dbEntry.currentPrice !== price) {
       // Price change
+      if (lot.address) priceDetails.push({ address: lot.address, from: dbEntry.currentPrice ?? 0, to: price })
       console.log(`  ~ Price: ${lot.address} $${dbEntry.currentPrice?.toLocaleString()} → $${price.toLocaleString()}`)
       toIngest.push({ address: lot.address, lotNumber: lot.lotNumber, currentPrice: price, moveInDate: moveIn, status: "active", sourceUrl: srcUrl })
     }
@@ -278,6 +284,7 @@ async function processCommunity(comm) {
     if (!stillForSale) {
       console.log(`  - Sold: ${addr}`)
       toIngest.push({ address: addr, lotNumber: dbEntry.lotNumber, status: "sold" })
+      soldAddresses.push(addr)
     }
   }
 
@@ -315,7 +322,16 @@ async function processCommunity(comm) {
 
   await validatePriceSync(comm.name, observedPrices)
 
-  return { community: comm.name, changes: toIngest.length }
+  return {
+    community:     comm.name,
+    changes:       toIngest.length,
+    newCount:      newAddresses.length,
+    soldCount:     soldAddresses.length,
+    priceCount:    priceDetails.length,
+    newAddresses,
+    soldAddresses,
+    priceDetails,
+  }
 }
 
 // ─── Validation ─────────────────────────────────────────────────────────────
@@ -352,6 +368,7 @@ async function validatePriceSync(communityName, observedPrices) {
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
+  const startTime = Date.now()
   console.log("=".repeat(60))
   console.log("Del Webb Agent — Map-Based Scraper")
   console.log(`${new Date().toISOString()}`)
@@ -375,7 +392,15 @@ async function main() {
     else console.log(`  ${r.community}: ${r.changes} change(s)`)
   }
 
+  await sendWhatsApp(buildSummary("Del Webb", results, ((Date.now() - startTime) / 1000).toFixed(1)))
+
   await prisma.$disconnect()
 }
 
-main().catch(e => { console.error("Fatal:", e); prisma.$disconnect(); process.exit(1) })
+main().catch(async e => {
+  console.error("Fatal:", e)
+  prisma.$disconnect()
+  const root = (e.stack || e.message || String(e)).split("\n").slice(0, 4).join("\n")
+  await sendWhatsApp(`🚨 *New Key — Del Webb Scraper CRASHED*\n\n${root}`)
+  process.exit(1)
+})

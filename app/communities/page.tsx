@@ -196,7 +196,7 @@ export default function CommunitiesPage() {
                 </div>
               </div>
               <div className="text-center text-xs text-gray-400 mb-3">
-                Total on map: <span className="font-semibold text-gray-600">{c.totalReleased}</span>
+                Total Number of Homes: <span className="font-semibold text-gray-600">{c.totalReleased}</span>
               </div>
 
               {/* Pie chart */}

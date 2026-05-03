@@ -20,6 +20,7 @@ import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
 import { fetchTable2Counts, reconcilePlaceholders } from "../../lib/sheet-table2.mjs"
+import { sendWhatsApp, buildSummary } from "../../lib/notify.mjs"
 
 const require    = createRequire(import.meta.url)
 const __dirname  = dirname(fileURLToPath(import.meta.url))
@@ -140,6 +141,50 @@ async function getDbActiveListings(communityName) {
 
 // ── Step 3: Fetch map data from Lennar page ───────────────────────────────────
 
+// ── Community key lookup ──────────────────────────────────────────────────────
+// Lennar pages can host MULTIPLE communities on the same map (e.g. Rhea, Isla,
+// and Aluna all appear on the isla-at-luna-park page). We MUST identify the exact
+// community key from Apollo state to avoid cross-contaminating lot data.
+//
+// Matching strategies (in priority order):
+//   1. Exact name match         — Apollo v.name === communityName
+//   2. Prefix match             — Apollo name starts with communityName
+//                                 (e.g. "Rhea at Luna Park" matches "Rhea")
+//   3. Reverse prefix match     — communityName starts with Apollo name
+//
+// If no match found → throw with full list of communities on that page so the
+// Sheet URL / community name can be corrected.
+//
+// Once the key is found, homesite filtering uses the community's OWN Apollo URL
+// slug (not the page URL slug) — so even if the Sheet URL is wrong, lots are
+// filtered correctly and contamination is impossible.
+
+function findCommKey(apollo, communityName) {
+  const norm = s => s.toLowerCase().trim()
+  const dbName = norm(communityName)
+  const candidates = Object.entries(apollo).filter(([k]) => k.startsWith("CommunityType:"))
+
+  // Strategy 1: exact name
+  let entry = candidates.find(([, v]) => norm(v.name) === dbName)
+  if (entry) return { key: entry[0], apolloName: entry[1].name, apolloUrl: entry[1].url, strategy: "exact" }
+
+  // Strategy 2: Apollo name starts with DB name ("Rhea at Luna Park" → "Rhea")
+  entry = candidates.find(([, v]) => norm(v.name).startsWith(dbName))
+  if (entry) return { key: entry[0], apolloName: entry[1].name, apolloUrl: entry[1].url, strategy: "prefix" }
+
+  // Strategy 3: DB name starts with Apollo name (reverse)
+  entry = candidates.find(([, v]) => dbName.startsWith(norm(v.name)))
+  if (entry) return { key: entry[0], apolloName: entry[1].name, apolloUrl: entry[1].url, strategy: "reverse-prefix" }
+
+  // Not found — build helpful error
+  const available = candidates.map(([, v]) => `"${v.name}" (${v.url})`).join(", ")
+  throw new Error(
+    `Community "${communityName}" not found on this Lennar page. ` +
+    `Communities on this page: [${available}]. ` +
+    `Fix the community name or URL in Google Sheet Table 1.`
+  )
+}
+
 async function getMapHomesites(communityName, communityUrl) {
   const res = await fetch(communityUrl, {
     headers: {
@@ -156,11 +201,34 @@ async function getMapHomesites(communityName, communityUrl) {
 
   const apollo = JSON.parse(match[1])?.props?.pageProps?.initialApolloState || {}
 
-  const commEntry = Object.entries(apollo).find(([k, v]) =>
-    k.startsWith("CommunityType:") && v.name === communityName
-  )
-  const commKey = commEntry?.[0] || null
-  const urlSlug = communityUrl.split("/").pop()
+  // ── Identify the exact community on this page ─────────────────────────────
+  const { key: commKey, apolloName, apolloUrl, strategy } = findCommKey(apollo, communityName)
+
+  // The community's own URL slug (may differ from the page URL slug when multiple
+  // communities share one page — e.g. Rhea's slug is "rhea-at-luna-park" even
+  // when fetched via the "isla-at-luna-park" page)
+  const commOwnSlug = apolloUrl?.split("/").pop() ?? communityUrl.split("/").pop()
+  const pageSlug    = communityUrl.split("/").pop()
+
+  if (strategy !== "exact") {
+    console.warn(
+      `  ⚠ Community name fuzzy-matched: Sheet="${communityName}" → Apollo="${apolloName}" (${strategy}). ` +
+      `Consider updating the name in Google Sheet Table 1 to exactly "${apolloName}".`
+    )
+  }
+  if (commOwnSlug !== pageSlug) {
+    console.warn(
+      `  ⚠ URL mismatch: Sheet URL ends in "${pageSlug}" but community is at "${commOwnSlug}". ` +
+      `Update Google Sheet Table 1 URL to: https://www.lennar.com${apolloUrl}`
+    )
+  }
+
+  console.log(`  Matched: "${apolloName}" [${commKey}] via ${strategy} — own slug: ${commOwnSlug}`)
+
+  // ── Extract homesites for THIS community only ─────────────────────────────
+  // Primary:  plan.community.__ref === commKey  (explicit community reference)
+  // Fallback: homesite URL contains the community's OWN slug (not page slug)
+  // No other fallbacks — prevents cross-community lot contamination.
 
   const homesites = []
   for (const [key, hs] of Object.entries(apollo)) {
@@ -171,8 +239,7 @@ async function getMapHomesites(communityName, communityUrl) {
     const hsCommRef = plan?.community?.__ref || null
 
     const belongsHere = hsCommRef === commKey ||
-                        (!hsCommRef && hs.url?.includes(urlSlug)) ||
-                        (!hsCommRef && !hs.url && commKey)
+                        (!hsCommRef && hs.url?.includes(commOwnSlug))
     if (!belongsHere) continue
 
     const baths = (hs.baths || plan?.baths || 0) + (hs.halfBaths || plan?.halfBaths || 0) * 0.5 || null
@@ -191,6 +258,18 @@ async function getMapHomesites(communityName, communityUrl) {
     })
   }
 
+  // Guard: 0 homesites is suspicious — either page structure changed or wrong URL
+  if (homesites.length === 0) {
+    console.warn(
+      `  ⚠ 0 homesites found for "${communityName}" [${commKey}]. ` +
+      `Page structure may have changed or all lots are in an unrecognized state.`
+    )
+  } else {
+    const byStatus = {}
+    for (const h of homesites) byStatus[h.status] = (byStatus[h.status] || 0) + 1
+    console.log(`  Map: ${homesites.length} lots — ${Object.entries(byStatus).map(([s,n]) => `${n} ${s}`).join(", ")}`)
+  }
+
   return homesites
 }
 
@@ -198,7 +277,10 @@ async function getMapHomesites(communityName, communityUrl) {
 
 function diffAndBuild(homesites, dbActive, sheetType) {
   const { byAddress, byLotNumber } = dbActive
-  const toIngest = []
+  const toIngest      = []
+  const newAddresses  = []
+  const soldAddresses = []
+  const priceDetails  = []
 
   let newCount   = 0
   let soldCount  = 0
@@ -225,6 +307,7 @@ function diffAndBuild(homesites, dbActive, sheetType) {
       if (hs.beds)       entry.beds         = hs.beds
       if (hs.baths)      entry.baths        = hs.baths
       toIngest.push(entry)
+      if (hs.address) newAddresses.push(hs.address)
       newCount++
     } else if (hs.price != null && dbEntry.currentPrice !== hs.price) {
       // Price changed on existing active listing
@@ -234,6 +317,7 @@ function diffAndBuild(homesites, dbActive, sheetType) {
       if (hs.moveInDate) entry.moveInDate = hs.moveInDate
       if (hs.sourceUrl)  entry.sourceUrl  = hs.sourceUrl
       toIngest.push(entry)
+      if (hs.address) priceDetails.push({ address: hs.address, from: dbEntry.currentPrice ?? 0, to: hs.price })
       priceCount++
       console.log(`  ~ Price: ${hs.address || hs.lotNumber} $${dbEntry.currentPrice?.toLocaleString() ?? "—"} → $${hs.price.toLocaleString()}`)
     }
@@ -246,6 +330,7 @@ function diffAndBuild(homesites, dbActive, sheetType) {
   for (const [address] of byAddress) {
     if (mapSoldAddresses.has(address)) {
       toIngest.push({ address, status: "sold" })
+      soldAddresses.push(address)
       soldCount++
     }
   }
@@ -253,11 +338,12 @@ function diffAndBuild(homesites, dbActive, sheetType) {
     const listing = byLotNumber.get(lotNumber)
     if (!listing.address && mapSoldLotNumbers.has(lotNumber)) {
       toIngest.push({ lotNumber, status: "sold" })
+      soldAddresses.push(lotNumber)
       soldCount++
     }
   }
 
-  return { toIngest, newCount, soldCount, priceCount }
+  return { toIngest, newCount, soldCount, priceCount, newAddresses, soldAddresses, priceDetails }
 }
 
 // ── Validation checkpoint ─────────────────────────────────────────────────────
@@ -331,6 +417,7 @@ async function main() {
   let totalSold    = 0
   let totalPrice   = 0
   const failures   = []
+  const results    = []
 
   for (const { name: rawName, url, city, type } of communities) {
     const name = await resolveDbCommunityName(rawName, "Lennar", prisma)
@@ -347,7 +434,7 @@ async function main() {
                  .map(h => [h.address, h.price])
       )
 
-      const { toIngest, newCount, soldCount, priceCount } = diffAndBuild(homesites, dbActive, type)
+      const { toIngest, newCount, soldCount, priceCount, newAddresses, soldAddresses, priceDetails } = diffAndBuild(homesites, dbActive, type)
 
       // ── Reconcile placeholder counts against Sheet Table 2 ────────────
       const sheetCounts = await fetchTable2Counts("Lennar Communities")
@@ -370,6 +457,7 @@ async function main() {
         await validatePriceSync(name, observedPrices)
         console.log()
         successCount++
+        results.push({ community: name, changes: 0 })
         continue
       }
 
@@ -386,9 +474,11 @@ async function main() {
       totalNew   += newCount
       totalSold  += soldCount
       totalPrice += priceCount
+      results.push({ community: name, changes: newCount + soldCount + priceCount, newCount, soldCount, priceCount, newAddresses, soldAddresses, priceDetails })
     } catch (err) {
       console.error(`  ✗ ERROR: ${err.message}\n`)
       failures.push({ name, error: err.message })
+      results.push({ community: name, error: err.message })
     }
   }
 
@@ -409,7 +499,14 @@ async function main() {
   console.log(`\n  Elapsed: ${elapsed}s`)
   console.log("=".repeat(60))
 
+  await sendWhatsApp(buildSummary("Lennar", results, elapsed))
+
   if (successCount === 0 && communities.length > 0) process.exit(1)
 }
 
-main().catch(err => { console.error("Fatal:", err); process.exit(1) })
+main().catch(async err => {
+  console.error("Fatal:", err)
+  const root = (err.stack || err.message || String(err)).split("\n").slice(0, 4).join("\n")
+  await sendWhatsApp(`🚨 *New Key — Lennar Scraper CRASHED*\n\n${root}`)
+  process.exit(1)
+})

@@ -18,6 +18,7 @@ import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 import { chromium } from "playwright"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
+import { sendWhatsApp, buildSummary } from "../../lib/notify.mjs"
 
 const require   = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -215,6 +216,7 @@ async function postIngest(payload) {
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
+  const startTime = Date.now()
   console.log("=".repeat(60))
   console.log("Brookfield Residential OC Scraper (diff-based)")
   console.log("=".repeat(60))
@@ -359,6 +361,11 @@ async function main() {
     console.log("\n" + "=".repeat(60))
     console.log("Done.")
     console.log("=".repeat(60))
+    {
+      const _d = new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+      const _elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+      await sendWhatsApp([`🏠 *New Key — Brookfield Scraper*`, `📅 ${_d}`, ``, `✅ No changes found`, ``, `⏱ ${_elapsed}s`].join("\n"))
+    }
     return
   }
 
@@ -381,10 +388,26 @@ async function main() {
   console.log("\n" + "=".repeat(60))
   console.log("Done.")
   console.log("=".repeat(60))
+
+  {
+    const _elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+    const _results = [{
+      community:     resolvedName,
+      changes:       newListings.length + priceUpdates.length + soldListings.length,
+      newCount:      newListings.length,
+      soldCount:     soldListings.length,
+      priceCount:    priceUpdates.length,
+      newAddresses:  newListings.map(l => l.address).filter(Boolean),
+      soldAddresses: soldListings.map(l => l.address).filter(Boolean),
+    }]
+    await sendWhatsApp(buildSummary("Brookfield", _results, _elapsed))
+  }
 }
 
-main().catch(err => {
+main().catch(async err => {
   console.error("Fatal error:", err)
   prisma.$disconnect()
+  const root = (err.stack || err.message || String(err)).split("\n").slice(0, 4).join("\n")
+  await sendWhatsApp(`🚨 *New Key — Brookfield Scraper CRASHED*\n\n${root}`)
   process.exit(1)
 })

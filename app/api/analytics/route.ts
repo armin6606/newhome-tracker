@@ -44,11 +44,34 @@ export async function GET(req: NextRequest) {
     const cities      = searchParams.getAll("city")     .slice(0, MAX_FILTER_VALUES).map(sanitise).filter(Boolean)
     const builders    = searchParams.getAll("builder")  .slice(0, MAX_FILTER_VALUES).map(sanitise).filter(Boolean)
     const communities = searchParams.getAll("community").slice(0, MAX_FILTER_VALUES).map(sanitise).filter(Boolean)
+    const counties    = searchParams.getAll("county")   .slice(0, MAX_FILTER_VALUES).map(sanitise).filter(Boolean)
+
+    // Expand county → city list
+    const CITY_COUNTY: Record<string, string> = {
+      "irvine": "Orange County", "orange": "Orange County", "anaheim": "Orange County",
+      "tustin": "Orange County", "fullerton": "Orange County", "garden grove": "Orange County",
+      "huntington beach": "Orange County", "newport beach": "Orange County", "lake forest": "Orange County",
+      "mission viejo": "Orange County", "aliso viejo": "Orange County", "laguna niguel": "Orange County",
+      "rancho mission viejo": "Orange County", "yorba linda": "Orange County", "brea": "Orange County",
+      "long beach": "Los Angeles County", "los angeles": "Los Angeles County", "torrance": "Los Angeles County",
+      "hacienda heights": "Los Angeles County", "chino hills": "San Bernardino County",
+      "french valley": "Riverside County", "murrieta": "Riverside County", "temecula": "Riverside County",
+      "menifee": "Riverside County", "riverside": "Riverside County", "moreno valley": "Riverside County",
+      "perris": "Riverside County", "winchester": "Riverside County", "wildomar": "Riverside County",
+    }
+    const countyCities = counties.length > 0
+      ? Object.entries(CITY_COUNTY)
+          .filter(([, co]) => counties.some((c) => c.toLowerCase() === co.toLowerCase()))
+          .map(([city]) => city.charAt(0).toUpperCase() + city.slice(1))
+      : []
+
+    // Merge explicit city filters with county-expanded cities
+    const allCities = [...new Set([...cities, ...countyCities])]
 
     const communityWhere: Record<string, unknown> = {}
-    if (cities.length > 0)      communityWhere.city    = { in: cities }
-    if (builders.length > 0)    communityWhere.builder = { name: { in: builders } }
-    if (communities.length > 0) communityWhere.name    = { in: communities }
+    if (allCities.length > 0)    communityWhere.city    = { in: allCities, mode: "insensitive" }
+    if (builders.length > 0)     communityWhere.builder = { name: { in: builders } }
+    if (communities.length > 0)  communityWhere.name    = { in: communities }
 
     // Exclude placeholder lots — only real addressed listings enter the analytics
     const placeholderExclusion = {

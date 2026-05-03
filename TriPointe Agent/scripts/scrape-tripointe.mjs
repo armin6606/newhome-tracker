@@ -16,6 +16,7 @@ import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 import { chromium } from "playwright"
 import { resolveDbCommunityName } from "../../lib/resolve-community-name.mjs"
+import { sendWhatsApp, buildSummary } from "../../lib/notify.mjs"
 
 const require   = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -360,6 +361,8 @@ async function postIngest(payload) {
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
+  const startTime = Date.now()
+  const results   = []
   console.log("=".repeat(60))
   console.log("TRI Pointe Homes v2 Scraper (diff-based)")
   console.log("=".repeat(60))
@@ -446,6 +449,7 @@ async function main() {
       const hasChanges = newListings.length > 0 || priceUpdates.length > 0 || soldListings.length > 0
       if (!hasChanges) {
         console.log("  No changes — skipping ingest POST")
+        results.push({ community: comm.name, changes: 0 })
         continue
       }
 
@@ -468,6 +472,15 @@ async function main() {
       } catch (err) {
         console.error(`  Ingest failed:`, err.message)
       }
+      results.push({
+        community:     comm.name,
+        changes:       allIngestListings.length,
+        newCount:      newListings.length,
+        soldCount:     soldListings.length,
+        priceCount:    priceUpdates.length,
+        newAddresses:  newListings.map(l => l.address).filter(Boolean),
+        soldAddresses: soldListings.map(l => l.address).filter(Boolean),
+      })
 
       await page.waitForTimeout(1000)
     }
@@ -480,10 +493,14 @@ async function main() {
   console.log("\n" + "=".repeat(60))
   console.log("Done.")
   console.log("=".repeat(60))
+
+  await sendWhatsApp(buildSummary("TRI Pointe Homes", results, ((Date.now() - startTime) / 1000).toFixed(1)))
 }
 
-main().catch(err => {
+main().catch(async err => {
   console.error("Fatal error:", err)
   prisma.$disconnect()
+  const root = (err.stack || err.message || String(err)).split("\n").slice(0, 4).join("\n")
+  await sendWhatsApp(`🚨 *New Key — TRI Pointe Scraper CRASHED*\n\n${root}`)
   process.exit(1)
 })

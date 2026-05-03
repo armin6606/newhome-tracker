@@ -68,7 +68,11 @@ const STREET_SUFFIXES =
 
 function normalizeAddress(addr) {
   if (!addr) return ""
-  return addr.replace(STREET_SUFFIXES, "").replace(/\s+/g, " ").trim()
+  return addr
+    .replace(/\$/g, "#")          // KB siteplan sometimes uses $ instead of # for unit numbers
+    .replace(STREET_SUFFIXES, "")
+    .replace(/\s+/g, " ")
+    .trim()
 }
 
 function parsePriceInt(str) {
@@ -174,8 +178,16 @@ async function getSiteplanHomesites(browser, communityUrl) {
     await page.close()
   }
 
-  if (!payload?.site?.segments) return []
-  return payload.site.segments
+  if (!payload?.site?.segments) return { segments: [], floorplansMap: {} }
+
+  // Build a UID → floorplan map so parseSiteplanListings can look up plan details
+  // payload.floorplans is an array: [{ uid, name:"Plan 1387", specs:{sqft,bed,bath,level,garage,halfBath} }]
+  const floorplansMap = {}
+  for (const fp of payload.floorplans ?? []) {
+    if (fp.uid) floorplansMap[fp.uid] = fp
+  }
+
+  return { segments: payload.site.segments, floorplansMap }
 }
 
 /**
@@ -186,7 +198,7 @@ async function getSiteplanHomesites(browser, communityUrl) {
  *   forSale → status active (coming-soon / available / inventory / pending / reserved)
  *   sold    → status sold
  */
-function parseSiteplanListings(segments, communityName, communityUrl) {
+function parseSiteplanListings(segments, communityName, communityUrl, floorplansMap = {}) {
   const forSale = []
   const sold    = []
 
@@ -195,7 +207,8 @@ function parseSiteplanListings(segments, communityName, communityUrl) {
     // Price is stored as homePrice on the segment (base price before lot premium)
     const price   = seg.homePrice ? parseInt(String(seg.homePrice).replace(/[^0-9]/g, ""), 10) : null
     const status  = (seg.status || "").toLowerCase()
-    const lotNum  = seg.lotName ? communityName.replace(/\s+/g, "") + seg.lotName.replace(/\s+/g, "") : null
+    // Extract only the numeric part from lotName (e.g. "Homesite 9" → "9")
+    const lotNum  = seg.lotName ? (seg.lotName.match(/\d+/) || [])[0] ?? null : null
 
     // Must have a real street address (not null / empty)
     if (!rawAddr) continue
@@ -204,10 +217,48 @@ function parseSiteplanListings(segments, communityName, communityUrl) {
     const address = normalizeAddress(rawAddr.replace(/,.*$/, "").trim())
     if (!address || !/^\d/.test(address)) continue
 
+    // Look up floor plan details via seg.floorplans[0] UID → floorplansMap
+    // payload.floorplans[uid].specs = { sqft, bed, bath, halfBath, level, garage }
+    const fpUid  = seg.floorplans?.[0]
+    const fp     = fpUid ? floorplansMap[fpUid] : null
+    const fpName = fp?.name || null   // e.g. "Plan 1387"
+    const fpSpecs = fp?.specs ?? {}
+    const fpSqft    = fpSpecs.sqft    ? parseInt(String(fpSpecs.sqft).replace(/[^0-9]/g, ""), 10) : null
+    const fpBeds    = fpSpecs.bed     ? parseFloat(fpSpecs.bed)     : null
+    const fpBaths   = fpSpecs.bath != null
+      ? parseFloat(fpSpecs.bath) + (fpSpecs.halfBath ? parseFloat(fpSpecs.halfBath) * 0.5 : 0)
+      : null
+    const fpFloors  = fpSpecs.level   ? parseInt(fpSpecs.level, 10)  : null
+    const fpGarages = fpSpecs.garage  ? parseInt(fpSpecs.garage, 10) : null
+
     if (FOR_SALE_STATUSES.has(status) && price) {
-      forSale.push({ address, lotNumber: lotNum, currentPrice: price, status: "active", sourceUrl: communityUrl })
+      forSale.push({
+        address,
+        lotNumber:    lotNum,
+        currentPrice: price,
+        status:       "active",
+        sourceUrl:    communityUrl,
+        floorPlan:    fpName,
+        sqft:         fpSqft,
+        beds:         fpBeds,
+        baths:        fpBaths,
+        floors:       fpFloors,
+        garages:      fpGarages,
+      })
     } else if (status === "sold") {
-      sold.push({ address, lotNumber: lotNum, currentPrice: price || null, status: "sold", sourceUrl: communityUrl })
+      sold.push({
+        address,
+        lotNumber:    lotNum,
+        currentPrice: price || null,
+        status:       "sold",
+        sourceUrl:    communityUrl,
+        floorPlan:    fpName,
+        sqft:         fpSqft,
+        beds:         fpBeds,
+        baths:        fpBaths,
+        floors:       fpFloors,
+        garages:      fpGarages,
+      })
     }
   }
 
@@ -533,8 +584,8 @@ async function main() {
 
       // ── Fetch Firebase siteplan for this community ──────────────────────
       console.log(`  Fetching siteplan...`)
-      const siteplanSegments = await getSiteplanHomesites(context, communityUrl)
-      const { forSale: spForSale, sold: spSold } = parseSiteplanListings(siteplanSegments, resolvedName, communityUrl)
+      const { segments: siteplanSegments, floorplansMap } = await getSiteplanHomesites(context, communityUrl)
+      const { forSale: spForSale, sold: spSold } = parseSiteplanListings(siteplanSegments, resolvedName, communityUrl, floorplansMap)
       console.log(`  Siteplan: ${spForSale.length} for-sale, ${spSold.length} sold (with address+price)`)
 
       // Query DB active listings for this community
@@ -566,18 +617,15 @@ async function main() {
         const lotStr    = pl.hotsiteLabel || null
         const pagePrice = parsePriceInt(pl.price)
 
-        // DB stores lot numbers as composite keys (e.g. "Rhythm071"), but the MIR
-        // page gives us the raw hotsiteLabel ("071"). Always look up the full key.
-        const compositeLotStr = lotStr ? compositeKey(resolvedName, lotStr) : null
         let dbEntry = normAddr ? db.byAddress.get(normAddr) : null
-        if (!dbEntry && compositeLotStr) dbEntry = db.byLotNumber.get(compositeLotStr)
+        if (!dbEntry && lotStr) dbEntry = db.byLotNumber.get(lotStr)
 
         if (!dbEntry) {
           newListings.push(pl)  // new MIR — visit detail page
         } else if (pagePrice != null && dbEntry.currentPrice !== pagePrice) {
           priceChanges.push({
             address:      pl.address || null,
-            lotNumber:    lotStr ? compositeKey(resolvedName, lotStr) : null,
+            lotNumber:    lotStr ?? null,
             currentPrice: pagePrice,
             moveInDate:   null,
             status:       "active",
@@ -669,7 +717,7 @@ async function main() {
           const sourceUrl = `${BASE_URL}${pl.mirUrl}`
           newDetailedListings.push({
             address:      detail.address || pl.address || null,
-            lotNumber:    (detail.lotNumber || pl.hotsiteLabel) ? compositeKey(resolvedName, detail.lotNumber || pl.hotsiteLabel) : null,
+            lotNumber:    detail.lotNumber || pl.hotsiteLabel || null,
             currentPrice: parsePriceInt(detail.price),
             moveInDate:   detail.moveInDate || null,
             status:       "active",
