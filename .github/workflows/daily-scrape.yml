@@ -2,7 +2,7 @@ name: Daily Scrape
 
 on:
   schedule:
-    - cron: '0 9 * * *'   # 1 AM PST (9 AM UTC) daily
+    - cron: '0 8 * * *'   # 1 AM PDT (8 AM UTC) / 1 AM PST (use 0 9 * * *) daily
   workflow_dispatch:        # Manual trigger from GitHub Actions UI
 
 jobs:
