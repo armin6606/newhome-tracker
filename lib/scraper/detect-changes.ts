@@ -101,6 +101,10 @@ export async function detectAndApplyChanges(
     newIncentives: [],
   }
   const newListingIds: number[] = []
+  // Tracks net change to community.soldCount this run:
+  //  +1 for each active→sold transition (explicit or disappearance-based)
+  //  -1 for each sold→active reactivation
+  let soldDelta = 0
 
   // Process each scraped listing
   for (const scraped of scrapedListings) {
@@ -289,6 +293,7 @@ export async function detectAndApplyChanges(
       // Placeholder sync + sheet update: when a real listing goes active → sold
       // (explicit sold status only — "removed" could mean de-listed, not sold).
       if (existing.status === "active" && scraped.status === "sold") {
+        soldDelta++
         // DB: flip one avail-N placeholder so Table 2 card counts stay accurate
         const availPlaceholder = await prisma.listing.findFirst({
           where: {
@@ -317,6 +322,7 @@ export async function detectAndApplyChanges(
         scraped.status === "active"
       ) {
         updates.soldAt = null
+        if (existing.status === "sold") soldDelta--   // undo the previous sold increment
         stats.reactivated++
         stats.reactivatedListings.push({
           address: scraped.address,
@@ -357,7 +363,7 @@ export async function detectAndApplyChanges(
 
         updates.currentPrice = scraped.price
         await prisma.priceHistory.create({
-          data: { listingId: existing.id, price: scraped.price, changeType },
+          data: { listingId: existing.id, price: scraped.price, oldPrice: existing.currentPrice ?? null, changeType },
         })
 
         // Send price change notification (fire-and-forget)
@@ -404,21 +410,43 @@ export async function detectAndApplyChanges(
     notifyNewListings({ communityId, newListingIds }).catch(console.error)
   }
 
-  // Mark listings no longer in scrape as removed
+  // ── Handle listings no longer in scrape ────────────────────────────────────
+  // Rule: only ACTIVE listings can "disappear". If they had a price → sold.
+  //       Future/already-sold listings not in scrape are left unchanged.
   for (const [key, listing] of existingByAddress.entries()) {
-    if (!scrapedAddresses.has(key)) {
+    if (scrapedAddresses.has(key)) continue       // still present — skip
+    if (listing.status !== "active") continue     // future/sold — leave as-is
+
+    if (listing.currentPrice != null) {
+      // Had a price → was for-sale → mark sold
+      await prisma.listing.update({
+        where: { id: listing.id },
+        data: { status: "sold", soldAt: new Date() },
+      })
+      soldDelta++
+    } else {
+      // Active but no price (edge case) → mark removed
       await prisma.listing.update({
         where: { id: listing.id },
         data: { status: "removed", soldAt: new Date() },
       })
-      stats.removed++
-      stats.removedListings.push({
-        address: listing.address,
-        lotNumber: listing.lotNumber ?? null,
-        community: communityName,
-      })
     }
+    stats.removed++
+    stats.removedListings.push({
+      address: listing.address,
+      lotNumber: listing.lotNumber ?? null,
+      community: communityName,
+    })
   }
+
+  // ── Update community.soldCount (net delta) and lastScrapedAt ──────────────
+  await prisma.community.update({
+    where: { id: communityId },
+    data: {
+      ...(soldDelta !== 0 ? { soldCount: { increment: soldDelta } } : {}),
+      lastScrapedAt: new Date(),
+    },
+  })
 
   return stats
 }

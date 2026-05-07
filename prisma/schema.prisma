@@ -74,6 +74,7 @@ model PriceHistory {
   listingId  Int
   listing    Listing  @relation(fields: [listingId], references: [id])
   price      Int
+  oldPrice   Int?
   changeType String
   detectedAt DateTime @default(now())
 }
