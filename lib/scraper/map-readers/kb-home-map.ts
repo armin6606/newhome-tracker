@@ -8,19 +8,22 @@
  *   1. Loads the KB Home community page and extracts the kb-vu.com iframe URL
  *   2. Navigates Playwright to that URL
  *   3. Reads individual lot data from the rendered DOM:
- *      - Teal  rgb(145,223,222) = Move-in ready  → status: active
- *      - Green rgb(167,200,57)  = Pre-planned     → status: active
- *      - Orange rgb(241,93,34)  = Sold            → status: sold
- *   4. Returns a MapResult with real lot-by-lot data (no placeholders needed)
+ *      - Teal   rgb(145,223,222) = Move-in ready  → for sale (has price + address)
+ *      - Green  rgb(167,200,57)  = Pre-planned    → for sale (has price + address)
+ *      - Orange rgb(241,93,34)   = Sold           → sold
+ *      - Yellow rgb(255,193,7)   = Model home     → future (no price until released)
+ *   4. Status rule: price + real address = "for sale", else = "future"
+ *   5. Returns a MapResult with real lot-by-lot data (no placeholders needed)
  */
 
 import { chromium } from "playwright"
 import { randomDelayMs, randomUserAgent } from "../utils"
 import type { MapResult, MapLot } from "./types"
 
-const TEAL   = "rgb(145, 223, 222)"  // Move-in ready
-const GREEN  = "rgb(167, 200, 57)"   // Pre-planned (for sale, not yet built)
+const TEAL   = "rgb(145, 223, 222)"  // Move-in ready → for sale
+const GREEN  = "rgb(167, 200, 57)"   // Pre-planned   → for sale
 const ORANGE = "rgb(241, 93, 34)"    // Sold
+const YELLOW = "rgb(255, 193, 7)"    // Model home    → future (no price)
 
 export async function readKBHomeMap(
   communityUrl: string,
@@ -67,7 +70,7 @@ export async function readKBHomeMap(
 
     // ── Step 3: extract all lot data ──
     const lots: MapLot[] = await page.evaluate(
-      ({ TEAL, GREEN, ORANGE, communityName }) => {
+      ({ TEAL, GREEN, ORANGE, YELLOW, communityName }) => {
         const seen = new Set<string>()
         const results: MapLot[] = []
 
@@ -76,7 +79,7 @@ export async function readKBHomeMap(
         const circles = allEls.filter(el => {
           const bg = window.getComputedStyle(el).backgroundColor
           return (
-            [TEAL, GREEN, ORANGE].includes(bg) &&
+            [TEAL, GREEN, ORANGE, YELLOW].includes(bg) &&
             /^\d+$/.test(el.textContent?.trim() || "")
           )
         })
@@ -87,6 +90,8 @@ export async function readKBHomeMap(
           seen.add(lotNum)
 
           const bg = window.getComputedStyle(el).backgroundColor
+          // Orange = sold. All others (teal/green/yellow) = potentially active,
+          // but yellow (model) has no price so buildListings will set it to future.
           const status: "active" | "sold" = bg === ORANGE ? "sold" : "active"
 
           // Walk up the DOM to find the card containing address + price
@@ -124,7 +129,7 @@ export async function readKBHomeMap(
 
         return results
       },
-      { TEAL, GREEN, ORANGE, communityName }
+      { TEAL, GREEN, ORANGE, YELLOW, communityName }
     )
 
     const active = lots.filter(l => l.status === "active")
