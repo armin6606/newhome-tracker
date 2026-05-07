@@ -500,13 +500,31 @@ function fmtDuration(startIso, endIso) {
   return ` (${Math.floor(secs / 60)}m ${secs % 60}s)`
 }
 
-function section0ScraperStatus(scraperResults) {
-  if (!scraperResults) {
-    return card(`${sectionHeader("Scraper Run Status")}
-      <p style="color:#9ca3af;font-size:13px;margin:0">No scraper results available — report sent manually outside of scheduled run.</p>`)
-  }
+// All builders that must appear in the status table every day
+const ALL_BUILDERS = [
+  "Toll Brothers",
+  "Lennar",
+  "Pulte",
+  "Del Webb",
+  "KB Home",
+  "Taylor Morrison",
+  "Melia Homes",
+  "Shea Homes",
+]
 
-  const rows = Object.entries(scraperResults).map(([builder, d]) => {
+function section0ScraperStatus(scraperResults) {
+  const results = scraperResults || {}
+
+  const rows = ALL_BUILDERS.map(builder => {
+    const d = results[builder]
+    if (!d) {
+      return [
+        `⬜ ${builder}`,
+        `<span style="color:#9ca3af">No data</span>`,
+        `<span style="color:#9ca3af">—</span>`,
+        `<span style="color:#9ca3af">—</span>`,
+      ]
+    }
     const ok       = d.status === "success"
     const icon     = ok ? "✅" : "❌"
     const statusEl = ok
@@ -517,7 +535,7 @@ function section0ScraperStatus(scraperResults) {
       : ""
     const timeEl = d.startedAt
       ? `<span style="color:#6b7280;font-size:11px">${fmtTime(d.startedAt)}${fmtDuration(d.startedAt, d.finishedAt)}</span>`
-      : "—"
+      : `<span style="color:#9ca3af">—</span>`
     return [
       `${icon} ${builder}`,
       statusEl + errEl,
@@ -526,9 +544,12 @@ function section0ScraperStatus(scraperResults) {
     ]
   })
 
-  const anyFail = Object.values(scraperResults).some(d => d.status !== "success")
-  const header  = anyFail
+  const anyFail  = ALL_BUILDERS.some(b => results[b] && results[b].status !== "success")
+  const anyNoData = ALL_BUILDERS.some(b => !results[b])
+  const header   = anyFail
     ? `Scraper Run Status <span style="color:#dc2626;font-size:13px;font-weight:400">— issues detected</span>`
+    : anyNoData
+    ? `Scraper Run Status <span style="color:#f59e0b;font-size:13px;font-weight:400">— manual run (no timing data)</span>`
     : `Scraper Run Status <span style="color:#16a34a;font-size:13px;font-weight:400">— all passed</span>`
 
   return card(`
