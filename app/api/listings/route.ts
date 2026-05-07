@@ -27,7 +27,7 @@ const LISTING_SELECT = {
   },
 } as const
 
-const VALID_STATUSES  = new Set(["active", "sold", "future", "removed", "all"])
+const VALID_STATUSES  = new Set(["for sale", "sold", "future", "removed", "all"])
 const VALID_SORT_FIELDS = ["currentPrice", "firstDetected", "sqft", "beds", "pricePerSqft", "floors"]
 // firstDetected and beds are always non-null so Prisma rejects nulls:"last" for them
 const NON_NULLABLE_SORT = new Set(["firstDetected", "beds"])
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     // ── Parse & validate params ──────────────────────────────────────────────
 
-    const rawStatus = searchParams.get("status") || "active"
+    const rawStatus = searchParams.get("status") || "for sale"
     if (!VALID_STATUSES.has(rawStatus)) {
       return NextResponse.json(
         { error: `Invalid status "${rawStatus}". Allowed: ${[...VALID_STATUSES].join(", ")}` },

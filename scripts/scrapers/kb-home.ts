@@ -135,15 +135,15 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
   return result.lots.map(lot => {
     // Only active lots with a real address qualify as "for sale"
     const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
-    const status: string = lot.status === "active" && (!lot.price || !hasRealAddress) ? "future" : lot.status
+    const status: string = lot.status === "for sale" && (!lot.price || !hasRealAddress) ? "future" : lot.status
     return {
       communityName, communityUrl,
       address: lot.address ?? `Lot ${lot.lotNumber}`,
       lotNumber: lot.lotNumber,
       floorPlan: lot.floorPlan,
       beds: lot.beds, baths: lot.baths, sqft: lot.sqft,
-      price: status === "active" ? lot.price : undefined,
-      pricePerSqft: status === "active" && lot.price && lot.sqft ? Math.round(lot.price / lot.sqft) : undefined,
+      price: status === "for sale" ? lot.price : undefined,
+      pricePerSqft: status === "for sale" && lot.price && lot.sqft ? Math.round(lot.price / lot.sqft) : undefined,
       status,
       sourceUrl: communityUrl,
     } as ScrapedListing
@@ -230,9 +230,9 @@ async function detectAndApplyChanges(
             schools: scraped.schools,
             incentives: scraped.incentives,
             sourceUrl: scraped.sourceUrl,
-            status: scraped.status ?? "active",
+            status: scraped.status ?? "for sale",
           },
-          update: { status: scraped.status ?? "active" },
+          update: { status: scraped.status ?? "for sale" },
         })
       } catch (err: unknown) {
         const code = (err as { code?: string }).code
@@ -259,9 +259,9 @@ async function detectAndApplyChanges(
               schools: scraped.schools,
               incentives: scraped.incentives,
               sourceUrl: scraped.sourceUrl,
-              status: scraped.status ?? "active",
+              status: scraped.status ?? "for sale",
             },
-            update: { status: scraped.status ?? "active" },
+            update: { status: scraped.status ?? "for sale" },
           })
         } else {
           throw err
@@ -292,7 +292,7 @@ async function detectAndApplyChanges(
       }
 
       if (
-        (scraped.status ?? "active") === "active" &&
+        (scraped.status ?? "for sale") === "for sale" &&
         (!scraped.lotNumber || !PLACEHOLDER_RE.test(scraped.lotNumber))
       ) {
         if (builderName && builderName !== "Unknown") {
@@ -305,7 +305,7 @@ async function detectAndApplyChanges(
         if (futurePlaceholder) {
           await prisma.listing.update({
             where: { id: futurePlaceholder.id },
-            data: { status: "active" },
+            data: { status: "for sale" },
           })
           console.log(`  [placeholder-sync] ${communityName}: flipped ${futurePlaceholder.lotNumber} → active (new listing released)`)
         }
@@ -357,13 +357,13 @@ async function detectAndApplyChanges(
         })
       }
 
-      if (existing.status === "active" && scraped.status === "sold") {
+      if (existing.status === "for sale" && scraped.status === "sold") {
         soldDelta++
         const availPlaceholder = await prisma.listing.findFirst({
           where: {
             communityId,
             lotNumber: { startsWith: "avail-" },
-            status: "active",
+            status: "for sale",
           },
         })
         if (availPlaceholder) {
@@ -379,7 +379,7 @@ async function detectAndApplyChanges(
 
       if (
         (existing.status === "sold" || existing.status === "removed") &&
-        scraped.status === "active"
+        scraped.status === "for sale"
       ) {
         updates.soldAt = null
         if (existing.status === "sold") soldDelta--
@@ -402,7 +402,7 @@ async function detectAndApplyChanges(
           if (soldAvailPlaceholder) {
             await prisma.listing.update({
               where: { id: soldAvailPlaceholder.id },
-              data: { status: "active", soldAt: null },
+              data: { status: "for sale", soldAt: null },
             })
             console.log(`  [placeholder-sync] ${communityName}: flipped ${soldAvailPlaceholder.lotNumber} back → active`)
           }
@@ -465,7 +465,7 @@ async function detectAndApplyChanges(
 
   for (const [key, listing] of existingByAddress.entries()) {
     if (scrapedAddresses.has(key)) continue
-    if (listing.status !== "active") continue
+    if (listing.status !== "for sale") continue
 
     // A lot is only marked SOLD if it has BOTH a real price AND a real address.
     // Placeholder addresses (avail-N, future-N, sold-N, lot-N) with no price are

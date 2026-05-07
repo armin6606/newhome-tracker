@@ -4,7 +4,7 @@
 
 export interface MapLot {
   lotNumber: string
-  status: "active" | "sold" | "future"
+  status: "for sale" | "sold" | "future"
   price?: number
   address?: string
   floorPlan?: string

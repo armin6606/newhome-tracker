@@ -37,7 +37,7 @@ function normalizeAlphaStatus(
   status: string | undefined,
   statusId: number | undefined,
   price: number | null | undefined
-): "active" | "sold" | "future" {
+): "for sale" | "sold" | "future" {
   const s = (status || "").toLowerCase()
   const id = statusId ?? -1
 
@@ -54,7 +54,7 @@ function normalizeAlphaStatus(
   if (s.includes("available") || s.includes("active") || id === 1) {
     // No price → future (no-price rule)
     if (!price || price <= 0) return "future"
-    return "active"
+    return "for sale"
   }
   // Not released, pending, model, spec — treat as future
   return "future"
@@ -65,10 +65,10 @@ function normalizeAlphaStatus(
  * "Quick Move In" = home already built and ready to purchase → active.
  * "Available"     = lot available to build on, no home yet → future.
  */
-function normalizeSiteplanStatus(status: string): "active" | "sold" | "future" {
+function normalizeSiteplanStatus(status: string): "for sale" | "sold" | "future" {
   const s = (status || "").toLowerCase().trim()
   if (s === "sold" || s === "closed" || s.includes("contract") || s.includes("reserved")) return "sold"
-  if (s === "quick move in" || s === "qmi" || s === "move-in ready" || s === "moveinready") return "active"
+  if (s === "quick move in" || s === "qmi" || s === "move-in ready" || s === "moveinready") return "for sale"
   // Available, Unreleased, Model, Not Released, Pending, Spec → future
   return "future"
 }
@@ -182,7 +182,7 @@ async function readAlphaVisionIframe(
         } satisfies MapLot))
 
       const sold    = lots.filter((l) => l.status === "sold").length
-      const forSale = lots.filter((l) => l.status === "active").length
+      const forSale = lots.filter((l) => l.status === "for sale").length
       const future  = lots.filter((l) => l.status === "future").length
 
       console.log(`[Pulte] ${communityName}: sold=${sold} forSale=${forSale} future=${future} total=${lots.length}`)
@@ -211,12 +211,12 @@ async function readAlphaVisionIframe(
         return {
           lotNumber: lotNum,
           status,
-          price: status === "active" ? price : undefined,
+          price: status === "for sale" ? price : undefined,
         } satisfies MapLot
       })
 
       const sold = lots.filter((l) => l.status === "sold").length
-      const forSale = lots.filter((l) => l.status === "active").length
+      const forSale = lots.filter((l) => l.status === "for sale").length
       const future = lots.filter((l) => l.status === "future").length
       const total = lots.length
 

@@ -184,12 +184,12 @@ export default function DashboardPage() {
                         </Link>
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            l.status === "active"
+                            l.status === "for sale"
                               ? "bg-green-100 text-green-700"
                               : "bg-gray-100 text-gray-500"
                           }`}
                         >
-                          {l.status === "active" ? "Active" : "Sold/Removed"}
+                          {l.status === "for sale" ? "Active" : "Sold/Removed"}
                         </span>
                       </div>
                       <div className="text-sm text-gray-500 mt-0.5">

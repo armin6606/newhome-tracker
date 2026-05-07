@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     const communities = await prisma.community.findMany({
       where: {
-        listings: { some: { status: "active", incentives: { not: null } } },
+        listings: { some: { status: "for sale", incentives: { not: null } } },
         ...(cityParam    ? { city:    { contains: cityParam,    mode: "insensitive" } } : {}),
         ...(builderParam ? { builder: { name: { contains: builderParam, mode: "insensitive" } } } : {}),
       },
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         url:     true,
         builder: { select: { name: true } },
         listings: {
-          where:   { status: "active", incentives: { not: null } },
+          where:   { status: "for sale", incentives: { not: null } },
           select:  { incentives: true, currentPrice: true },
           orderBy: { currentPrice: "asc" },
         },

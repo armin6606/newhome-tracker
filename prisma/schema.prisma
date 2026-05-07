@@ -57,7 +57,7 @@ model Listing {
   moveInDate    String?
   incentives    String?
   incentivesUrl String?
-  status        String         @default("active")
+  status        String         @default("for sale")
   sourceUrl     String?
   firstDetected DateTime       @default(now())
   lastUpdated   DateTime       @updatedAt

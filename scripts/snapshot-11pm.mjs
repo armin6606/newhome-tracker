@@ -93,7 +93,7 @@ async function main() {
   // 1. For-sale count — real active listings (exclude avail- placeholders)
   const forSaleCount = await prisma.listing.count({
     where: {
-      status:  "active",
+      status:  "for sale",
       address: { not: null },
     },
   })
@@ -115,7 +115,7 @@ async function main() {
     const ph = c.listings
     communityCards[c.name] = {
       builder: c.builder.name,
-      active:  ph.filter(l => l.status === "active").length,
+      active:  ph.filter(l => l.status === "for sale").length,
       sold:    ph.filter(l => l.status === "sold").length,
       future:  ph.filter(l => l.status === "future").length,
       total:   ph.length,

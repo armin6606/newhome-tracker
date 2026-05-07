@@ -210,7 +210,7 @@ export default function HomePage() {
   const [interestRate, setInterestRate] = useState<number | null>(null)
 
   // Server-side filters
-  const [status, setStatus] = useState("active")
+  const [status, setStatus] = useState("for sale")
   const [minPrice, setMinPrice] = useState("")
   const [maxPrice, setMaxPrice] = useState("")
   const [minBeds, setMinBeds] = useState("")
@@ -343,7 +343,7 @@ export default function HomePage() {
   const ppsqThresholds = getPpsqThresholds(displayed)
 
   // Stats
-  const activeListings = listings.filter((l) => l.status === "active")
+  const activeListings = listings.filter((l) => l.status === "for sale")
   const prices = activeListings.map((l) => l.currentPrice).filter((p): p is number => p != null)
   const sortedPrices = [...prices].sort((a, b) => a - b)
   const medianPrice = sortedPrices.length ? sortedPrices[Math.floor(sortedPrices.length / 2)] : null
@@ -364,7 +364,7 @@ export default function HomePage() {
 
   function resetFilters() {
     setCitySearch("")
-    setStatus("active")
+    setStatus("for sale")
     setMinPrice("")
     setMaxPrice("")
     setMinBeds("")

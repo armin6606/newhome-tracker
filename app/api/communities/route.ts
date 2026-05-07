@@ -93,7 +93,7 @@ export async function GET() {
           l.address !== null &&
           l.currentPrice !== null &&
           !(l.lotNumber && PLACEHOLDER_ONLY_RE.test(l.lotNumber)) &&
-          l.status === "active"
+          l.status === "for sale"
       ).length
 
       // Guard: clamp firstDetected to now so future-dated entries don't skew stats

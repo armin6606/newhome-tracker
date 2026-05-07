@@ -117,7 +117,7 @@ async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
  * Build ScrapedListing[] from a MapResult.
  * If the map reader returned per-lot data, use those.
  * Otherwise generate placeholder lots from the aggregate counts.
- * Enforces: no price → status "future", never "active".
+ * Enforces: no price → status "future", never "for sale".
  */
 function buildListings(
   result: MapResult,
@@ -132,7 +132,7 @@ function buildListings(
       // A real address means the map reader is certain this is a for-sale home.
       const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
       const status: string =
-        lot.status === "active" && !lot.price && !hasRealAddress ? "future" : lot.status
+        lot.status === "for sale" && !lot.price && !hasRealAddress ? "future" : lot.status
 
       return {
         communityName,
@@ -143,9 +143,9 @@ function buildListings(
         beds: lot.beds,
         baths: lot.baths,
         sqft: lot.sqft,
-        price: status === "active" ? lot.price : undefined,
+        price: status === "for sale" ? lot.price : undefined,
         pricePerSqft:
-          status === "active" && lot.price && lot.sqft
+          status === "for sale" && lot.price && lot.sqft
             ? Math.round(lot.price / lot.sqft)
             : undefined,
         status,
@@ -178,7 +178,7 @@ function buildListings(
       // categorized as active. Real price data comes from the map reader when
       // per-lot data is available; here we have none.
       price: undefined,
-      status: "active",
+      status: "for sale",
       sourceUrl: communityUrl,
     })
   }
@@ -589,7 +589,7 @@ export async function runScraper(): Promise<ChangeDetails> {
       totalCount: true,
       lastScrapedAt: true,
       listings: {
-        where: { status: "active", address: { not: null }, currentPrice: { not: null } },
+        where: { status: "for sale", address: { not: null }, currentPrice: { not: null } },
         select: { id: true },
       },
     },

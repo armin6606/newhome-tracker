@@ -55,7 +55,7 @@ import { getTable3Plans, lookupPlan, matchPlanBySpecs, normalizePlan } from "@/l
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
-const VALID_STATUSES = new Set(["active", "sold", "future", "removed"])
+const VALID_STATUSES = new Set(["for sale", "sold", "future", "removed"])
 const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
 const SUFFIX_RE      = /\s+\b(Street|St|Way|Lane|Ln|Circle|Cir|Drive|Dr|Avenue|Ave|Boulevard|Blvd|Court|Ct|Place|Pl|Road|Rd|Terrace|Ter|Trail|Trl|Parkway|Pkwy|Loop|Run|Path|Pass|Alley)\b\.?$/i
 const CITY_RE        = /,\s*.+$/
@@ -179,12 +179,12 @@ interface ValidationResult {
 function validateListing(l: RawListing, communityName: string, existingStatus?: string): ValidationResult {
   const warnings: string[] = []
   const isPlaceholder = !!(l.lotNumber && PLACEHOLDER_RE.test(l.lotNumber))
-  const status = l.status || "active"
+  const status = l.status || "for sale"
 
   if (!VALID_STATUSES.has(status)) {
     return { ok: false, reason: `Invalid status "${status}"` }
   }
-  if (existingStatus === "sold" && status === "active") {
+  if (existingStatus === "sold" && status === "for sale") {
     return { ok: false, reason: `Cannot reverse sold → active` }
   }
   if (isPlaceholder) {
@@ -204,7 +204,7 @@ function validateListing(l: RawListing, communityName: string, existingStatus?: 
     if (!/^\d/.test(cleaned)) {
       return { ok: false, reason: `Address "${l.address}" does not start with a street number` }
     }
-    const forcedStatus  = (status === "active" && !l.currentPrice) ? "future" : undefined
+    const forcedStatus  = (status === "for sale" && !l.currentPrice) ? "future" : undefined
     // forcedSoldAt is intentionally NOT set on new lots that arrive already-sold.
     // We only know soldAt when we observe the active→sold transition on an existing lot.
     // Setting soldAt=now on first ingestion causes false sales spikes on the chart.
@@ -239,7 +239,7 @@ async function syncPlaceholders(communityId: number, counts: Table2Counts): Prom
   })
 
   const activeSold   = existing.filter(l => l.status === "sold")
-  const activeAvail  = existing.filter(l => l.status === "active")
+  const activeAvail  = existing.filter(l => l.status === "for sale")
   const activeFuture = existing.filter(l => l.status === "future")
 
   const toCreate:     { communityId: number; lotNumber: string; status: string; address: null }[] = []
@@ -274,7 +274,7 @@ async function syncPlaceholders(communityId: number, counts: Table2Counts): Prom
   }
 
   reconcile(activeSold,   "sold",   counts.sold,    "sold")
-  reconcile(activeAvail,  "avail",  counts.forSale, "active")
+  reconcile(activeAvail,  "avail",  counts.forSale, "for sale")
   reconcile(activeFuture, "future", counts.future,  "future")
 
   if (toDelete.length > 0) {
@@ -453,7 +453,7 @@ export async function POST(req: NextRequest) {
       autoFixed.push({ address, fix: `Address cleaned: "${rawAddress}" → "${address}"` })
     }
 
-    const status = v.forcedStatus || l.status || "active"
+    const status = v.forcedStatus || l.status || "for sale"
     if (v.forcedStatus) {
       autoFixed.push({ address: address || undefined, lotNumber: l.lotNumber, fix: `Status forced active → future (no price)` })
     }
@@ -539,7 +539,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Table 2 delta: active → sold on real listings
-      if (!isPlaceholder && address && existing.status === "active" && status === "sold") {
+      if (!isPlaceholder && address && existing.status === "for sale" && status === "sold") {
         sheetDelta.sold    += 1
         sheetDelta.forSale -= 1
       }
@@ -648,7 +648,7 @@ export async function POST(req: NextRequest) {
       })
 
       // Table 2 delta: new real listing added as active (new for-sale home)
-      if (!isPlaceholder && address && status === "active") {
+      if (!isPlaceholder && address && status === "for sale") {
         sheetDelta.forSale += 1
       }
 
@@ -722,7 +722,7 @@ export async function POST(req: NextRequest) {
           })
           const valid = placeholders.filter(l => PLACEHOLDER_RE.test(l.lotNumber ?? ""))
           const dbSold   = valid.filter(l => l.status === "sold").length
-          const dbAvail  = valid.filter(l => l.status === "active").length
+          const dbAvail  = valid.filter(l => l.status === "for sale").length
           const dbFuture = valid.filter(l => l.status === "future").length
 
           if (dbSold !== newCounts.sold || dbAvail !== newCounts.forSale || dbFuture !== newCounts.future) {

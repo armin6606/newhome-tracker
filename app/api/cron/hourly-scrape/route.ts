@@ -125,14 +125,14 @@ function diffSnapshots(prev: SnapListing[], curr: SnapListing[]): Omit<HourlyDif
   for (const [id, l] of currMap) {
     const p = prevMap.get(id)
     if (!p) {
-      if (l.status === "active") newListings.push(l)
+      if (l.status === "for sale") newListings.push(l)
     } else if (p.currentPrice !== l.currentPrice) {
       priceChanges.push({ listing: l, oldPrice: p.currentPrice, newPrice: l.currentPrice })
     }
   }
   for (const [id, l] of prevMap) {
     const c = currMap.get(id)
-    if ((!c || c.status === "sold") && l.status === "active") soldListings.push(l)
+    if ((!c || c.status === "sold") && l.status === "for sale") soldListings.push(l)
   }
 
   return { newListings, soldListings, priceChanges }

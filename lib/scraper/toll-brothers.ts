@@ -22,7 +22,7 @@ export interface ScrapedListing {
   schools?: string
   incentives?: string
   sourceUrl: string
-  status?: string   // "active" | "sold" | "future" — defaults to "active" if omitted
+  status?: string   // "for sale" | "sold" | "future" — defaults to "for sale" if omitted
 }
 
 /** Parse floor count from plan name: "Plan 1 - 2 Story" → 2, "3-Story" → 3 */

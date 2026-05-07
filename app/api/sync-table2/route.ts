@@ -108,7 +108,7 @@ async function syncPlaceholders(
   })
 
   const activeSold   = existing.filter((l) => l.status === "sold")
-  const activeAvail  = existing.filter((l) => l.status === "active")
+  const activeAvail  = existing.filter((l) => l.status === "for sale")
   const activeFuture = existing.filter((l) => l.status === "future")
 
   const toCreate:     { communityId: number; lotNumber: string; status: string; address: null }[] = []
@@ -151,7 +151,7 @@ async function syncPlaceholders(
   }
 
   reconcile(activeSold,   "sold",   counts.sold,    "sold")
-  reconcile(activeAvail,  "avail",  counts.forSale, "active")
+  reconcile(activeAvail,  "avail",  counts.forSale, "for sale")
   reconcile(activeFuture, "future", counts.future,  "future")
 
   // Wrap deletes in a transaction — prevents orphaned priceHistory rows if

@@ -42,7 +42,7 @@ export default function DataAccuracyPage() {
           <p>The following information is particularly subject to change and may be outdated or incorrect:</p>
           <ul className="list-disc pl-6 mt-2 space-y-2">
             <li><strong>Prices:</strong> Home prices change frequently. A price shown on NewKey.us may not reflect the current asking price. Builders may change prices, add incentives, or remove listings without notice.</li>
-            <li><strong>Availability:</strong> A home shown as "active" may already be sold, under contract, or removed from the market. Homes marked "removed" may still be available.</li>
+            <li><strong>Availability:</strong> A home shown as "for sale" may already be sold, under contract, or removed from the market. Homes marked "removed" may still be available.</li>
             <li><strong>HOA Fees:</strong> HOA fees are estimates sourced from builder websites or public records. Actual fees may differ and are subject to change.</li>
             <li><strong>Property Taxes:</strong> Tax estimates are calculated using approximate tax rates and may not reflect actual assessed values, special assessments, Mello-Roos, or CFD charges.</li>
             <li><strong>Square Footage &amp; Specifications:</strong> Floor plans, square footage, bed/bath counts, and other specifications are sourced from builder marketing materials and may differ from final construction.</li>

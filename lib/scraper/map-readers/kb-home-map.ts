@@ -92,7 +92,7 @@ export async function readKBHomeMap(
           const bg = window.getComputedStyle(el).backgroundColor
           // Orange = sold. All others (teal/green/yellow) = potentially active,
           // but yellow (model) has no price so buildListings will set it to future.
-          const status: "active" | "sold" = bg === ORANGE ? "sold" : "active"
+          const status: "for sale" | "sold" = bg === ORANGE ? "sold" : "for sale"
 
           // Walk up the DOM to find the card containing address + price
           let parent: Element | null = el.parentElement
@@ -123,7 +123,7 @@ export async function readKBHomeMap(
             lotNumber: lotNum,
             status,
             address,
-            price: status === "active" ? price : undefined,
+            price: status === "for sale" ? price : undefined,
           })
         }
 
@@ -132,7 +132,7 @@ export async function readKBHomeMap(
       { TEAL, GREEN, ORANGE, YELLOW, communityName }
     )
 
-    const active = lots.filter(l => l.status === "active")
+    const active = lots.filter(l => l.status === "for sale")
     const sold   = lots.filter(l => l.status === "sold")
 
     console.log(

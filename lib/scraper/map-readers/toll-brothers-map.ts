@@ -19,9 +19,9 @@ export async function readTollBrothersMap(
     const isQMI =
       lot.lotNum in result.lotPrices || lot.lotNum in result.lotAddresses
 
-    let status: "active" | "sold" | "future"
+    let status: "for sale" | "sold" | "future"
     if (isQMI) {
-      status = "active"
+      status = "for sale"
     } else if (s === "sold" || s === "reserved") {
       status = "sold"
     } else {

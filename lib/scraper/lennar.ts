@@ -873,9 +873,9 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           if (!knownStatuses.has(raw.status)) {
             console.warn(`[Lennar] Unknown homesite status "${raw.status}" for ${raw.address} — treated as future`)
           }
-          const listingStatus: "active" | "sold" | "future" =
-            (raw.status === "SOLD" || raw.status === "CLOSED")                                   ? "sold"   :
-            (raw.status === "UNDER_CONSTRUCTION" || raw.status === "MOVE_IN_READY") && raw.price ? "active" :
+          const listingStatus: "for sale" | "sold" | "future" =
+            (raw.status === "SOLD" || raw.status === "CLOSED")                                   ? "sold"      :
+            (raw.status === "UNDER_CONSTRUCTION" || raw.status === "MOVE_IN_READY") && raw.price ? "for sale"  :
                                                                                                     "future"
 
           let moveInDate: string | undefined

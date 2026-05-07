@@ -148,9 +148,9 @@ export async function detectAndApplyChanges(
             schools: scraped.schools,
             incentives: scraped.incentives,
             sourceUrl: scraped.sourceUrl,
-            status: scraped.status ?? "active",
+            status: scraped.status ?? "for sale",
           },
-          update: { status: scraped.status ?? "active" },
+          update: { status: scraped.status ?? "for sale" },
         })
       } catch (err: unknown) {
         const code = (err as { code?: string }).code
@@ -178,9 +178,9 @@ export async function detectAndApplyChanges(
               schools: scraped.schools,
               incentives: scraped.incentives,
               sourceUrl: scraped.sourceUrl,
-              status: scraped.status ?? "active",
+              status: scraped.status ?? "for sale",
             },
-            update: { status: scraped.status ?? "active" },
+            update: { status: scraped.status ?? "for sale" },
           })
         } else {
           throw err
@@ -216,7 +216,7 @@ export async function detectAndApplyChanges(
       // 2. Flip one future-N placeholder → active so the card reflects the new future count.
       // Only applies to genuinely new active listings (not placeholder ingests, not sold).
       if (
-        (scraped.status ?? "active") === "active" &&
+        (scraped.status ?? "for sale") === "for sale" &&
         (!scraped.lotNumber || !PLACEHOLDER_RE.test(scraped.lotNumber))
       ) {
         // Sheet update (fire-and-forget) — future formula auto-recalculates
@@ -231,7 +231,7 @@ export async function detectAndApplyChanges(
         if (futurePlaceholder) {
           await prisma.listing.update({
             where: { id: futurePlaceholder.id },
-            data: { status: "active" },
+            data: { status: "for sale" },
           })
           console.log(`  [placeholder-sync] ${communityName}: flipped ${futurePlaceholder.lotNumber} → active (new listing released)`)
         }
@@ -292,14 +292,14 @@ export async function detectAndApplyChanges(
 
       // Placeholder sync + sheet update: when a real listing goes active → sold
       // (explicit sold status only — "removed" could mean de-listed, not sold).
-      if (existing.status === "active" && scraped.status === "sold") {
+      if (existing.status === "for sale" && scraped.status === "sold") {
         soldDelta++
         // DB: flip one avail-N placeholder so Table 2 card counts stay accurate
         const availPlaceholder = await prisma.listing.findFirst({
           where: {
             communityId,
             lotNumber: { startsWith: "avail-" },
-            status: "active",
+            status: "for sale",
           },
         })
         if (availPlaceholder) {
@@ -319,7 +319,7 @@ export async function detectAndApplyChanges(
       // Also flip one avail-N placeholder back to active so Table 2 stays in sync.
       if (
         (existing.status === "sold" || existing.status === "removed") &&
-        scraped.status === "active"
+        scraped.status === "for sale"
       ) {
         updates.soldAt = null
         if (existing.status === "sold") soldDelta--   // undo the previous sold increment
@@ -343,7 +343,7 @@ export async function detectAndApplyChanges(
           if (soldAvailPlaceholder) {
             await prisma.listing.update({
               where: { id: soldAvailPlaceholder.id },
-              data: { status: "active", soldAt: null },
+              data: { status: "for sale", soldAt: null },
             })
             console.log(`  [placeholder-sync] ${communityName}: flipped ${soldAvailPlaceholder.lotNumber} back → active`)
           }
@@ -415,7 +415,7 @@ export async function detectAndApplyChanges(
   //       Future/already-sold listings not in scrape are left unchanged.
   for (const [key, listing] of existingByAddress.entries()) {
     if (scrapedAddresses.has(key)) continue       // still present — skip
-    if (listing.status !== "active") continue     // future/sold — leave as-is
+    if (listing.status !== "for sale") continue     // future/sold — leave as-is
 
     if (listing.currentPrice != null) {
       // Had a price → was for-sale → mark sold

@@ -129,7 +129,7 @@ export async function readTaylorMorrisonMap(
           undefined
 
         const s = (lot.status || "").toLowerCase()
-        let status: "active" | "sold" | "future"
+        let status: "for sale" | "sold" | "future"
         if (
           s.includes("sold") ||
           s.includes("closed") ||
@@ -137,7 +137,7 @@ export async function readTaylorMorrisonMap(
         ) {
           status = "sold"
         } else if (s.includes("available") || s.includes("active")) {
-          status = price ? "active" : "future"
+          status = price ? "for sale" : "future"
         } else {
           status = "future"
         }
@@ -145,12 +145,12 @@ export async function readTaylorMorrisonMap(
         return {
           lotNumber: lotNum,
           status,
-          price: status === "active" ? price : undefined,
+          price: status === "for sale" ? price : undefined,
         } satisfies MapLot
       })
 
       const sold = lots.filter((l) => l.status === "sold").length
-      const forSale = lots.filter((l) => l.status === "active").length
+      const forSale = lots.filter((l) => l.status === "for sale").length
       const future = lots.filter((l) => l.status === "future").length
       const total = lots.length
       console.log(

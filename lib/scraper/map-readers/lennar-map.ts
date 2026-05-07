@@ -14,14 +14,14 @@ export async function readLennarMap(
   const listings = await scrapeLennarCommunity(url, communityName)
 
   const lots: MapLot[] = listings.map((listing, i) => {
-    let status: "active" | "sold" | "future"
+    let status: "for sale" | "sold" | "future"
     if (listing.status === "sold") {
       status = "sold"
     } else if (listing.status === "future" || !listing.price) {
       // No price = future (no-price rule)
       status = "future"
     } else {
-      status = "active"
+      status = "for sale"
     }
 
     return {
@@ -37,7 +37,7 @@ export async function readLennarMap(
   })
 
   const sold = lots.filter((l) => l.status === "sold").length
-  const forSale = lots.filter((l) => l.status === "active").length
+  const forSale = lots.filter((l) => l.status === "for sale").length
   const future = lots.filter((l) => l.status === "future").length
   const total = lots.length
 

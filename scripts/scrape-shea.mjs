@@ -108,7 +108,7 @@ function normalizeAddress(addr) {
 async function getDbActive(communityName, builderName) {
   const listings = await prisma.listing.findMany({
     where: {
-      status:    "active",
+      status:    "for sale",
       community: { name: communityName, builder: { name: builderName } },
     },
     select: { id: true, address: true, lotNumber: true, currentPrice: true },
@@ -384,7 +384,7 @@ async function main() {
             lotNumber:    item.lotNumber || null,
             currentPrice: price,
             moveInDate:   item.moveInDate || null,
-            status:       "active",
+            status:       "for sale",
             sourceUrl:    item.sourceUrl || null,
             floorPlan:    item.plan || null,
             sqft:         item.sqft || null,
@@ -398,7 +398,7 @@ async function main() {
           priceUpdates.push({
             address,
             currentPrice: price,
-            status:       "active",
+            status:       "for sale",
             sourceUrl:    item.sourceUrl || null,
           })
         }

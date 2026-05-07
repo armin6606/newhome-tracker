@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const activeCommunities = await prisma.community.findMany({
       where: {
-        listings: { some: { status: "active" } },
+        listings: { some: { status: "for sale" } },
       },
       select: {
         name: true,

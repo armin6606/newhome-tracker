@@ -142,7 +142,7 @@ async function collectData(snapshot) {
 
   // Post-scrape for-sale count (real listings)
   const forSaleNow = await prisma.listing.count({
-    where: { status: "active", address: { not: null } },
+    where: { status: "for sale", address: { not: null } },
   })
 
   // Changes since midnight, with builder info
@@ -180,7 +180,7 @@ async function collectData(snapshot) {
     const ph = c.listings
     communityCardsNow[c.name] = {
       builder: c.builder.name,
-      active:  ph.filter(l => l.status === "active").length,
+      active:  ph.filter(l => l.status === "for sale").length,
       sold:    ph.filter(l => l.status === "sold").length,
       future:  ph.filter(l => l.status === "future").length,
       total:   ph.length,
