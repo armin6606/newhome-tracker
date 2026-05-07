@@ -465,13 +465,27 @@ async function detectAndApplyChanges(
     if (scrapedAddresses.has(key)) continue
     if (listing.status !== "active") continue
 
-    if (listing.currentPrice != null) {
+    // A lot is only marked SOLD if it has BOTH a real price AND a real address.
+    // Placeholder addresses (avail-N, future-N, sold-N, lot-N) with no price are
+    // never "sold" — they become "removed" (or "future" if they never had a price).
+    const hasRealAddress = listing.address != null && !PLACEHOLDER_RE.test(listing.address)
+    const hasPrice = listing.currentPrice != null
+
+    if (hasPrice && hasRealAddress) {
+      // Genuine for-sale lot that disappeared → sold
       await prisma.listing.update({
         where: { id: listing.id },
         data: { status: "sold", soldAt: new Date() },
       })
       soldDelta++
+    } else if (!hasPrice) {
+      // No price = was a future/unreleased lot → mark future, not sold
+      await prisma.listing.update({
+        where: { id: listing.id },
+        data: { status: "future" },
+      })
     } else {
+      // Has price but placeholder address → removed (data anomaly, not a real sale)
       await prisma.listing.update({
         where: { id: listing.id },
         data: { status: "removed", soldAt: new Date() },
