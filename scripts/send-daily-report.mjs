@@ -20,6 +20,17 @@ import { readFileSync, existsSync } from "fs"
 import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 
+// Load scraper run results written by lib/scraper/index.ts
+function loadScraperResults() {
+  const paths = ["/tmp/scrape-results.json", resolve(dirname(fileURLToPath(import.meta.url)), "../logs/scrape-results.json")]
+  for (const p of paths) {
+    if (existsSync(p)) {
+      try { return JSON.parse(readFileSync(p, "utf8")) } catch {}
+    }
+  }
+  return null
+}
+
 const require    = createRequire(import.meta.url)
 const __dirname  = dirname(fileURLToPath(import.meta.url))
 
@@ -472,9 +483,44 @@ function section5Other(snapshot, communityCardsNow, table2Now) {
   `)
 }
 
+// ── Section 0: Scraper Run Status ─────────────────────────────────────────────
+
+function section0ScraperStatus(scraperResults) {
+  if (!scraperResults) {
+    return card(`${sectionHeader("Scraper Run Status")}
+      <p style="color:#9ca3af;font-size:13px;margin:0">No scraper results available (ran manually or results file missing).</p>`)
+  }
+
+  const rows = Object.entries(scraperResults).map(([builder, d]) => {
+    const ok      = d.status === "success"
+    const icon    = ok ? "✅" : "❌"
+    const statusEl = ok
+      ? `<span style="color:#16a34a;font-weight:600">Passed</span>`
+      : `<span style="color:#dc2626;font-weight:600">Failed</span>`
+    const errEl = d.errors && d.errors.length > 0
+      ? `<div style="font-size:11px;color:#dc2626;margin-top:3px">${d.errors.map(e => `• ${e}`).join("<br>")}</div>`
+      : ""
+    return [
+      `${icon} ${builder}`,
+      statusEl + errEl,
+      String(d.communities ?? "—"),
+    ]
+  })
+
+  const anyFail = Object.values(scraperResults).some(d => d.status !== "success")
+  const header  = anyFail
+    ? `Scraper Run Status <span style="color:#dc2626;font-size:13px;font-weight:400">— issues detected</span>`
+    : `Scraper Run Status <span style="color:#16a34a;font-size:13px;font-weight:400">— all passed</span>`
+
+  return card(`
+    ${sectionHeader(header)}
+    ${table(["Builder", "Status", "Communities"], rows, "No results.")}
+  `)
+}
+
 // ── Build full HTML email ──────────────────────────────────────────────────────
 
-function buildHtml(snapshot, data) {
+function buildHtml(snapshot, data, scraperResults) {
   const { forSaleNow, newListings, newlySold, priceChanges, communityCardsNow, table2Now } = data
   const dateStr = new Date().toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
@@ -483,6 +529,7 @@ function buildHtml(snapshot, data) {
     ? new Date(snapshot.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short" })
     : "unavailable"
 
+  const s0 = section0ScraperStatus(scraperResults)
   const s1 = section1ForSale(snapshot, forSaleNow)
   const s2 = section2ScraperActivity(newListings, newlySold, priceChanges)
   const s3 = section3CommunityCards(snapshot, communityCardsNow)
@@ -504,6 +551,7 @@ function buildHtml(snapshot, data) {
 
     <!-- Body -->
     <div style="background:#f3f4f6;padding:16px 0">
+      ${s0}
       ${s1}
       ${s2}
       ${s3}
@@ -565,6 +613,14 @@ async function main() {
     }
   }
 
+  // Load scraper run results (available in GitHub Actions, null when run manually)
+  const scraperResults = loadScraperResults()
+  const passCount = scraperResults ? Object.values(scraperResults).filter(d => d.status === "success").length : null
+  const failCount = scraperResults ? Object.values(scraperResults).filter(d => d.status !== "success").length : null
+  console.log(scraperResults
+    ? `  Scraper results: ${passCount} passed, ${failCount} failed`
+    : "  Scraper results: not available (manual run)")
+
   console.log("\n  Collecting post-scrape data…")
   const data = await collectData(snapshot)
 
@@ -575,8 +631,11 @@ async function main() {
   console.log(`  Price changes : ${priceChanges.length}`)
 
   const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-  const subject = `New Key Daily Report — ${dateStr}`
-  const html    = buildHtml(snapshot, data)
+  const anyFail = failCount !== null && failCount > 0
+  const subject = anyFail
+    ? `⚠️ New Key Daily Report — ${dateStr} (${failCount} scraper issue${failCount > 1 ? "s" : ""})`
+    : `✅ New Key Daily Report — ${dateStr}`
+  const html    = buildHtml(snapshot, data, scraperResults)
 
   console.log(`\n  Sending to ${TO}…`)
   const result = await sendEmail(subject, html)
