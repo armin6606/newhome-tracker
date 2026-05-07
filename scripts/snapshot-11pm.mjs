@@ -140,17 +140,27 @@ async function main() {
     table2,
   }
 
-  const outPath = resolve(__dirname, "../logs/nightly-snapshot.json")
-  writeFileSync(outPath, JSON.stringify(snapshot, null, 2), "utf8")
+  // Write to local file (for local use / fallback)
+  try {
+    const outPath = resolve(__dirname, "../logs/nightly-snapshot.json")
+    writeFileSync(outPath, JSON.stringify(snapshot, null, 2), "utf8")
+    const dateStr  = new Date().toISOString().slice(0, 10)
+    const archiveDir  = resolve(__dirname, "../logs/snapshots")
+    mkdirSync(archiveDir, { recursive: true })
+    writeFileSync(resolve(archiveDir, `snapshot-${dateStr}.json`), JSON.stringify(snapshot, null, 2), "utf8")
+    console.log(`\n  ✓ Snapshot saved to file`)
+  } catch (e) {
+    console.warn(`  ⚠ Could not write snapshot file: ${e.message}`)
+  }
 
-  // Also save a dated copy so history is preserved
-  const dateStr = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-  const archiveDir = resolve(__dirname, "../logs/snapshots")
-  mkdirSync(archiveDir, { recursive: true })
-  const archivePath = resolve(archiveDir, `snapshot-${dateStr}.json`)
-  writeFileSync(archivePath, JSON.stringify(snapshot, null, 2), "utf8")
-  console.log(`\n  ✓ Snapshot saved to ${outPath}`)
-  console.log(`  ✓ Archive saved to  ${archivePath}`)
+  // Write to DB so GitHub Actions can read it across workflow runs
+  await prisma.dailySnapshot.create({ data: { data: snapshot } })
+  // Keep only the 30 most recent — prune old ones
+  const old = await prisma.dailySnapshot.findMany({ orderBy: { createdAt: "desc" }, skip: 30 })
+  if (old.length > 0) {
+    await prisma.dailySnapshot.deleteMany({ where: { id: { in: old.map(s => s.id) } } })
+  }
+  console.log(`  ✓ Snapshot saved to DB`)
   console.log("=".repeat(60))
 }
 

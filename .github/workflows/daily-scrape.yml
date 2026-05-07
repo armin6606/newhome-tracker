@@ -90,95 +90,9 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - name: Email scrape report
+      - name: Send daily report email
         if: always()
+        run: node scripts/send-daily-report.mjs
         env:
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          RESEND_FROM: ${{ secrets.RESEND_FROM_EMAIL }}
-        run: |
-          DATE=$(date '+%Y-%m-%d')
-          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-          # All 9 builders write to /tmp/scrape-results.json — build the full email table from it
-          node -e "
-            const fs = require('fs');
-            let data = {};
-            try { data = JSON.parse(fs.readFileSync('/tmp/scrape-results.json', 'utf8')); } catch(e) {}
-
-            const th = s => '<th style=\"padding:6px 16px 6px 0;text-align:left;border-bottom:2px solid #ddd;font-size:13px;color:#555\">' + s + '</th>';
-            const td = (s, opts='') => '<td style=\"padding:5px 16px 5px 0;font-size:13px;' + opts + '\">' + s + '</td>';
-            const fmt = n => n ? '$' + Number(n).toLocaleString() : '';
-            const lotAddr = (l) => {
-              const parts = [];
-              if (l.lotNumber) parts.push('Lot ' + l.lotNumber);
-              if (l.address && !l.address.match(/^(avail|sold|future|lot)-/i)) parts.push(l.address);
-              return parts.join(' / ') || l.address || '';
-            };
-
-            let anyFail = false;
-            let rows = '';
-            for (const [name, d] of Object.entries(data)) {
-              const ok   = d.communities - d.errorCount;
-              const fail = d.errorCount;
-              if (fail > 0) anyFail = true;
-              const icon = fail === 0 ? '✅' : '❌';
-              rows += '<tr>';
-              rows += td(icon + ' ' + name);
-              rows += td(String(d.communities), 'text-align:center');
-              rows += td(String(ok),   'text-align:center;color:green');
-              rows += td(fail > 0 ? '<b style=\"color:red\">' + fail + '</b>' : '0', 'text-align:center');
-              rows += '</tr>';
-              if (d.errors && d.errors.length > 0) {
-                rows += '<tr><td colspan=4 style=\"padding:0 0 4px 22px;font-size:11px;color:#c00\">' +
-                  d.errors.map(e => '• ' + e).join('<br>') + '</td></tr>';
-              }
-              if (d.newListings && d.newListings.length > 0) {
-                rows += '<tr><td colspan=4 style=\"padding:0 0 2px 22px;font-size:11px;color:#1a7f37\"><b>New (' + d.newListings.length + '):</b> ' +
-                  d.newListings.map(l => lotAddr(l) + (l.price ? ' — ' + fmt(l.price) : '') + ' (' + l.community + ')').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') +
-                  '</td></tr>';
-              }
-              if (d.priceChanges && d.priceChanges.length > 0) {
-                rows += '<tr><td colspan=4 style=\"padding:0 0 2px 22px;font-size:11px;color:#b36800\"><b>Price changes (' + d.priceChanges.length + '):</b> ' +
-                  d.priceChanges.map(l => lotAddr(l) + ' — ' + fmt(l.oldPrice) + ' → ' + fmt(l.newPrice) + ' (' + l.community + ')').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') +
-                  '</td></tr>';
-              }
-              if (d.soldListings && d.soldListings.length > 0) {
-                rows += '<tr><td colspan=4 style=\"padding:0 0 2px 22px;font-size:11px;color:#888\"><b>Sold/removed (' + d.soldListings.length + '):</b> ' +
-                  d.soldListings.map(l => lotAddr(l) + ' (' + l.community + ')').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') +
-                  '</td></tr>';
-              }
-              if (d.reactivated && d.reactivated.length > 0) {
-                rows += '<tr><td colspan=4 style=\"padding:0 0 6px 22px;font-size:11px;color:#6f42c1\"><b>↩ Reactivated (' + d.reactivated.length + '):</b> ' +
-                  d.reactivated.map(l => lotAddr(l) + ' (' + l.community + ')').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;') +
-                  '</td></tr>';
-              }
-            }
-
-            if (!rows) {
-              rows = '<tr><td colspan=4 style=\"color:orange\">⚠️ No results written — scraper may have failed before completing</td></tr>';
-              anyFail = true;
-            }
-
-            const subject = anyFail
-              ? '⚠️ New Key Scrape Issues — $DATE'
-              : '✅ New Key Scrape Complete — $DATE';
-
-            const html =
-              '<p style=\"font-family:sans-serif\"><b>Daily scrape report — $DATE</b></p>' +
-              '<table style=\"border-collapse:collapse;font-family:sans-serif\">' +
-              '<thead><tr>' + th('Builder') + th('Total') + th('✅ OK') + th('❌ Failed') + '</tr></thead>' +
-              '<tbody>' + rows + '</tbody></table>' +
-              '<br><a href=\"$RUN_URL\" style=\"font-family:sans-serif\">View full logs →</a>';
-
-            const out = JSON.stringify({ subject, html });
-            fs.writeFileSync('/tmp/email-payload.json', out);
-            process.stdout.write('Subject: ' + subject + '\n');
-          "
-
-          SUBJECT=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/email-payload.json')).subject)")
-          HTML=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/email-payload.json')).html)")
-
-          curl -s -X POST "https://api.resend.com/emails" \
-            -H "Authorization: Bearer $RESEND_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"from\":\"$RESEND_FROM\",\"to\":[\"armin.sabe@gmail.com\"],\"subject\":\"$SUBJECT\",\"html\":\"$HTML\"}"
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL:   ${{ secrets.DIRECT_URL }}

@@ -1,0 +1,33 @@
+name: Nightly Snapshot
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 11 PM PDT (6 AM UTC) daily
+  workflow_dispatch:        # Manual trigger from GitHub Actions UI
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Take 11 PM snapshot
+        run: node scripts/snapshot-11pm.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL:   ${{ secrets.DIRECT_URL }}

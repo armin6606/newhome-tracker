@@ -16,7 +16,6 @@
 import { writeFileSync } from "fs"
 import { prisma } from "@/lib/db"
 import { detectAndApplyChanges, type ChangeDetails } from "./detect-changes"
-import { sendScrapeSummary } from "./scrape-summary"
 import { fetchBuilderSheet } from "./sheet-reader"
 import type { SheetCommunityRow } from "./sheet-reader"
 import type { ScrapedListing } from "./toll-brothers"
@@ -578,18 +577,37 @@ export async function runScraper(): Promise<ChangeDetails> {
     `${totalStats.removed} removed`
   )
 
-  // Send daily scrape summary email
-  try {
-    await sendScrapeSummary({
-      scrapeTime: scrapeStartTime,
-      totalScraped,
-      changes: totalStats,
-      errors: allErrors,
-    })
-    console.log("Scrape summary email sent to info@newkey.us")
-  } catch (err) {
-    console.error("Failed to send scrape summary email:", err)
-  }
+  // ── Check for count mismatches and stale communities ──────────────────────
+  const allCommunities = await prisma.community.findMany({
+    select: {
+      name: true,
+      soldCount: true,
+      futureCount: true,
+      totalCount: true,
+      lastScrapedAt: true,
+      listings: {
+        where: { status: "active", address: { not: null }, currentPrice: { not: null } },
+        select: { id: true },
+      },
+    },
+  })
+  const now = new Date()
+  const countMismatches = allCommunities
+    .filter(c => c.totalCount > 0)
+    .map(c => ({
+      community: c.name,
+      sold: c.soldCount,
+      forSale: c.listings.length,
+      future: c.futureCount,
+      total: c.totalCount,
+    }))
+    .filter(m => (m.sold + m.forSale + m.future) !== m.total)
+  const staleCommunities = allCommunities
+    .filter(c =>
+      !c.lastScrapedAt ||
+      (now.getTime() - c.lastScrapedAt.getTime()) > 24 * 60 * 60 * 1000
+    )
+    .map(c => ({ community: c.name, lastScrapedAt: c.lastScrapedAt }))
 
   return totalStats
 }

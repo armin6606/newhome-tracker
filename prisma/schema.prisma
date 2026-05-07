@@ -26,6 +26,11 @@ model Community {
   url           String
   firstDetected DateTime          @default(now())
   lastUpdated   DateTime          @updatedAt
+  // ── Authoritative counts (source: Table 2 baseline + scraper increments) ──
+  soldCount     Int               @default(0)   // Table 2 baseline; scraper auto-increments on sale
+  futureCount   Int               @default(0)   // Table 2 only; site never modifies
+  totalCount    Int               @default(0)   // Table 2 only; fixed forever
+  lastScrapedAt DateTime?                        // Timestamp of last successful scraper run
   listings      Listing[]
   follows       CommunityFollow[]
 
@@ -93,6 +98,14 @@ model CommunityFollow {
 
   @@unique([userId, communityId])
   @@index([userId])
+}
+
+model DailySnapshot {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  data      Json
+
+  @@map("daily_snapshots")
 }
 
 model HourlySnapshot {

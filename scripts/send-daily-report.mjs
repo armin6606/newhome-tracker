@@ -535,18 +535,27 @@ async function main() {
   console.log(` New Key Daily Report — ${new Date().toISOString()}`)
   console.log("=".repeat(60))
 
-  // Load 11 PM snapshot (may not exist on first run)
-  const snapshotPath = resolve(__dirname, "../logs/nightly-snapshot.json")
+  // Load 11 PM snapshot — try DB first (works in GitHub Actions), fall back to file
   let snapshot = null
-  if (existsSync(snapshotPath)) {
-    try {
-      snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"))
-      console.log(`  Snapshot loaded from ${snapshot.timestamp}`)
-    } catch {
-      console.warn("  Warning: could not parse snapshot file — running without it")
+  try {
+    const record = await prisma.dailySnapshot.findFirst({ orderBy: { createdAt: "desc" } })
+    if (record) {
+      snapshot = record.data
+      console.log(`  Snapshot loaded from DB (${record.createdAt.toISOString()})`)
     }
-  } else {
-    console.warn("  Warning: no snapshot file found — 11 PM baseline will be unavailable")
+  } catch {
+    // DB read failed — try local file
+    const snapshotPath = resolve(__dirname, "../logs/nightly-snapshot.json")
+    if (existsSync(snapshotPath)) {
+      try {
+        snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"))
+        console.log(`  Snapshot loaded from file (${snapshot.timestamp})`)
+      } catch {
+        console.warn("  Warning: could not parse snapshot file — running without it")
+      }
+    } else {
+      console.warn("  Warning: no snapshot found — 11 PM baseline will be unavailable")
+    }
   }
 
   console.log("\n  Collecting post-scrape data…")
