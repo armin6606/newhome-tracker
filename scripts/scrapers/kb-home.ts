@@ -126,26 +126,28 @@ async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
 // ── buildListings ─────────────────────────────────────────────────────────────
 
 function buildListings(result: MapResult, communityName: string, communityUrl: string): ScrapedListing[] {
-  if (result.lots && result.lots.length > 0) {
-    return result.lots.map(lot => {
-      const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
-      const status: string = lot.status === "active" && !lot.price && !hasRealAddress ? "future" : lot.status
-      return {
-        communityName, communityUrl,
-        address: lot.address ?? `Lot ${lot.lotNumber}`,
-        lotNumber: lot.lotNumber, floorPlan: lot.floorPlan,
-        beds: lot.beds, baths: lot.baths, sqft: lot.sqft,
-        price: status === "active" ? lot.price : undefined,
-        pricePerSqft: status === "active" && lot.price && lot.sqft ? Math.round(lot.price / lot.sqft) : undefined,
-        status, sourceUrl: communityUrl,
-      } as ScrapedListing
-    })
+  if (!result.lots || result.lots.length === 0) {
+    // New map reader always returns lots — if empty it means the page failed to load
+    console.warn(`  [KB Home] buildListings: no lots returned for ${communityName} — skipping`)
+    return []
   }
-  const listings: ScrapedListing[] = []
-  for (let i = 1; i <= result.sold; i++) listings.push({ communityName, communityUrl, address: `sold-${i}`, lotNumber: `sold-${i}`, status: "sold", sourceUrl: communityUrl })
-  for (let i = 1; i <= result.forSale; i++) listings.push({ communityName, communityUrl, address: `avail-${i}`, lotNumber: `avail-${i}`, status: "active", sourceUrl: communityUrl })
-  for (let i = 1; i <= result.future; i++) listings.push({ communityName, communityUrl, address: `future-${i}`, lotNumber: `future-${i}`, status: "future", sourceUrl: communityUrl })
-  return listings
+
+  return result.lots.map(lot => {
+    // Only active lots with a real address qualify as "for sale"
+    const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
+    const status: string = lot.status === "active" && (!lot.price || !hasRealAddress) ? "future" : lot.status
+    return {
+      communityName, communityUrl,
+      address: lot.address ?? `Lot ${lot.lotNumber}`,
+      lotNumber: lot.lotNumber,
+      floorPlan: lot.floorPlan,
+      beds: lot.beds, baths: lot.baths, sqft: lot.sqft,
+      price: status === "active" ? lot.price : undefined,
+      pricePerSqft: status === "active" && lot.price && lot.sqft ? Math.round(lot.price / lot.sqft) : undefined,
+      status,
+      sourceUrl: communityUrl,
+    } as ScrapedListing
+  })
 }
 
 // ── detectAndApplyChanges ─────────────────────────────────────────────────────
