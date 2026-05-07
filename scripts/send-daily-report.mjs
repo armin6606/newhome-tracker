@@ -58,6 +58,13 @@ function fmt(n) {
   return n != null ? "$" + Number(n).toLocaleString() : "N/A"
 }
 
+function lotAddr(l) {
+  const parts = []
+  if (l.lotNumber) parts.push("Lot " + l.lotNumber)
+  if (l.address && !/^(avail|sold|future|lot)-/i.test(l.address)) parts.push(l.address)
+  return parts.join(" / ") || l.address || l.lotNumber || "—"
+}
+
 function delta(after, before) {
   const d = after - before
   if (d === 0) return '<span style="color:#6b7280">±0</span>'
@@ -276,7 +283,7 @@ function section2ScraperActivity(newListings, newlySold, priceChanges) {
 
     if (news.length > 0) {
       const rows = news.map(l => [
-        l.address,
+        lotAddr(l),
         l.community.name,
         l.currentPrice ? fmt(l.currentPrice) : "—",
         l.moveInDate || "—",
@@ -286,7 +293,7 @@ function section2ScraperActivity(newListings, newlySold, priceChanges) {
     }
 
     if (solds.length > 0) {
-      const rows = solds.map(l => [l.address, l.community.name, l.currentPrice ? fmt(l.currentPrice) : "—"])
+      const rows = solds.map(l => [lotAddr(l), l.community.name, l.currentPrice ? fmt(l.currentPrice) : "—"])
       detail += `<div style="margin-top:8px;font-size:12px;color:#dc2626;font-weight:600">Newly Sold (${solds.length})</div>`
       detail += table(["Address","Community","Last Price"], rows, "")
     }
@@ -298,7 +305,7 @@ function section2ScraperActivity(newListings, newlySold, priceChanges) {
         const curr = fmt(pc.price)
         const d2   = pc.oldPrice ? (pc.price - pc.oldPrice) : null
         const chg  = d2 !== null ? (d2 > 0 ? `<span style="color:#dc2626">+${fmt(d2)}</span>` : `<span style="color:#16a34a">${fmt(d2)}</span>`) : "—"
-        return [l.address ?? l.lotNumber, l.community.name, prev, curr, chg]
+        return [lotAddr(l), l.community.name, prev, curr, chg]
       })
       detail += `<div style="margin-top:8px;font-size:12px;color:#2563eb;font-weight:600">Price Changes (${prices.length})</div>`
       detail += table(["Address","Community","Old Price","New Price","Change"], rows, "")
