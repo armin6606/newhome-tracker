@@ -336,7 +336,7 @@ export default function ListingDetailPage() {
                 { label: "HOA/mo",      value: formatPrice(listing.hoaFees) },
                 { label: "Tax Rate",    value: listing.taxes ?? "—" },
                 { label: "Move-In",     value: listing.moveInDate ? listing.moveInDate.replace(/^quick\s+move[-\s]?in\s*/i, "").trim() || listing.moveInDate : "—" },
-                { label: "Status",      value: listing.status === "removed" ? "Sold/Removed" : "Active" },
+                { label: "Status",      value: listing.status === "for sale" ? "For Sale" : listing.status === "sold" ? "Sold" : listing.status === "future" ? "Future Release" : listing.status === "removed" ? "Sold/Removed" : "—" },
                 { label: "Days Listed", value: `${daysListed}d` },
               ].map(({ label, value }) => (
                 <div key={label} className="flex flex-col">
