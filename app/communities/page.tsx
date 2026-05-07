@@ -15,6 +15,7 @@ type Community = {
   url: string
   builderName: string
   firstDetected: string
+  lastScrapedAt: string | null
   totalReleased: number
   sold: number
   active: number
@@ -25,6 +26,7 @@ type Community = {
   minPrice: number | null
   maxPrice: number | null
   salesByWeek: { week: string; sold: number }[]
+  countMismatch: boolean
 }
 
 
@@ -195,9 +197,32 @@ export default function CommunitiesPage() {
                   <div className="text-xs text-blue-400 font-medium">Future</div>
                 </div>
               </div>
-              <div className="text-center text-xs text-gray-400 mb-3">
+              <div className="text-center text-xs text-gray-400 mb-1">
                 Total Number of Homes: <span className="font-semibold text-gray-600">{c.totalReleased}</span>
               </div>
+              {/* Last updated timestamp */}
+              <div className={`text-center text-xs mb-3 ${
+                !c.lastScrapedAt || (Date.now() - new Date(c.lastScrapedAt).getTime()) > 24 * 60 * 60 * 1000
+                  ? "text-orange-500 font-semibold"
+                  : "text-gray-400"
+              }`}>
+                {c.lastScrapedAt
+                  ? `Last updated: ${(() => {
+                      const diffMs = Date.now() - new Date(c.lastScrapedAt).getTime()
+                      const diffH  = Math.floor(diffMs / (1000 * 60 * 60))
+                      const diffM  = Math.floor(diffMs / (1000 * 60))
+                      if (diffM < 60) return `${diffM}m ago`
+                      if (diffH < 24) return `${diffH}h ago`
+                      return `${Math.floor(diffH / 24)}d ago ⚠️`
+                    })()}`
+                  : "⚠️ Never scraped"}
+              </div>
+              {/* Count mismatch warning */}
+              {c.countMismatch && (
+                <div className="text-center text-xs text-red-500 font-semibold mb-3">
+                  ⚠️ Count mismatch: {c.sold}+{c.active}+{c.future} ≠ {c.totalReleased}
+                </div>
+              )}
 
               {/* Pie chart */}
               {(c.active > 0 || c.sold > 0) && (

@@ -13,14 +13,12 @@ const LISTING_SELECT = {
   soldAt:        true,
 } as const
 
+const PLACEHOLDER_ONLY_RE = /^(sold|avail|future)-\d+$/
+
 // salesByWeek: show from fixed tracking start date so the chart is consistent
 // across all page loads (not a rolling window that shifts every day).
 const CHART_START_MS = new Date("2026-03-25T00:00:00Z").getTime()
 const DAY_MS         = 24 * 60 * 60 * 1000
-const PLACEHOLDER_RE    = /^(sold|avail|future)-\d+$/
-
-// One warn-once set per process so placeholder-mismatch warnings don't flood logs
-const warnedCommunities = new Set<string>()
 
 export async function GET() {
   try {
@@ -31,6 +29,8 @@ export async function GET() {
         listings: { select: LISTING_SELECT },
       },
       orderBy: { name: "asc" },
+      // Include new count fields and lastScrapedAt
+      // (they live directly on the Community model — no extra join needed)
     })
 
     // ── Sheet guardrail: verify each builder tab once, not once per community ──
@@ -78,24 +78,21 @@ export async function GET() {
 
     // ── Build response for each community ────────────────────────────────────
     const result = allowedCommunities.map((c) => {
-      // ── Placeholder lots — Table 2 source of truth for Total and Future ──
-      const placeholders = c.listings.filter(
-        (l) => l.lotNumber && PLACEHOLDER_RE.test(l.lotNumber)
-      )
+        // ── Authoritative counts from Community fields ────────────────────────
+      // soldCount:   Table 2 baseline + scraper auto-increments on sale
+      // futureCount: Table 2 read-only
+      // totalCount:  Table 2 fixed forever
+      const sold   = c.soldCount
+      const future = c.futureCount
+      const total  = c.totalCount
 
-      // Total, Sold, Future: always from Table 2 (placeholder lots)
-      // When the scraper observes a real active→sold transition it flips one
-      // avail-N placeholder to sold, keeping these counts in sync automatically.
-      const sold   = placeholders.filter((l) => l.status === "sold").length
-      const future = placeholders.filter((l) => l.status === "future").length
-      const total  = placeholders.filter((l) => l.status !== "removed").length
-
-      // ── For Sale — from real (scraped) listings on the listing page ──────────
-      // A real listing: has an address and is NOT a placeholder lot number.
+      // ── For Sale — live count of active real listings (price + address) ──────
+      // Excludes placeholder lots (avail-N, sold-N, future-N)
       const active = c.listings.filter(
         (l) =>
           l.address !== null &&
-          !(l.lotNumber && PLACEHOLDER_RE.test(l.lotNumber)) &&
+          l.currentPrice !== null &&
+          !(l.lotNumber && PLACEHOLDER_ONLY_RE.test(l.lotNumber)) &&
           l.status === "active"
       ).length
 
@@ -167,6 +164,7 @@ export async function GET() {
         url:            c.url,
         builderName:    c.builder.name,
         firstDetected:  c.firstDetected,
+        lastScrapedAt:  c.lastScrapedAt ?? null,
         totalReleased:  total,
         sold,
         active,
@@ -177,6 +175,8 @@ export async function GET() {
         minPrice,
         maxPrice,
         salesByWeek,
+        // Alert flag: counts don't add up to total
+        countMismatch: total > 0 && (sold + active + future) !== total,
       }
     })
 

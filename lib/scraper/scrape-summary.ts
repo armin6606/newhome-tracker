@@ -2,11 +2,19 @@ import { getResend, FROM_EMAIL } from "@/lib/email/resend"
 import type { ChangeDetails } from "./detect-changes"
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://newkey.us"
-const SUMMARY_RECIPIENT = "info@newkey.us"
+const SUMMARY_RECIPIENT = process.env.ALERT_EMAIL ?? "armin.sabe@gmail.com"
 
 function fmt(n: number | null | undefined) {
   if (!n) return "N/A"
   return "$" + n.toLocaleString()
+}
+
+export interface CountMismatch {
+  community: string
+  sold: number
+  forSale: number
+  future: number
+  total: number
 }
 
 export interface ScrapeSummaryData {
@@ -14,6 +22,8 @@ export interface ScrapeSummaryData {
   totalScraped: number
   changes: ChangeDetails
   errors: { builder: string; error: string }[]
+  countMismatches?: CountMismatch[]
+  staleCommunities?: { community: string; lastScrapedAt: Date | null }[]
 }
 
 export function scrapeSummarySubject(data: ScrapeSummaryData): string {
@@ -26,7 +36,7 @@ export function scrapeSummarySubject(data: ScrapeSummaryData): string {
 }
 
 export function scrapeSummaryHtml(data: ScrapeSummaryData): string {
-  const { changes, totalScraped, scrapeTime, errors } = data
+  const { changes, totalScraped, scrapeTime, errors, countMismatches = [], staleCommunities = [] } = data
 
   const dateStr = scrapeTime.toLocaleDateString("en-US", {
     weekday: "long",
@@ -47,6 +57,7 @@ export function scrapeSummaryHtml(data: ScrapeSummaryData): string {
       .map(
         (l) => `
         <tr>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #6b7280; text-align: center;">${l.lotNumber ?? "—"}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #111827;">${l.address}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #6b7280;">${l.community}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #6b7280;">${l.builder}</td>
@@ -61,6 +72,7 @@ export function scrapeSummaryHtml(data: ScrapeSummaryData): string {
         <table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
           <thead>
             <tr style="background: #f9fafb;">
+              <th style="padding: 8px 12px; text-align: center; font-size: 12px; color: #6b7280; font-weight: 600;">Lot #</th>
               <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Address</th>
               <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Community</th>
               <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Builder</th>
@@ -83,6 +95,7 @@ export function scrapeSummaryHtml(data: ScrapeSummaryData): string {
         const arrow = isDown ? "&#x2193;" : "&#x2191;"
         return `
         <tr>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #6b7280; text-align: center;">${l.lotNumber ?? "—"}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #111827;">${l.address}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #6b7280;">${l.community}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #9ca3af; text-decoration: line-through; text-align: right;">${fmt(l.oldPrice)}</td>
@@ -97,6 +110,7 @@ export function scrapeSummaryHtml(data: ScrapeSummaryData): string {
         <table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
           <thead>
             <tr style="background: #f9fafb;">
+              <th style="padding: 8px 12px; text-align: center; font-size: 12px; color: #6b7280; font-weight: 600;">Lot #</th>
               <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Address</th>
               <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Community</th>
               <th style="padding: 8px 12px; text-align: right; font-size: 12px; color: #6b7280; font-weight: 600;">Old Price</th>
@@ -115,6 +129,7 @@ export function scrapeSummaryHtml(data: ScrapeSummaryData): string {
       .map(
         (l) => `
         <tr>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #6b7280; text-align: center;">${l.lotNumber ?? "—"}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #111827;">${l.address}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #6b7280;">${l.community}</td>
         </tr>`
@@ -127,6 +142,7 @@ export function scrapeSummaryHtml(data: ScrapeSummaryData): string {
         <table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
           <thead>
             <tr style="background: #f9fafb;">
+              <th style="padding: 8px 12px; text-align: center; font-size: 12px; color: #6b7280; font-weight: 600;">Lot #</th>
               <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Address</th>
               <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Community</th>
             </tr>
@@ -244,6 +260,52 @@ export function scrapeSummaryHtml(data: ScrapeSummaryData): string {
       ${removedSection}
       ${incentivesSection}
       ${errorsSection}
+      ${countMismatches.length > 0 ? `
+      <div style="margin-bottom: 24px;">
+        <h3 style="margin: 0 0 12px; font-size: 15px; color: #dc2626;">&#x26A0;&#xFE0F; Count Mismatch — Sold + For Sale + Future ≠ Total (${countMismatches.length})</h3>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #fecaca; border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr style="background: #fef2f2;">
+              <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Community</th>
+              <th style="padding: 8px 12px; text-align: right; font-size: 12px; color: #6b7280; font-weight: 600;">Sold</th>
+              <th style="padding: 8px 12px; text-align: right; font-size: 12px; color: #6b7280; font-weight: 600;">For Sale</th>
+              <th style="padding: 8px 12px; text-align: right; font-size: 12px; color: #6b7280; font-weight: 600;">Future</th>
+              <th style="padding: 8px 12px; text-align: right; font-size: 12px; color: #6b7280; font-weight: 600;">Sum</th>
+              <th style="padding: 8px 12px; text-align: right; font-size: 12px; color: #dc2626; font-weight: 600;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${countMismatches.map(m => `
+            <tr>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #fef2f2; font-size: 13px; color: #111827;">${m.community}</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #fef2f2; font-size: 13px; text-align: right; color: #6b7280;">${m.sold}</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #fef2f2; font-size: 13px; text-align: right; color: #6b7280;">${m.forSale}</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #fef2f2; font-size: 13px; text-align: right; color: #6b7280;">${m.future}</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #fef2f2; font-size: 13px; text-align: right; color: #6b7280;">${m.sold + m.forSale + m.future}</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #fef2f2; font-size: 13px; text-align: right; color: #dc2626; font-weight: 700;">${m.total}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>` : ""}
+      ${staleCommunities.length > 0 ? `
+      <div style="margin-bottom: 24px;">
+        <h3 style="margin: 0 0 12px; font-size: 15px; color: #d97706;">&#x23F0; Stale Data — Not Scraped in 24h+ (${staleCommunities.length})</h3>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #fde68a; border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr style="background: #fffbeb;">
+              <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Community</th>
+              <th style="padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; font-weight: 600;">Last Scraped</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${staleCommunities.map(s => `
+            <tr>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #fef3c7; font-size: 13px; color: #111827;">${s.community}</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #fef3c7; font-size: 13px; color: #d97706;">${s.lastScrapedAt ? s.lastScrapedAt.toLocaleString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }) : "Never"}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>` : ""}
 
       <a href="${SITE_URL}/communities" style="display: block; background: #2563eb; color: white; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: 8px;">View All Communities</a>
     </div>

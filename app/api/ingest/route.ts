@@ -694,6 +694,25 @@ export async function POST(req: NextRequest) {
         const newCounts = await updateTable2(existingBuilder.name, community.name, sheetDelta)
         if (newCounts) {
           await syncPlaceholders(community.id, newCounts)
+          // ── Sync authoritative Community count fields from Table 2 ──────────
+          // soldCount: Table 2 value always becomes the new baseline (manual override)
+          // futureCount: Table 2 read-only; site never modifies this
+          // totalCount: fixed forever; only updated if currently 0
+          const currentCommunity = await prisma.community.findUnique({
+            where: { id: community.id },
+            select: { totalCount: true, soldCount: true },
+          })
+          await prisma.community.update({
+            where: { id: community.id },
+            data: {
+              soldCount:   newCounts.sold,
+              futureCount: newCounts.future,
+              // Only set totalCount if it hasn't been set yet (it's fixed forever after first set)
+              ...((!currentCommunity?.totalCount || currentCommunity.totalCount === 0)
+                ? { totalCount: newCounts.sold + newCounts.forSale + newCounts.future }
+                : {}),
+            },
+          })
 
           // ── Post-write validation: confirm DB placeholders match sheet ──────
           const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
