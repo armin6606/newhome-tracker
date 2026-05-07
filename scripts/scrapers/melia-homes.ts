@@ -127,20 +127,18 @@ async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
 
 function buildListings(result: MapResult, communityName: string, communityUrl: string): ScrapedListing[] {
   if (result.lots && result.lots.length > 0) {
-    return result.lots.map(lot => {
-      const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
-      const status: string = lot.status === "for sale" && !lot.price && !hasRealAddress ? "future" : lot.status
-      return {
-        communityName, communityUrl,
-        address: lot.address ?? `Lot ${lot.lotNumber}`,
-        lotNumber: lot.lotNumber, floorPlan: lot.floorPlan,
-        beds: lot.beds, baths: lot.baths, sqft: lot.sqft,
-        price: status === "for sale" ? lot.price : undefined,
-        pricePerSqft: status === "for sale" && lot.price && lot.sqft ? Math.round(lot.price / lot.sqft) : undefined,
-        status, sourceUrl: communityUrl,
-      } as ScrapedListing
-    })
+    // Melia map reader uses color detection to set status — trust it directly.
+    // No price/address requirement: green = for sale, red = sold, else = future.
+    return result.lots.map(lot => ({
+      communityName, communityUrl,
+      address: lot.address ?? `Lot ${lot.lotNumber}`,
+      lotNumber: lot.lotNumber,
+      status: lot.status,
+      price: lot.price,
+      sourceUrl: communityUrl,
+    } as ScrapedListing))
   }
+  // Last-resort placeholder fallback (only if map reader returned 0 lots)
   const listings: ScrapedListing[] = []
   for (let i = 1; i <= result.sold; i++) listings.push({ communityName, communityUrl, address: `sold-${i}`, lotNumber: `sold-${i}`, status: "sold", sourceUrl: communityUrl })
   for (let i = 1; i <= result.forSale; i++) listings.push({ communityName, communityUrl, address: `avail-${i}`, lotNumber: `avail-${i}`, status: "for sale", sourceUrl: communityUrl })

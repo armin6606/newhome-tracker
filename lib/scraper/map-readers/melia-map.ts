@@ -57,12 +57,9 @@ export async function readMeliaMap(
 
     await page.waitForTimeout(randomDelayMs(1000, 2000))
 
-    const result = await page.evaluate(() => {
-      let sold = 0
-      let forSale = 0
-      let allNumberedLots = 0
-
+    const rawLots = await page.evaluate(() => {
       const processedIds = new Set<string>()
+      const results: Array<{ lotNumber: string; status: string }> = []
 
       // Check all SVG and DOM elements for lot indicators
       const candidates = Array.from(
@@ -83,7 +80,6 @@ export async function readMeliaMap(
           dataStatus.includes("sold")
         )
           return true
-        // Red-ish color check
         if (
           fill.match(/^#[cCdDeEfF][0-5][0-5]/) ||
           style.includes("rgb(") && style.match(/rgb\(2[0-4]\d|25[0-5]/)
@@ -113,17 +109,6 @@ export async function readMeliaMap(
         )
       }
 
-      function hasLotNumber(el: Element): boolean {
-        const text =
-          el.getAttribute("data-lot") ||
-          el.getAttribute("data-homesite") ||
-          el.getAttribute("data-lot-number") ||
-          el.id ||
-          el.textContent?.trim() ||
-          ""
-        return /\d+/.test(text.trim())
-      }
-
       for (const el of candidates) {
         const id =
           el.getAttribute("id") ||
@@ -134,26 +119,44 @@ export async function readMeliaMap(
         if (processedIds.has(id)) continue
         processedIds.add(id)
 
-        if (!hasLotNumber(el)) continue
-        allNumberedLots++
+        // Extract the numeric lot number from any available attribute
+        const rawNum =
+          el.getAttribute("data-lot") ||
+          el.getAttribute("data-homesite") ||
+          el.getAttribute("data-lot-number") ||
+          el.id ||
+          el.textContent?.trim() ||
+          ""
+        const numMatch = rawNum.trim().match(/\d+/)
+        if (!numMatch) continue
+        const lotNumber = numMatch[0]
 
-        if (isRedColor(el)) sold++
-        else if (isGreenColor(el)) forSale++
+        let status: string
+        if (isRedColor(el)) status = "sold"
+        else if (isGreenColor(el)) status = "for sale"
+        else status = "future"
+
+        results.push({ lotNumber, status })
       }
 
-      return { sold, forSale, total: allNumberedLots }
+      return results
     })
 
-    const total = result.total
-    const sold = result.sold
-    const forSale = result.forSale
-    const future = Math.max(0, total - sold - forSale)
+    const lots: MapLot[] = rawLots.map((l) => ({
+      lotNumber: l.lotNumber,
+      status: l.status as "for sale" | "sold" | "future",
+    }))
+
+    const sold    = lots.filter((l) => l.status === "sold").length
+    const forSale = lots.filter((l) => l.status === "for sale").length
+    const future  = lots.filter((l) => l.status === "future").length
+    const total   = lots.length
 
     console.log(
       `[Melia] ${communityName}: total=${total} sold=${sold} forSale=${forSale} future=${future}`
     )
 
-    return { sold, forSale, future, total }
+    return { sold, forSale, future, total, lots }
   } finally {
     await browser.close()
   }

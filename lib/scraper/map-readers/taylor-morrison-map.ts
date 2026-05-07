@@ -159,12 +159,10 @@ export async function readTaylorMorrisonMap(
       return { sold, forSale, future, total, lots }
     }
 
-    // Fallback: DOM-based counting
-    const domResult = await page.evaluate(() => {
+    // Fallback: DOM-based per-lot extraction
+    const domLots = await page.evaluate(() => {
       const processedIds = new Set<string>()
-      let sold = 0
-      let forSale = 0
-      let total = 0
+      const results: Array<{ lotNumber: string; status: string; price?: number }> = []
 
       // Taylor Morrison uses homesite cards and/or SVG map
       const candidates = Array.from(
@@ -192,9 +190,9 @@ export async function readTaylorMorrisonMap(
           el.getAttribute("data-lot") ||
           (el as HTMLElement).innerText?.match(/\d+/)?.[0] ||
           ""
-        if (!/\d/.test(numText)) continue
-
-        total++
+        const numMatch = numText.match(/\d+/)
+        if (!numMatch) continue
+        const lotNumber = numMatch[0]
 
         const classStr = el.className?.toString().toLowerCase() || ""
         const dataStatus = (
@@ -209,32 +207,41 @@ export async function readTaylorMorrisonMap(
           combined.includes("closed") ||
           combined.includes("contract")
         ) {
-          sold++
+          results.push({ lotNumber, status: "sold" })
         } else if (
           combined.includes("available") ||
           combined.includes("active")
         ) {
-          // Only count as forSale if there's a price indicator
-          const priceAttr =
+          const priceText =
             el.getAttribute("data-price") ||
-            el.querySelector("[class*='price']")?.textContent
-          if (priceAttr && /\d/.test(priceAttr)) forSale++
-          // else: future
+            el.querySelector("[class*='price']")?.textContent ||
+            ""
+          const priceNum = priceText ? parseInt(priceText.replace(/[^0-9]/g, ""), 10) : NaN
+          const price = !isNaN(priceNum) && priceNum > 50000 ? priceNum : undefined
+          results.push({ lotNumber, status: price ? "for sale" : "future", price })
+        } else {
+          results.push({ lotNumber, status: "future" })
         }
       }
 
-      return { sold, forSale, total }
+      return results
     })
 
-    const total = domResult.total
-    const sold = domResult.sold
-    const forSale = domResult.forSale
-    const future = Math.max(0, total - sold - forSale)
+    const lots: MapLot[] = domLots.map((l) => ({
+      lotNumber: l.lotNumber,
+      status: l.status as "for sale" | "sold" | "future",
+      price: l.price,
+    }))
+
+    const sold    = lots.filter((l) => l.status === "sold").length
+    const forSale = lots.filter((l) => l.status === "for sale").length
+    const future  = lots.filter((l) => l.status === "future").length
+    const total   = lots.length
 
     console.log(
       `[TaylorMorrison] ${communityName}: total=${total} sold=${sold} forSale=${forSale} future=${future}`
     )
-    return { sold, forSale, future, total }
+    return { sold, forSale, future, total, lots }
   } finally {
     await browser.close()
   }
