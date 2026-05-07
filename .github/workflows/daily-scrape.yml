@@ -66,27 +66,59 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - name: Run main scraper (Toll Brothers, Lennar, Pulte, Del Webb, KB Home, Taylor Morrison, Melia)
-        id: main
-        # IMPORTANT: if package-lock.json is out of sync with package.json,
-        # npm ci will fail. Always commit package-lock.json after npm install.
-        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/run-scraper.ts
+      - name: Scrape — Toll Brothers
+        id: toll-brothers
+        continue-on-error: true
+        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/toll-brothers.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
 
-      - name: Run Shea Homes scraper
-        id: shea
+      - name: Scrape — Lennar
+        id: lennar
+        continue-on-error: true
+        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/lennar.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Scrape — Pulte
+        id: pulte
+        continue-on-error: true
+        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/pulte.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Scrape — Del Webb
+        id: del-webb
+        continue-on-error: true
+        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/del-webb.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Scrape — KB Home
+        id: kb-home
+        continue-on-error: true
+        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/kb-home.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Scrape — Taylor Morrison
+        id: taylor-morrison
+        continue-on-error: true
+        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/taylor-morrison.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Scrape — Melia Homes
+        id: melia-homes
+        continue-on-error: true
+        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/melia-homes.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Scrape — Shea Homes
+        id: shea-homes
+        continue-on-error: true
         run: node scripts/scrape-shea.mjs
-        continue-on-error: true
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Run Melia Homes scraper
-        id: melia
-        run: node scripts/scrape-melia.mjs
-        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
