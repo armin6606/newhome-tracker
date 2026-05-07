@@ -485,24 +485,43 @@ function section5Other(snapshot, communityCardsNow, table2Now) {
 
 // ── Section 0: Scraper Run Status ─────────────────────────────────────────────
 
+function fmtTime(iso) {
+  if (!iso) return "—"
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric", minute: "2-digit", second: "2-digit",
+    hour12: true, timeZone: "America/Los_Angeles",
+  }) + " PDT"
+}
+
+function fmtDuration(startIso, endIso) {
+  if (!startIso || !endIso) return ""
+  const secs = Math.round((new Date(endIso) - new Date(startIso)) / 1000)
+  if (secs < 60) return ` (${secs}s)`
+  return ` (${Math.floor(secs / 60)}m ${secs % 60}s)`
+}
+
 function section0ScraperStatus(scraperResults) {
   if (!scraperResults) {
     return card(`${sectionHeader("Scraper Run Status")}
-      <p style="color:#9ca3af;font-size:13px;margin:0">No scraper results available (ran manually or results file missing).</p>`)
+      <p style="color:#9ca3af;font-size:13px;margin:0">No scraper results available — report sent manually outside of scheduled run.</p>`)
   }
 
   const rows = Object.entries(scraperResults).map(([builder, d]) => {
-    const ok      = d.status === "success"
-    const icon    = ok ? "✅" : "❌"
+    const ok       = d.status === "success"
+    const icon     = ok ? "✅" : "❌"
     const statusEl = ok
       ? `<span style="color:#16a34a;font-weight:600">Passed</span>`
       : `<span style="color:#dc2626;font-weight:600">Failed</span>`
     const errEl = d.errors && d.errors.length > 0
       ? `<div style="font-size:11px;color:#dc2626;margin-top:3px">${d.errors.map(e => `• ${e}`).join("<br>")}</div>`
       : ""
+    const timeEl = d.startedAt
+      ? `<span style="color:#6b7280;font-size:11px">${fmtTime(d.startedAt)}${fmtDuration(d.startedAt, d.finishedAt)}</span>`
+      : "—"
     return [
       `${icon} ${builder}`,
       statusEl + errEl,
+      timeEl,
       String(d.communities ?? "—"),
     ]
   })
@@ -514,7 +533,7 @@ function section0ScraperStatus(scraperResults) {
 
   return card(`
     ${sectionHeader(header)}
-    ${table(["Builder", "Status", "Communities"], rows, "No results.")}
+    ${table(["Builder", "Status", "Started (PDT)", "Communities"], rows, "No results.")}
   `)
 }
 

@@ -492,13 +492,14 @@ export async function runScraper(): Promise<ChangeDetails> {
   }
   const builderResults = await runWithConcurrency(
     SHEET_BUILDERS.map((config) => async () => {
+      const startedAt = new Date().toISOString()
       try {
         const result = await withTimeout(scrapeOneBuilder(config), BUILDER_TIMEOUT_MS, config.name)
-        return { ...result, builderName: config.name }
+        return { ...result, builderName: config.name, startedAt, finishedAt: new Date().toISOString() }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         console.error(`[${config.name}] Fatal/timeout error:`, msg)
-        return { ...emptyBuilderResult, errors: [{ builder: config.name, error: msg }], builderName: config.name }
+        return { ...emptyBuilderResult, errors: [{ builder: config.name, error: msg }], builderName: config.name, startedAt, finishedAt: new Date().toISOString() }
       }
     }),
     MAX_CONCURRENT_BUILDERS
@@ -549,6 +550,8 @@ export async function runScraper(): Promise<ChangeDetails> {
         communities: r.communityCount,
         errorCount: r.errors.length,
         errors: r.errors.map((e) => e.error).slice(0, 3),
+        startedAt: r.startedAt,
+        finishedAt: r.finishedAt,
         newListings: r.stats.newListings.slice(0, 20).map((l) => ({
           address: l.address, lotNumber: l.lotNumber ?? null, community: l.community, price: l.price,
         })),

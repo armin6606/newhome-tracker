@@ -295,7 +295,7 @@ async function postIngest(payload, retries = 3) {
 // ---------------------------------------------------------------------------
 // Append this builder's result to the shared CI results file
 // ---------------------------------------------------------------------------
-function appendResultsFile(builderName, communityCount, errors) {
+function appendResultsFile(builderName, communityCount, errors, startedAt, finishedAt) {
   try {
     const path = "/tmp/scrape-results.json"
     let existing = {}
@@ -305,6 +305,8 @@ function appendResultsFile(builderName, communityCount, errors) {
       communities: communityCount,
       errorCount:  errors.length,
       errors:      errors.slice(0, 3),
+      startedAt,
+      finishedAt,
     }
     writeFileSync(path, JSON.stringify(existing))
     console.log(`Wrote CI results for ${builderName}`)
@@ -317,6 +319,7 @@ function appendResultsFile(builderName, communityCount, errors) {
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
+  const scraperStartedAt = new Date().toISOString()
   console.log("=".repeat(60))
   console.log("Shea Homes Orange County Scraper (diff-based)")
   console.log("=".repeat(60))
@@ -443,7 +446,7 @@ async function main() {
     await prisma.$disconnect()
   }
 
-  appendResultsFile("Shea Homes", SHEA_COMMUNITIES.length, communityErrors)
+  appendResultsFile("Shea Homes", SHEA_COMMUNITIES.length, communityErrors, scraperStartedAt, new Date().toISOString())
 
   console.log("\n" + "=".repeat(60))
   console.log("Done.")
