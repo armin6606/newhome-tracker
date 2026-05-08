@@ -293,14 +293,21 @@ function section2ScraperActivity(newListings, newlySold, priceChanges) {
     let detail = `<div style="margin-top:14px"><strong style="font-size:13px;color:#374151">${b}</strong>`
 
     if (news.length > 0) {
+      const statusBadge = (s) => {
+        if (s === "for sale") return `<span style="background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600">For Sale</span>`
+        if (s === "sold")     return `<span style="background:#fee2e2;color:#b91c1c;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600">Sold</span>`
+        if (s === "future")   return `<span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600">Future</span>`
+        return `<span style="color:#6b7280">${s || "—"}</span>`
+      }
       const rows = news.map(l => [
         lotAddr(l),
         l.community.name,
+        statusBadge(l.status),
         l.currentPrice ? fmt(l.currentPrice) : "—",
         l.moveInDate || "—",
       ])
       detail += `<div style="margin-top:8px;font-size:12px;color:#16a34a;font-weight:600">New Listings (${news.length})</div>`
-      detail += table(["Address","Community","Price","Move-In"], rows, "")
+      detail += table(["Address","Community","Status","Price","Move-In"], rows, "")
     }
 
     if (solds.length > 0) {
