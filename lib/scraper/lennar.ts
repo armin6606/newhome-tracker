@@ -864,9 +864,9 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           if (!address || seenAddresses.has(address)) continue
           seenAddresses.add(address)
 
-          // Lennar status mapping — status string is the ground truth:
+          // Lennar status mapping — Apollo status is the ground truth:
           // - SOLD / CLOSED                        → sold
-          // - UNDER_CONSTRUCTION / MOVE_IN_READY   → active (for sale, must have price)
+          // - UNDER_CONSTRUCTION / MOVE_IN_READY   → for sale (price may be absent — that's OK)
           // - UNDEFINED / COMING_SOON / MODEL_HOME → future (not yet released)
           // - any unknown status                   → future
           const knownStatuses = new Set(["SOLD","CLOSED","UNDEFINED","MOVE_IN_READY","UNDER_CONSTRUCTION","MODEL_HOME","COMING_SOON"])
@@ -874,23 +874,23 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             console.warn(`[Lennar] Unknown homesite status "${raw.status}" for ${raw.address} — treated as future`)
           }
           const listingStatus: "for sale" | "sold" | "future" =
-            (raw.status === "SOLD" || raw.status === "CLOSED")                                   ? "sold"      :
-            (raw.status === "UNDER_CONSTRUCTION" || raw.status === "MOVE_IN_READY") && raw.price ? "for sale"  :
-                                                                                                    "future"
+            (raw.status === "SOLD" || raw.status === "CLOSED")                      ? "sold"     :
+            (raw.status === "UNDER_CONSTRUCTION" || raw.status === "MOVE_IN_READY") ? "for sale" :
+                                                                                       "future"
 
           let moveInDate: string | undefined
           if (raw.status === "MOVE_IN_READY")          moveInDate = "Move-In Ready"
           else if (raw.status === "UNDER_CONSTRUCTION") moveInDate = "Under Construction"
 
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-          if (raw.hasOwnUrl && listingStatus === "active") {
+          if (raw.hasOwnUrl && listingStatus === "for sale") {
             console.log(`  [Lennar] Details: ${raw.sourceUrl}`)
             pd = await scrapeLennarPropertyDetails(page, raw.sourceUrl)
             moveInDate = moveInDate || pd.moveInDate
             await page.waitForTimeout(randomDelayMs(300, 800))
           }
 
-          const price = listingStatus === "active" ? raw.price : undefined
+          const price = listingStatus === "for sale" ? raw.price : undefined
           const sqft  = raw.sqft ?? pd.sqft
 
           allListings.push({
@@ -922,7 +922,28 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           const s = h.status.toUpperCase()
           return s === "UNDER_CONSTRUCTION" || s === "MOVE_IN_READY"
         })
-        console.log(`  [Lennar] Old schema: ${homesites.length} total, ${active.length} active`)
+        const soldOld = homesites.filter(h => {
+          const s = h.status.toUpperCase()
+          return s === "SOLD" || s === "CLOSED"
+        })
+        console.log(`  [Lennar] Old schema: ${homesites.length} total, ${active.length} active, ${soldOld.length} sold`)
+
+        // Capture SOLD/CLOSED lots
+        for (const raw of soldOld) {
+          const addr = cleanAddress(raw.address)
+          if (!addr || seenAddresses.has(addr)) continue
+          seenAddresses.add(addr)
+          allListings.push({
+            communityName: buildCommunityName(raw.mpcName, raw.communityName),
+            communityUrl,
+            city: raw.city,
+            address: addr,
+            lotNumber: raw.lotNumber || undefined,
+            floorPlan: raw.planName || undefined,
+            sourceUrl: communityUrl,
+            status: "sold",
+          })
+        }
 
         for (const raw of active) {
           const addr = cleanAddress(raw.address)

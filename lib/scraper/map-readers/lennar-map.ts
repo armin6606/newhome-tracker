@@ -17,11 +17,11 @@ export async function readLennarMap(
     let status: "for sale" | "sold" | "future"
     if (listing.status === "sold") {
       status = "sold"
-    } else if (listing.status === "future" || !listing.price) {
-      // No price = future (no-price rule)
-      status = "future"
-    } else {
+    } else if (listing.status === "for sale") {
+      // Trust Apollo "for sale" status — Lennar often omits price for active homes
       status = "for sale"
+    } else {
+      status = "future"
     }
 
     return {
