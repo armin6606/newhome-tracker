@@ -2,7 +2,7 @@ name: Snapshot 11 PM
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # 6 AM UTC = 11 PM PDT
+    - cron: '23 6 * * *'  # 6:23 AM UTC = 11:23 PM PDT
   workflow_dispatch:
 
 jobs:

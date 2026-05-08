@@ -2,7 +2,7 @@ name: Nightly Snapshot
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # 11 PM PDT (6 AM UTC) daily
+    - cron: '23 6 * * *'  # 11:23 PM PDT (6:23 AM UTC) daily
   workflow_dispatch:        # Manual trigger from GitHub Actions UI
 
 jobs:
