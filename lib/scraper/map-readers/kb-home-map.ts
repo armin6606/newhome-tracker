@@ -115,7 +115,9 @@ export async function readKBHomeMap(
             const m = cardText.match(new RegExp(`Homesite ${lotNum}(\\d{4,5}[^$]+?)\\$([0-9,]+)`))
             if (m) {
               address = m[1].trim()
-              price = parseInt(m[2].replace(/,/g, ""), 10)
+              const parsedPrice = parseInt(m[2].replace(/,/g, ""), 10)
+              // Reject placeholder prices (KB Home occasionally posts $10 or $1 for pending homes)
+              price = parsedPrice >= 10_000 ? parsedPrice : undefined
             }
           }
 
