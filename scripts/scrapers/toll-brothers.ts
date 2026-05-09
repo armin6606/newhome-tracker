@@ -510,6 +510,29 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       return readTollBrothersMap(row.url, row.communityName)
     })
 
+    // ── Sold-out community: mark all active/future lots sold, no error ───────────
+    if (mapResult.soldOut) {
+      console.log(`  [${BUILDER_NAME}] ${row.communityName}: SOLD OUT — marking all active/future lots as sold`)
+      const existingCommunity = await prisma.community.findFirst({
+        where: { builderId, name: row.communityName },
+      })
+      if (existingCommunity) {
+        const updated = await prisma.listing.updateMany({
+          where: { communityId: existingCommunity.id, status: { in: ["for sale", "future"] } },
+          data: { status: "sold", soldAt: new Date() },
+        })
+        const totalSold = await prisma.listing.count({
+          where: { communityId: existingCommunity.id, status: "sold" },
+        })
+        await prisma.community.update({
+          where: { id: existingCommunity.id },
+          data: { soldCount: totalSold, lastScrapedAt: new Date() },
+        })
+        console.log(`  [${BUILDER_NAME}] ${row.communityName}: ${updated.count} lots → sold, soldCount=${totalSold}`)
+      }
+      return { scraped: 0, stats: emptyStats } // no error entry
+    }
+
     const firstAttemptTotal = (mapResult.lots?.length ?? 0) + mapResult.sold + mapResult.forSale + mapResult.future + mapResult.total
     if (firstAttemptTotal === 0) {
       const dbCount = await prisma.listing.count({ where: { community: { builderId, name: row.communityName }, status: { not: "removed" } } })

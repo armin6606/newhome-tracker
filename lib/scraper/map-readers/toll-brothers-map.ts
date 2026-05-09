@@ -60,5 +60,6 @@ export async function readTollBrothersMap(
     future: result.future,
     total: result.total,
     lots,
+    soldOut: result.soldOut,
   }
 }

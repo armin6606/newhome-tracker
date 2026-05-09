@@ -11,6 +11,7 @@ export interface MapLot {
   beds?: number
   baths?: number
   sqft?: number
+  moveInDate?: string
 }
 
 export interface MapResult {
@@ -19,4 +20,8 @@ export interface MapResult {
   future: number
   total: number
   lots?: MapLot[]
+  /** Community is completely sold out — all remaining active/future lots should be marked sold */
+  soldOut?: boolean
+  /** Only QMI (for-sale) homes were scraped — bypass the 50% lot-count safety guard */
+  qmiOnly?: boolean
 }

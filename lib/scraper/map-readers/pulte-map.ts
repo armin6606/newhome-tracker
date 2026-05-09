@@ -333,7 +333,136 @@ export async function readPulteMap(
     })
 
     if (!iframeSrc) {
-      console.log(`[Pulte] ${communityName}: No AlphaVision iframe found — skipping`)
+      // ── QMI DOM fallback: communities without interactive site plan ──────────
+      console.log(`[Pulte] ${communityName}: No AlphaVision iframe — trying QMI DOM scrape`)
+
+      // Click "Quick Move-In" filter label if present
+      try {
+        const qmiLabel = page.locator("label").filter({ hasText: /Quick Move-In/i }).first()
+        if (await qmiLabel.isVisible({ timeout: 3000 })) {
+          await qmiLabel.click()
+          await page.waitForTimeout(randomDelayMs(2000, 3000))
+        }
+      } catch { /* no QMI filter */ }
+
+      // Scroll to trigger lazy-loading of home cards
+      await page.evaluate(() => {
+        const sec =
+          document.querySelector('[class*="homes"]') ||
+          document.querySelector('[id*="homes"]') ||
+          document.querySelector('[class*="Plans"]')
+        if (sec) sec.scrollIntoView()
+        else window.scrollTo(0, Math.floor(document.body.scrollHeight / 3))
+      })
+      await page.waitForTimeout(randomDelayMs(2000, 3000))
+
+      // Wait up to 8 s for any homesite card to appear
+      try {
+        await page.waitForFunction(
+          () => /Homesite\s*#/i.test((document.body as HTMLElement).innerText || ""),
+          { timeout: 8000 }
+        )
+      } catch { /* no homesite cards */ }
+
+      const qmiLots = await page.evaluate(() => {
+        const results: Array<{
+          address: string
+          lotNumber: string
+          price?: number
+          floorPlan?: string
+          beds?: number
+          baths?: number
+          sqft?: number
+          moveInDate?: string
+        }> = []
+
+        // Walk the text tree for "Homesite #" labels
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+        const homesiteNodes: Node[] = []
+        let node: Node | null
+        while ((node = walker.nextNode())) {
+          if (/^\s*Homesite\s*#?\s*$/i.test(node.textContent || "")) {
+            homesiteNodes.push(node)
+          }
+        }
+
+        const seen = new Set<string>()
+        for (const hsNode of homesiteNodes) {
+          // Walk up to find the card container
+          let card: Element | null = hsNode.parentElement
+          for (let i = 0; i < 12; i++) {
+            if (!card?.parentElement) break
+            card = card.parentElement
+            const ct = (card as HTMLElement).innerText || ""
+            if (ct.includes("Priced at") && /\d{5}/.test(ct)) break
+          }
+          if (!card) continue
+
+          const text = (card as HTMLElement).innerText || ""
+
+          // Lot number appears immediately before "Homesite #"
+          const lotMatch = text.match(/(\d{3,6})\s*\n\s*Homesite\s*#?/i)
+          const lotNumber = lotMatch?.[1]
+          if (!lotNumber || seen.has(lotNumber)) continue
+          seen.add(lotNumber)
+
+          // Street address (number + street, city, state zip)
+          const addrMatch = text.match(
+            /(\d+\s+[A-Za-z][A-Za-z\s]+,\s*[A-Za-z][A-Za-z\s]+,\s*[A-Z]{2}\s*\d{5})/
+          )
+          const address = addrMatch?.[1]?.trim()
+          if (!address) continue
+
+          // Price ("$1,605,442 Priced at")
+          const priceMatch = text.match(/\$([\d,]+)\s*\n?\s*Priced at/i)
+          const price = priceMatch
+            ? parseInt(priceMatch[1].replace(/,/g, ""), 10)
+            : undefined
+
+          // Floor plan
+          const planMatch = text.match(/^(Plan\s+\d+)/mi)
+          const floorPlan = planMatch?.[1]?.trim()
+
+          // Specs
+          const sqftMatch = text.match(/([\d,]+)\s*\n?\s*Sq\.\s*Ft\./i)
+          const bedsMatch = text.match(/(\d+)\s*\n?\s*Beds?\b/i)
+          const bathsMatch = text.match(/([\d.]+)\s*\n?\s*Baths?\b/i)
+          const moveInMatch = text.match(
+            /([A-Za-z]+\s+\d{4})\s*\n?\s*Anticipated Completion/i
+          )
+
+          results.push({
+            address,
+            lotNumber,
+            price,
+            floorPlan,
+            sqft: sqftMatch ? parseInt(sqftMatch[1].replace(/,/g, ""), 10) : undefined,
+            beds: bedsMatch ? parseInt(bedsMatch[1], 10) : undefined,
+            baths: bathsMatch ? parseFloat(bathsMatch[1]) : undefined,
+            moveInDate: moveInMatch?.[1],
+          })
+        }
+        return results
+      })
+
+      if (qmiLots.length > 0) {
+        console.log(`[Pulte] ${communityName}: QMI DOM — ${qmiLots.length} homes`)
+        const lots: MapLot[] = qmiLots.map((l) => ({
+          lotNumber: l.lotNumber,
+          status: "for sale" as const,
+          price: l.price,
+          address: l.address,
+          floorPlan: l.floorPlan,
+          beds: l.beds,
+          baths: l.baths,
+          sqft: l.sqft,
+          moveInDate: l.moveInDate,
+        }))
+        console.log(`[Pulte] ${communityName}: forSale=${lots.length} total=${lots.length}`)
+        return { sold: 0, forSale: lots.length, future: 0, total: lots.length, lots, qmiOnly: true }
+      }
+
+      console.log(`[Pulte] ${communityName}: No AlphaVision iframe and QMI scrape found nothing — skipping`)
       return { sold: 0, forSale: 0, future: 0, total: 0 }
     }
 

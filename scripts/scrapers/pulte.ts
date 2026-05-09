@@ -532,7 +532,9 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       return { scraped: 0, stats: emptyStats }
     }
 
-    if (existingCount > 10 && listings.length < existingCount * 0.5) {
+    // qmiOnly = only QMI homes scraped (no interactive map available).
+    // The count will be much lower than total DB lots — that's expected.
+    if (!mapResult.qmiOnly && existingCount > 10 && listings.length < existingCount * 0.5) {
       const msg = `${row.communityName}: Only ${listings.length} lots but DB has ${existingCount} — looks incomplete, skipping`
       console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
       return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }

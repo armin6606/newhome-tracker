@@ -460,6 +460,8 @@ export interface TollApolloResult {
   planPrices: Record<string, number>
   /** Street addresses keyed by lot number — from QMI ModelCard "Home Site N | Street Address" */
   lotAddresses: Record<string, string>
+  /** Community page says "sold out" — all lots should be marked sold */
+  soldOut?: boolean
 }
 
 export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult> {
@@ -491,6 +493,19 @@ export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult
     console.log(`[TollApollo] Loading: ${communityUrl}`)
     await page.goto(communityUrl, { waitUntil: "networkidle", timeout: 60000 })
     await page.waitForTimeout(2000)
+
+    // ── 0. Detect sold-out communities BEFORE expensive SVG work ─────────────────
+    const isSoldOut = await page.evaluate(() =>
+      /sold\s*out/i.test((document.body as HTMLElement).innerText || "")
+    )
+    if (isSoldOut) {
+      console.log(`[TollApollo] ${communityUrl}: Community is SOLD OUT`)
+      return {
+        forSale: 0, sold: 0, future: 0, total: 0, lots: [],
+        planSpecs: {}, lotPrices: {}, planPrices: {}, lotAddresses: {},
+        soldOut: true,
+      }
+    }
 
     // ── 1. Scrape floor plan specs + per-lot prices from ModelCard elements ──────
     const { planSpecs, lotPrices, planPrices, lotAddresses } = await page.evaluate(() => {
