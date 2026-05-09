@@ -55,6 +55,7 @@ model Listing {
   hoaFees       Int?
   taxes         String?
   moveInDate    String?
+  schools       String?
   incentives    String?
   incentivesUrl String?
   status        String         @default("for sale")
@@ -118,4 +119,31 @@ model HourlySnapshot {
 
   @@index([datePdt])
   @@map("hourly_snapshots")
+}
+
+model NotificationLog {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  type        String   // "new_listing" | "price_drop" | "sold" | etc.
+  listingId   Int?
+  communityId Int?
+  payload     Json?
+  sentAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([sentAt])
+  @@map("notification_logs")
+}
+
+model NewsletterSubscriber {
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  firstName   String?
+  lastName    String?
+  subscribedAt DateTime @default(now())
+  unsubscribed Boolean  @default(false)
+  unsubscribedAt DateTime?
+
+  @@index([email])
+  @@map("newsletter_subscribers")
 }

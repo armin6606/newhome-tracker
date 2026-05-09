@@ -31,7 +31,7 @@ const { PrismaClient } = require("@prisma/client")
 const prisma = new PrismaClient()
 
 const SHEET_ID       = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
-const RESEND_API_KEY = "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
 const ALERT_EMAIL    = "armin.sabe@gmail.com"
 
 // Builder → sheet tab name (must match sheet-validator.ts)

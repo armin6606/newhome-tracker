@@ -200,29 +200,6 @@ export default function CommunitiesPage() {
               <div className="text-center text-xs text-gray-400 mb-1">
                 Total Number of Homes: <span className="font-semibold text-gray-600">{c.totalReleased}</span>
               </div>
-              {/* Last updated timestamp */}
-              <div className={`text-center text-xs mb-3 ${
-                !c.lastScrapedAt || (Date.now() - new Date(c.lastScrapedAt).getTime()) > 24 * 60 * 60 * 1000
-                  ? "text-orange-500 font-semibold"
-                  : "text-gray-400"
-              }`}>
-                {c.lastScrapedAt
-                  ? `Last updated: ${(() => {
-                      const diffMs = Date.now() - new Date(c.lastScrapedAt).getTime()
-                      const diffH  = Math.floor(diffMs / (1000 * 60 * 60))
-                      const diffM  = Math.floor(diffMs / (1000 * 60))
-                      if (diffM < 60) return `${diffM}m ago`
-                      if (diffH < 24) return `${diffH}h ago`
-                      return `${Math.floor(diffH / 24)}d ago ⚠️`
-                    })()}`
-                  : "⚠️ Never scraped"}
-              </div>
-              {/* Count mismatch warning */}
-              {c.countMismatch && (
-                <div className="text-center text-xs text-red-500 font-semibold mb-3">
-                  ⚠️ Count mismatch: {c.sold}+{c.active}+{c.future} ≠ {c.totalReleased}
-                </div>
-              )}
 
               {/* Pie chart */}
               {(c.active > 0 || c.sold > 0) && (
@@ -287,14 +264,11 @@ export default function CommunitiesPage() {
               </div>
 
               {/* Stats */}
-              <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
-                <span>
-                  {c.avgDaysOnMarket ? `Avg ${c.avgDaysOnMarket}d on market` : "No sales yet"}
-                </span>
-                {c.minPrice && c.maxPrice && (
+              {c.minPrice && c.maxPrice && (
+                <div className="flex items-center justify-end text-xs text-gray-500 pt-3 border-t border-gray-100">
                   <span>{formatPrice(c.minPrice)} – {formatPrice(c.maxPrice)}</span>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

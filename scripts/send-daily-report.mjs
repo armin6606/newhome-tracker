@@ -47,7 +47,7 @@ if (existsSync(envPath)) {
 const { PrismaClient } = require("@prisma/client")
 const prisma = new PrismaClient()
 
-const RESEND_API_KEY = "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
 const FROM           = "New Key <reports@newkey.us>"
 const TO             = "armin.sabe@gmail.com"
 const SITE_URL       = "https://www.newkey.us"
@@ -61,6 +61,7 @@ const BUILDER_TABS = {
   "Del Webb":        "Del Webb Communities",
   "KB Home":         "KB Communities",
   "Melia Homes":     "Melia Communities",
+  "Shea Homes":      "Shea Communities",
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -85,14 +86,26 @@ function delta(after, before) {
 }
 
 function getMidnightPacific() {
-  const offsetMs   = 7 * 60 * 60 * 1000 // PDT UTC-7
-  const nowPacific = new Date(Date.now() - offsetMs)
-  const midnight   = new Date(Date.UTC(
-    nowPacific.getUTCFullYear(),
-    nowPacific.getUTCMonth(),
-    nowPacific.getUTCDate()
-  ))
-  return new Date(midnight.getTime() + offsetMs)
+  // Get today's date string (YYYY-MM-DD) in Pacific time — handles PST/PDT automatically
+  const todayPacific = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+  }).format(new Date())
+
+  const [y, m, d] = todayPacific.split("-").map(Number)
+
+  // Try UTC-7 (PDT) first, then UTC-8 (PST); pick whichever gives hour=0 in Pacific
+  for (const offsetHours of [7, 8]) {
+    const candidate = new Date(Date.UTC(y, m - 1, d, offsetHours, 0, 0))
+    const pacificHour = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      hour: "numeric",
+      hour12: false,
+    }).format(candidate)
+    if (parseInt(pacificHour) === 0) return candidate
+  }
+
+  // Should never reach here, but fall back to PST (UTC-8)
+  return new Date(Date.UTC(y, m - 1, d, 8, 0, 0))
 }
 
 // ── CSV parser ──────────────────────────────────────────────────────────────────

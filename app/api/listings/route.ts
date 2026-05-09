@@ -29,8 +29,9 @@ const LISTING_SELECT = {
 
 const VALID_STATUSES  = new Set(["for sale", "sold", "future", "removed", "all"])
 const VALID_SORT_FIELDS = ["currentPrice", "firstDetected", "sqft", "beds", "pricePerSqft", "floors"]
-// firstDetected and beds are always non-null so Prisma rejects nulls:"last" for them
-const NON_NULLABLE_SORT = new Set(["firstDetected", "beds"])
+// firstDetected is always non-null so Prisma rejects nulls:"last" for it
+// Note: beds is Float? (nullable) — must NOT be in this set or Prisma crashes on null rows
+const NON_NULLABLE_SORT = new Set(["firstDetected"])
 
 const MAX_PAGE_SIZE = 500
 

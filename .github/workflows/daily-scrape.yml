@@ -71,60 +71,69 @@ jobs:
         continue-on-error: true
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/toll-brothers.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
       - name: Scrape — Lennar
         id: lennar
         continue-on-error: true
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/lennar.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
       - name: Scrape — Pulte
         id: pulte
         continue-on-error: true
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/pulte.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
       - name: Scrape — Del Webb
         id: del-webb
         continue-on-error: true
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/del-webb.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
       - name: Scrape — KB Home
         id: kb-home
         continue-on-error: true
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/kb-home.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
       - name: Scrape — Taylor Morrison
         id: taylor-morrison
         continue-on-error: true
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/taylor-morrison.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
       - name: Scrape — Melia Homes
         id: melia-homes
         continue-on-error: true
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/melia-homes.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
       - name: Scrape — Shea Homes
         id: shea-homes
         continue-on-error: true
         run: node scripts/scrape-shea.mjs
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
       - name: Send daily report email
         if: always()
         run: node scripts/send-daily-report.mjs
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL:   ${{ secrets.DIRECT_URL }}
+          DATABASE_URL:   ${{ secrets.DATABASE_URL }}
+          DIRECT_URL:     ${{ secrets.DIRECT_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}

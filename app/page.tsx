@@ -375,6 +375,7 @@ export default function HomePage() {
     setTypeFilter("")
     setBuilderFilter("")
     setCommunityFilter("")
+    setCountyFilter("")
   }
 
   const inputCls = "border border-stone-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"

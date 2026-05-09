@@ -247,3 +247,42 @@ export async function updateTable2(
 
   return updated
 }
+
+/**
+ * Write absolute sold + forSale counts for a community directly to Table 2.
+ * Used by the Lennar scraper after each community run — bypasses delta logic
+ * and sets the exact DB-derived counts.
+ */
+export async function setTable2Absolute(
+  builderName:   string,
+  communityName: string,
+  counts:        { sold: number; forSale: number },
+): Promise<boolean> {
+  const tabName = BUILDER_SHEET_TABS[builderName]
+  if (!tabName) return false
+
+  const token = await getAccessToken()
+  if (!token) return false
+
+  const rows = await readRows(token, tabName)
+  if (!rows.length) return false
+
+  let foundIndex = -1
+  for (let i = 0; i < rows.length; i++) {
+    const col0 = (rows[i][0] ?? "").trim()
+    const col3 = (rows[i][3] ?? "").trim()
+    if (col0 === "Table 3") break
+    if (col3.toLowerCase() === communityName.toLowerCase()) { foundIndex = i; break }
+  }
+
+  if (foundIndex === -1) {
+    console.warn(`[sheet-writer] setTable2Absolute: "${communityName}" not found in "${tabName}"`)
+    return false
+  }
+
+  const ok = await writeRow(token, tabName, foundIndex + 1, counts.sold, counts.forSale)
+  if (ok) {
+    console.log(`[sheet-writer] "${communityName}" absolute sync: sold=${counts.sold}, forSale=${counts.forSale}`)
+  }
+  return ok
+}

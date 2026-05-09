@@ -7,7 +7,7 @@
 import { PrismaClient } from "@prisma/client"
 import { writeFileSync, readFileSync, existsSync } from "fs"
 import { notifyPriceChange, notifyNewListings } from "../../lib/scraper/notifications"
-import { updateTable2 } from "../../lib/sheet-writer"
+import { updateTable2, setTable2Absolute } from "../../lib/sheet-writer"
 import { readLennarMap } from "../../lib/scraper/map-readers/lennar-map"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
@@ -146,6 +146,54 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
   for (let i = 1; i <= result.forSale; i++) listings.push({ communityName, communityUrl, address: `avail-${i}`, lotNumber: `avail-${i}`, status: "for sale", sourceUrl: communityUrl })
   for (let i = 1; i <= result.future; i++) listings.push({ communityName, communityUrl, address: `future-${i}`, lotNumber: `future-${i}`, status: "future", sourceUrl: communityUrl })
   return listings
+}
+
+// ── Lennar Tier-2 sold verification ──────────────────────────────────────────
+
+/**
+ * Verify a Lennar lot is truly sold by fetching its individual listing page
+ * and reading the Apollo __NEXT_DATA__ status.
+ *
+ * Returns:
+ *   "sold"    — builder confirmed: SOLD/CLOSED status, or page is gone (404/410)
+ *   "active"  — lot still present and active on its own page — do NOT mark sold
+ *   "unknown" — could not determine (network error, missing data) — fall back to inference
+ */
+async function verifyLennarLotSold(sourceUrl: string): Promise<"sold" | "active" | "unknown"> {
+  try {
+    const res = await fetch(sourceUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      signal: AbortSignal.timeout(15000),
+    })
+
+    // Page gone = builder removed it = sold
+    if (res.status === 404 || res.status === 410) return "sold"
+    if (!res.ok) return "unknown"
+
+    const html = await res.text()
+    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/)
+    if (!match) return "unknown"
+
+    const apollo = JSON.parse(match[1])?.props?.pageProps?.initialApolloState || {}
+
+    // Individual lot page has one HomesiteType entry — check its status
+    for (const [key, val] of Object.entries(apollo)) {
+      if (!key.startsWith("HomesiteType:")) continue
+      const h = val as Record<string, unknown>
+      const status = String(h.status || "").toUpperCase()
+      if (status === "SOLD" || status === "CLOSED") return "sold"
+      // Found but not sold — lot is still active/future on its own page
+      return "active"
+    }
+
+    // No HomesiteType found at all — page exists but lot is gone from Apollo = sold
+    return "sold"
+  } catch {
+    return "unknown"
+  }
 }
 
 // ── detectAndApplyChanges ─────────────────────────────────────────────────────
@@ -466,6 +514,22 @@ async function detectAndApplyChanges(
     if (listing.status !== "for sale") continue
 
     if (listing.currentPrice != null) {
+      // ── Tier-2 verification for Lennar ────────────────────────────────────
+      // Before marking sold, confirm via the individual lot page.
+      // Only applies when the listing has its own URL (not just the community URL).
+      if (builderName === "Lennar" && listing.sourceUrl && community?.url && listing.sourceUrl !== community.url) {
+        const verification = await verifyLennarLotSold(listing.sourceUrl)
+        if (verification === "active") {
+          console.warn(`  [Lennar] ${listing.address}: gone from community page but still active on individual page — skipping`)
+          continue
+        }
+        if (verification === "unknown") {
+          console.warn(`  [Lennar] ${listing.address}: verification inconclusive — marking sold by inference`)
+        } else {
+          console.log(`  [Lennar] ${listing.address}: Tier-2 confirmed sold via individual page`)
+        }
+      }
+
       await prisma.listing.update({
         where: { id: listing.id },
         data: { status: "sold", soldAt: new Date() },
@@ -557,6 +621,20 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
 
     const stats = await detectAndApplyChanges(dedupedListings, community.id, BUILDER_NAME)
     console.log(`  [${BUILDER_NAME}] ${row.communityName}: +${stats.added} new, ${stats.priceChanges} price changes, ${stats.removed} removed, ${stats.unchanged} unchanged`)
+
+    // ── Post-run: recalculate counts from DB and sync Community + Table 2 ──────
+    const [soldCount, forSaleCount] = await Promise.all([
+      prisma.listing.count({ where: { communityId: community.id, status: "sold" } }),
+      prisma.listing.count({ where: { communityId: community.id, status: "for sale" } }),
+    ])
+    await prisma.community.update({
+      where: { id: community.id },
+      data: { soldCount },
+    })
+    setTable2Absolute(BUILDER_NAME, row.communityName, { sold: soldCount, forSale: forSaleCount })
+      .catch(e => console.error(`[sheet-writer] ${row.communityName} absolute sync:`, e))
+    console.log(`  [${BUILDER_NAME}] ${row.communityName}: DB recalc → sold=${soldCount} forSale=${forSaleCount}`)
+
     return { scraped: dedupedListings.length, stats }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err)
