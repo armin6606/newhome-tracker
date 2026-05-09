@@ -130,6 +130,22 @@ jobs:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
+      - name: Scrape — Brookfield Residential
+        id: brookfield
+        continue-on-error: true
+        run: node "Brookfield Agent/scripts/scrape-brookfield.mjs"
+        env:
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Scrape — TRI Pointe Homes
+        id: tripointe
+        continue-on-error: true
+        run: node "TriPointe Agent/scripts/scrape-tripointe.mjs"
+        env:
+          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+
       - name: Send daily report email
         if: always()
         run: node scripts/send-daily-report.mjs

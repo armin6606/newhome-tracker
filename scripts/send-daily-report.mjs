@@ -54,14 +54,16 @@ const SITE_URL       = "https://www.newkey.us"
 
 const SHEET_ID    = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
 const BUILDER_TABS = {
-  "Toll Brothers":   "Toll Communities",
-  "Lennar":          "Lennar Communities",
-  "Pulte":           "Pulte Communities",
-  "Taylor Morrison": "Taylor Communities",
-  "Del Webb":        "Del Webb Communities",
-  "KB Home":         "KB Communities",
-  "Melia Homes":     "Melia Communities",
-  "Shea Homes":      "Shea Communities",
+  "Toll Brothers":        "Toll Communities",
+  "Lennar":               "Lennar Communities",
+  "Pulte":                "Pulte Communities",
+  "Taylor Morrison":      "Taylor Communities",
+  "Del Webb":             "Del Webb Communities",
+  "KB Home":              "KB Communities",
+  "Melia Homes":          "Melia Communities",
+  "Shea Homes":           "Shea Communities",
+  "Brookfield Residential": "Brookfield Communities",
+  "TRI Pointe Homes":    "TRI Pointe Communities",
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -530,6 +532,8 @@ const ALL_BUILDERS = [
   "Taylor Morrison",
   "Melia Homes",
   "Shea Homes",
+  "Brookfield Residential",
+  "TRI Pointe Homes",
 ]
 
 function section0ScraperStatus(scraperResults) {
