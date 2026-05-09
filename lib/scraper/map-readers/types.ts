@@ -11,6 +11,8 @@ export interface MapLot {
   beds?: number
   baths?: number
   sqft?: number
+  floors?: number
+  garages?: number
   moveInDate?: string
 }
 

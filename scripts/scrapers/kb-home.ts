@@ -142,6 +142,7 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
       lotNumber: lot.lotNumber,
       floorPlan: lot.floorPlan,
       beds: lot.beds, baths: lot.baths, sqft: lot.sqft,
+      floors: lot.floors, garages: lot.garages,
       price: status === "for sale" ? lot.price : undefined,
       pricePerSqft: status === "for sale" && lot.price && lot.sqft ? Math.round(lot.price / lot.sqft) : undefined,
       status,
