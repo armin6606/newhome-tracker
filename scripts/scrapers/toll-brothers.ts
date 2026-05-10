@@ -205,6 +205,10 @@ async function detectAndApplyChanges(
         }
       }
 
+      const initialStatus = scraped.status ?? "for sale"
+      // Set soldAt at creation for sold lots so it's never null (prevents re-stamping on subsequent runs)
+      const initialSoldAt = initialStatus === "sold" ? new Date() : null
+
       let listing: { id: number }
       try {
         listing = await prisma.listing.upsert({
@@ -228,9 +232,11 @@ async function detectAndApplyChanges(
             schools: scraped.schools,
             incentives: scraped.incentives,
             sourceUrl: scraped.sourceUrl,
-            status: scraped.status ?? "for sale",
+            status: initialStatus,
+            soldAt: initialSoldAt,
           },
-          update: { status: scraped.status ?? "for sale" },
+          update: { status: initialStatus },
+          // Note: soldAt is intentionally NOT in update — only set at creation
         })
       } catch (err: unknown) {
         const code = (err as { code?: string }).code
@@ -257,9 +263,10 @@ async function detectAndApplyChanges(
               schools: scraped.schools,
               incentives: scraped.incentives,
               sourceUrl: scraped.sourceUrl,
-              status: scraped.status ?? "for sale",
+              status: initialStatus,
+              soldAt: initialSoldAt,
             },
-            update: { status: scraped.status ?? "for sale" },
+            update: { status: initialStatus },
           })
         } else {
           throw err
@@ -356,6 +363,7 @@ async function detectAndApplyChanges(
       }
 
       if (existing.status === "for sale" && scraped.status === "sold") {
+        updates.soldAt = new Date()   // stamp soldAt when a real lot transitions to sold
         soldDelta++
         const availPlaceholder = await prisma.listing.findFirst({
           where: {

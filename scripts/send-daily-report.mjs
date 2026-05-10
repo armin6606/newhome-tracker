@@ -161,14 +161,24 @@ async function collectData(snapshot) {
   })
 
   // Changes since midnight, with builder info
+  // Exclude placeholder lots (sold-N, avail-N, future-N) — they're accounting entries, not real homes
+  const PLACEHOLDER_FILTER = {
+    NOT: [
+      { address: { startsWith: "sold-" } },
+      { address: { startsWith: "avail-" } },
+      { address: { startsWith: "future-" } },
+      { address: { startsWith: "lot-" } },
+    ],
+  }
+
   const newListings = await prisma.listing.findMany({
-    where:   { firstDetected: { gte: since }, address: { not: null } },
+    where:   { firstDetected: { gte: since }, address: { not: null }, ...PLACEHOLDER_FILTER },
     include: { community: { include: { builder: { select: { name: true } } } } },
     orderBy: { firstDetected: "desc" },
   })
 
   const newlySold = await prisma.listing.findMany({
-    where:   { soldAt: { gte: since }, address: { not: null } },
+    where:   { soldAt: { gte: since }, address: { not: null }, ...PLACEHOLDER_FILTER },
     include: { community: { include: { builder: { select: { name: true } } } } },
     orderBy: { soldAt: "desc" },
   })
