@@ -6,9 +6,55 @@ on:
   workflow_dispatch:        # Manual trigger from GitHub Actions UI
 
 jobs:
+  # ── Each builder runs on its own parallel runner ──────────────────────────
   scrape:
+    name: Scrape — ${{ matrix.builder }}
     runs-on: ubuntu-latest
-    timeout-minutes: 360   # 6-hour overall cap (up from 3h — 10 scrapers need room)
+    timeout-minutes: 90     # overall cap per runner (setup ~15 min + scraper timeout)
+    strategy:
+      fail-fast: false       # one builder failing never cancels the others
+      matrix:
+        include:
+          - builder: "Toll Brothers"
+            id: toll-brothers
+            cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/toll-brothers.ts"
+            timeout: 60
+          - builder: "Lennar"
+            id: lennar
+            cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/lennar.ts"
+            timeout: 60
+          - builder: "Pulte"
+            id: pulte
+            cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/pulte.ts"
+            timeout: 45
+          - builder: "Del Webb"
+            id: del-webb
+            cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/del-webb.ts"
+            timeout: 45
+          - builder: "KB Home"
+            id: kb-home
+            cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/kb-home.ts"
+            timeout: 45
+          - builder: "Taylor Morrison"
+            id: taylor-morrison
+            cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/taylor-morrison.ts"
+            timeout: 45
+          - builder: "Melia Homes"
+            id: melia-homes
+            cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/melia-homes.ts"
+            timeout: 30
+          - builder: "Shea Homes"
+            id: shea-homes
+            cmd: "node scripts/scrape-shea.mjs"
+            timeout: 30
+          - builder: "Brookfield Residential"
+            id: brookfield
+            cmd: 'node "Brookfield Agent/scripts/scrape-brookfield.mjs"'
+            timeout: 20
+          - builder: "TRI Pointe Homes"
+            id: tripointe
+            cmd: 'node "TriPointe Agent/scripts/scrape-tripointe.mjs"'
+            timeout: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -31,19 +77,18 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Sync DB schema
-        # --accept-data-loss removed: safer to let a column-drop fail loudly.
-        # continue-on-error keeps the scraper running even if DIRECT_URL is missing.
+        # continue-on-error keeps the scraper running even if DIRECT_URL is missing
         run: npx prisma db push
         continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL:   ${{ secrets.DIRECT_URL }}
 
       - name: Validate required secrets
         run: |
           MISSING=""
-          [ -z "$DATABASE_URL" ]    && MISSING="$MISSING DATABASE_URL"
-          [ -z "$RESEND_API_KEY" ]  && MISSING="$MISSING RESEND_API_KEY"
+          [ -z "$DATABASE_URL" ]   && MISSING="$MISSING DATABASE_URL"
+          [ -z "$RESEND_API_KEY" ] && MISSING="$MISSING RESEND_API_KEY"
           if [ -n "$MISSING" ]; then
             echo "❌ Missing required secrets:$MISSING"
             exit 1
@@ -54,7 +99,7 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
 
       - name: Ping database
-        # Fail fast if the DB is unreachable before spending 50 min on Playwright
+        # Fail fast if the DB is unreachable before spending time on Playwright
         run: |
           node -e "
           const { PrismaClient } = require('./node_modules/@prisma/client');
@@ -66,101 +111,111 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - name: Scrape — Toll Brothers
-        id: toll-brothers
+      - name: Record scraper start time
+        run: echo "SCRAPER_START=$(date -u +%s)" >> $GITHUB_ENV
+
+      - name: Run scraper
+        id: run_scraper
         continue-on-error: true
-        timeout-minutes: 60
-        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/toll-brothers.ts
+        timeout-minutes: ${{ matrix.timeout }}
+        run: ${{ matrix.cmd }}
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
-      - name: Scrape — Lennar
-        id: lennar
-        continue-on-error: true
-        timeout-minutes: 60
-        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/lennar.ts
-        env:
-          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      - name: Save scrape result
+        if: always()
+        run: |
+          END=$(date -u +%s)
+          START=${SCRAPER_START:-$END}
+          ELAPSED=$((END - START))
+          TIMEOUT_SECS=$((${{ matrix.timeout }} * 60))
+          OUTCOME="${{ steps.run_scraper.outcome }}"
 
-      - name: Scrape — Pulte
-        id: pulte
-        continue-on-error: true
-        timeout-minutes: 45
-        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/pulte.ts
-        env:
-          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          if [ "$OUTCOME" = "success" ]; then
+            STATUS="success"
+          elif [ "$OUTCOME" != "skipped" ] && [ "$ELAPSED" -ge "$((TIMEOUT_SECS - 30))" ]; then
+            STATUS="timeout"
+          else
+            STATUS="failure"
+          fi
 
-      - name: Scrape — Del Webb
-        id: del-webb
-        continue-on-error: true
-        timeout-minutes: 45
-        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/del-webb.ts
-        env:
-          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          START_ISO=$(date -u -d @"$START" +%Y-%m-%dT%H:%M:%SZ)
+          END_ISO=$(date -u -d @"$END" +%Y-%m-%dT%H:%M:%SZ)
 
-      - name: Scrape — KB Home
-        id: kb-home
-        continue-on-error: true
-        timeout-minutes: 45
-        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/kb-home.ts
-        env:
-          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          printf '{"builder":"%s","status":"%s","startedAt":"%s","finishedAt":"%s"}\n' \
+            "${{ matrix.builder }}" "$STATUS" "$START_ISO" "$END_ISO" \
+            > scrape-result.json
 
-      - name: Scrape — Taylor Morrison
-        id: taylor-morrison
-        continue-on-error: true
-        timeout-minutes: 45
-        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/taylor-morrison.ts
-        env:
-          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          echo "Scrape result: $(cat scrape-result.json)"
 
-      - name: Scrape — Melia Homes
-        id: melia-homes
-        continue-on-error: true
-        timeout-minutes: 30
-        run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/melia-homes.ts
-        env:
-          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      - name: Upload scrape result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-result-${{ matrix.id }}
+          path: scrape-result.json
+          retention-days: 3
 
-      - name: Scrape — Shea Homes
-        id: shea-homes
-        continue-on-error: true
-        timeout-minutes: 30
-        run: node scripts/scrape-shea.mjs
-        env:
-          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+  # ── Report job always runs, even if every scraper failed ──────────────────
+  report:
+    name: Send Daily Report
+    runs-on: ubuntu-latest
+    needs: scrape
+    if: always()
+    timeout-minutes: 15
 
-      - name: Scrape — Brookfield Residential
-        id: brookfield
-        continue-on-error: true
-        timeout-minutes: 20
-        run: node "Brookfield Agent/scripts/scrape-brookfield.mjs"
-        env:
-          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Scrape — TRI Pointe Homes
-        id: tripointe
-        continue-on-error: true
-        timeout-minutes: 30
-        run: node "TriPointe Agent/scripts/scrape-tripointe.mjs"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
         env:
-          DATABASE_URL:                ${{ secrets.DATABASE_URL }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Download scrape results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: scrape-result-*
+          path: /tmp/scrape-results
+        continue-on-error: true   # report still sends even if artifacts are missing
+
+      - name: Merge scrape results
+        run: |
+          node -e "
+          const fs   = require('fs');
+          const path = require('path');
+          const results = {};
+          const baseDir = '/tmp/scrape-results';
+          if (fs.existsSync(baseDir)) {
+            for (const artifactDir of fs.readdirSync(baseDir)) {
+              const jsonPath = path.join(baseDir, artifactDir, 'scrape-result.json');
+              if (fs.existsSync(jsonPath)) {
+                try {
+                  const d = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                  if (d.builder) results[d.builder] = d;
+                } catch (e) { console.warn('Failed to parse', jsonPath, e.message); }
+              }
+            }
+          }
+          const builders = Object.keys(results);
+          console.log('Merged results for:', builders.join(', ') || '(none)');
+          fs.writeFileSync('/tmp/scrape-results.json', JSON.stringify(results, null, 2));
+          "
 
       - name: Send daily report email
-        if: always()
         timeout-minutes: 10
         run: node scripts/send-daily-report.mjs
         env:
-          DATABASE_URL:   ${{ secrets.DATABASE_URL }}
-          DIRECT_URL:     ${{ secrets.DIRECT_URL }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DATABASE_URL:     ${{ secrets.DATABASE_URL }}
+          DIRECT_URL:       ${{ secrets.DIRECT_URL }}
+          RESEND_API_KEY:   ${{ secrets.RESEND_API_KEY }}
+          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

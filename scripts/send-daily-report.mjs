@@ -550,9 +550,12 @@ function section0ScraperStatus(scraperResults) {
       ]
     }
     const ok       = d.status === "success"
-    const icon     = ok ? "✅" : "❌"
+    const timedOut = d.status === "timeout"
+    const icon     = ok ? "✅" : timedOut ? "⏱️" : "❌"
     const statusEl = ok
       ? `<span style="color:#16a34a;font-weight:600">Passed</span>`
+      : timedOut
+      ? `<span style="color:#f59e0b;font-weight:600">Timed Out</span>`
       : `<span style="color:#dc2626;font-weight:600">Failed</span>`
     const errEl = d.errors && d.errors.length > 0
       ? `<div style="font-size:11px;color:#dc2626;margin-top:3px">${d.errors.map(e => `• ${e}`).join("<br>")}</div>`
@@ -568,10 +571,13 @@ function section0ScraperStatus(scraperResults) {
     ]
   })
 
-  const anyFail  = ALL_BUILDERS.some(b => results[b] && results[b].status !== "success")
-  const anyNoData = ALL_BUILDERS.some(b => !results[b])
-  const header   = anyFail
-    ? `Scraper Run Status <span style="color:#dc2626;font-size:13px;font-weight:400">— issues detected</span>`
+  const anyFailed  = ALL_BUILDERS.some(b => results[b] && results[b].status === "failure")
+  const anyTimeout = ALL_BUILDERS.some(b => results[b] && results[b].status === "timeout")
+  const anyNoData  = ALL_BUILDERS.some(b => !results[b])
+  const header = anyFailed
+    ? `Scraper Run Status <span style="color:#dc2626;font-size:13px;font-weight:400">— failures detected</span>`
+    : anyTimeout
+    ? `Scraper Run Status <span style="color:#f59e0b;font-size:13px;font-weight:400">— timeout(s) detected</span>`
     : anyNoData
     ? `Scraper Run Status <span style="color:#f59e0b;font-size:13px;font-weight:400">— manual run (no timing data)</span>`
     : `Scraper Run Status <span style="color:#16a34a;font-size:13px;font-weight:400">— all passed</span>`
@@ -584,7 +590,7 @@ function section0ScraperStatus(scraperResults) {
 
 // ── Build full HTML email ──────────────────────────────────────────────────────
 
-function buildHtml(snapshot, data, scraperResults) {
+function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
   const { forSaleNow, newListings, newlySold, priceChanges, communityCardsNow, table2Now } = data
   const dateStr = new Date().toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
@@ -611,6 +617,7 @@ function buildHtml(snapshot, data, scraperResults) {
       <div style="color:white;font-size:20px;font-weight:700">New Key Daily Report</div>
       <div style="color:#93c5fd;font-size:13px;margin-top:4px">${dateStr}</div>
       <div style="color:#64748b;font-size:11px;margin-top:2px">11 PM snapshot: ${snapshotTime}</div>
+      ${workflowRunUrl ? `<div style="margin-top:6px"><a href="${workflowRunUrl}" style="color:#93c5fd;font-size:11px;text-decoration:underline">View GitHub Actions Run →</a></div>` : ""}
     </div>
 
     <!-- Body -->
@@ -678,11 +685,13 @@ async function main() {
   }
 
   // Load scraper run results (available in GitHub Actions, null when run manually)
-  const scraperResults = loadScraperResults()
-  const passCount = scraperResults ? Object.values(scraperResults).filter(d => d.status === "success").length : null
-  const failCount = scraperResults ? Object.values(scraperResults).filter(d => d.status !== "success").length : null
+  const scraperResults  = loadScraperResults()
+  const workflowRunUrl  = process.env.WORKFLOW_RUN_URL || null
+  const passCount       = scraperResults ? Object.values(scraperResults).filter(d => d.status === "success").length : null
+  const failCount       = scraperResults ? Object.values(scraperResults).filter(d => d.status === "failure").length : null
+  const timeoutCount    = scraperResults ? Object.values(scraperResults).filter(d => d.status === "timeout").length : null
   console.log(scraperResults
-    ? `  Scraper results: ${passCount} passed, ${failCount} failed`
+    ? `  Scraper results: ${passCount} passed, ${failCount} failed, ${timeoutCount} timed out`
     : "  Scraper results: not available (manual run)")
 
   console.log("\n  Collecting post-scrape data…")
@@ -694,12 +703,12 @@ async function main() {
   console.log(`  Newly sold    : ${newlySold.length}`)
   console.log(`  Price changes : ${priceChanges.length}`)
 
-  const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-  const anyFail = failCount !== null && failCount > 0
-  const subject = anyFail
-    ? `⚠️ New Key Daily Report — ${dateStr} (${failCount} scraper issue${failCount > 1 ? "s" : ""})`
+  const dateStr    = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+  const issueCount = (failCount || 0) + (timeoutCount || 0)
+  const subject    = issueCount > 0
+    ? `⚠️ New Key Daily Report — ${dateStr} (${issueCount} scraper issue${issueCount > 1 ? "s" : ""})`
     : `✅ New Key Daily Report — ${dateStr}`
-  const html    = buildHtml(snapshot, data, scraperResults)
+  const html       = buildHtml(snapshot, data, scraperResults, workflowRunUrl)
 
   console.log(`\n  Sending to ${TO}…`)
   const result = await sendEmail(subject, html)
