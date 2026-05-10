@@ -78,23 +78,14 @@ export async function GET() {
 
     // ── Build response for each community ────────────────────────────────────
     const result = allowedCommunities.map((c) => {
-        // ── Authoritative counts from Community fields ────────────────────────
-      // soldCount:   Table 2 baseline + scraper auto-increments on sale
-      // futureCount: Table 2 read-only
-      // totalCount:  Table 2 fixed forever
-      const sold   = c.soldCount
-      const future = c.futureCount
-      const total  = c.totalCount
+        // ── All counts from real scraped listings only (no placeholders) ─────────
+      const isReal = (l: { address: string | null; lotNumber: string | null }) =>
+        l.address !== null && !(l.lotNumber && PLACEHOLDER_ONLY_RE.test(l.lotNumber))
 
-      // ── For Sale — live count of active real listings (price + address) ──────
-      // Excludes placeholder lots (avail-N, sold-N, future-N)
-      const active = c.listings.filter(
-        (l) =>
-          l.address !== null &&
-          l.currentPrice !== null &&
-          !(l.lotNumber && PLACEHOLDER_ONLY_RE.test(l.lotNumber)) &&
-          l.status === "for sale"
-      ).length
+      const sold   = c.listings.filter((l) => isReal(l) && l.status === "sold").length
+      const active = c.listings.filter((l) => isReal(l) && l.currentPrice !== null && l.status === "for sale").length
+      const future = c.listings.filter((l) => isReal(l) && l.status === "future").length
+      const total  = sold + active + future
 
       // Guard: clamp firstDetected to now so future-dated entries don't skew stats
       const rawStart     = c.firstDetected?.getTime() ?? Date.now()

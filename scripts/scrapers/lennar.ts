@@ -141,11 +141,9 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
       } as ScrapedListing
     })
   }
-  const listings: ScrapedListing[] = []
-  for (let i = 1; i <= result.sold; i++) listings.push({ communityName, communityUrl, address: `sold-${i}`, lotNumber: `sold-${i}`, status: "sold", sourceUrl: communityUrl })
-  for (let i = 1; i <= result.forSale; i++) listings.push({ communityName, communityUrl, address: `avail-${i}`, lotNumber: `avail-${i}`, status: "for sale", sourceUrl: communityUrl })
-  for (let i = 1; i <= result.future; i++) listings.push({ communityName, communityUrl, address: `future-${i}`, lotNumber: `future-${i}`, status: "future", sourceUrl: communityUrl })
-  return listings
+  // No per-lot data from map reader — return empty rather than creating placeholders.
+  // Community card counts come from real scraped listings only.
+  return []
 }
 
 // ── Lennar Tier-2 sold verification ──────────────────────────────────────────

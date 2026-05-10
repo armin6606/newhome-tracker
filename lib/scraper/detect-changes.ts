@@ -211,29 +211,14 @@ export async function detectAndApplyChanges(
         })
       }
 
-      // New real active listing = a future lot was just released for sale.
-      // 1. Update the sheet's ForSale +1 so its Future formula auto-decrements.
-      // 2. Flip one future-N placeholder → active so the card reflects the new future count.
-      // Only applies to genuinely new active listings (not placeholder ingests, not sold).
+      // New real active listing — update the sheet's ForSale count.
       if (
         (scraped.status ?? "for sale") === "for sale" &&
         (!scraped.lotNumber || !PLACEHOLDER_RE.test(scraped.lotNumber))
       ) {
-        // Sheet update (fire-and-forget) — future formula auto-recalculates
         if (builderName && builderName !== "Unknown") {
           updateTable2(builderName, communityName, { forSale: +1 })
             .catch((e) => console.error(`[sheet-writer] ${communityName} new listing:`, e))
-        }
-        // DB: flip one future-N placeholder → active to mirror the formula result
-        const futurePlaceholder = await prisma.listing.findFirst({
-          where: { communityId, lotNumber: { startsWith: "future-" }, status: "future" },
-        })
-        if (futurePlaceholder) {
-          await prisma.listing.update({
-            where: { id: futurePlaceholder.id },
-            data: { status: "for sale" },
-          })
-          console.log(`  [placeholder-sync] ${communityName}: flipped ${futurePlaceholder.lotNumber} → active (new listing released)`)
         }
       }
     } else {
@@ -290,26 +275,10 @@ export async function detectAndApplyChanges(
         })
       }
 
-      // Placeholder sync + sheet update: when a real listing goes active → sold
-      // (explicit sold status only — "removed" could mean de-listed, not sold).
+      // Real listing went active → sold — update sheet counts.
       if (existing.status === "for sale" && scraped.status === "sold") {
         soldDelta++
-        // DB: flip one avail-N placeholder so Table 2 card counts stay accurate
-        const availPlaceholder = await prisma.listing.findFirst({
-          where: {
-            communityId,
-            lotNumber: { startsWith: "avail-" },
-            status: "for sale",
-          },
-        })
-        if (availPlaceholder) {
-          await prisma.listing.update({
-            where: { id: availPlaceholder.id },
-            data: { status: "sold", soldAt: new Date() },
-          })
-          console.log(`  [placeholder-sync] ${communityName}: flipped ${availPlaceholder.lotNumber} → sold`)
-        }
-        // Sheet: sold +1, forSale -1  (future column is never touched)
+        updates.soldAt = new Date()
         updateTable2(builderName ?? "Unknown", communityName, { sold: +1, forSale: -1 })
           .catch((e) => console.error(`[sheet-writer] ${communityName} active→sold:`, e))
       }
@@ -331,23 +300,7 @@ export async function detectAndApplyChanges(
         })
         console.log(`  [reactivated] ${communityName}: ${scraped.address} (was ${existing.status} → active)`)
 
-        // DB: flip one avail-N placeholder back to active
         if (existing.status === "sold") {
-          const soldAvailPlaceholder = await prisma.listing.findFirst({
-            where: {
-              communityId,
-              lotNumber: { startsWith: "avail-" },
-              status: "sold",
-            },
-          })
-          if (soldAvailPlaceholder) {
-            await prisma.listing.update({
-              where: { id: soldAvailPlaceholder.id },
-              data: { status: "for sale", soldAt: null },
-            })
-            console.log(`  [placeholder-sync] ${communityName}: flipped ${soldAvailPlaceholder.lotNumber} back → active`)
-          }
-          // Sheet: sold -1, forSale +1  (future column is never touched)
           updateTable2(builderName ?? "Unknown", communityName, { sold: -1, forSale: +1 })
             .catch((e) => console.error(`[sheet-writer] ${communityName} reactivation:`, e))
         }

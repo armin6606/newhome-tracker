@@ -189,26 +189,27 @@ async function collectData(snapshot) {
     orderBy: { detectedAt: "desc" },
   })
 
-  // Current community card counts (from placeholders)
+  // Current community card counts (from real scraped listings only — no placeholders)
+  const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
   const communities = await prisma.community.findMany({
     include: {
       builder:  { select: { name: true } },
       listings: {
-        where:  { address: null, status: { not: "removed" } },
-        select: { status: true },
+        where:  { address: { not: null }, status: { not: "removed" } },
+        select: { status: true, lotNumber: true },
       },
     },
   })
 
   const communityCardsNow = {}
   for (const c of communities) {
-    const ph = c.listings
+    const real = c.listings.filter(l => !PLACEHOLDER_LOT_RE.test(l.lotNumber || ""))
     communityCardsNow[c.name] = {
       builder: c.builder.name,
-      active:  ph.filter(l => l.status === "for sale").length,
-      sold:    ph.filter(l => l.status === "sold").length,
-      future:  ph.filter(l => l.status === "future").length,
-      total:   ph.length,
+      active:  real.filter(l => l.status === "for sale").length,
+      sold:    real.filter(l => l.status === "sold").length,
+      future:  real.filter(l => l.status === "future").length,
+      total:   real.length,
     }
   }
 
