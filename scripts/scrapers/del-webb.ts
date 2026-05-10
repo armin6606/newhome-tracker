@@ -502,7 +502,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
   const emptyStats: ChangeDetails = { added: 0, priceChanges: 0, removed: 0, unchanged: 0, reactivated: 0, newListings: [], priceChangeDetails: [], removedListings: [], reactivatedListings: [], newIncentives: [] }
   try {
     console.log(`  [${BUILDER_NAME}] Scraping: ${row.communityName} → ${row.url}`)
-    await randomDelayMs(60_000, 180_000)
+    await randomDelayMs(10_000, 30_000)
 
     let mapResult = await readDelWebbMap(row.url, row.communityName).catch(async (err: unknown) => {
       console.warn(`  [${BUILDER_NAME}] ${row.communityName}: First attempt failed, retrying in 60s...`)

@@ -8,7 +8,7 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 360   # 6-hour overall cap (up from 3h — 10 scrapers need room)
 
     steps:
       - uses: actions/checkout@v4
@@ -69,6 +69,7 @@ jobs:
       - name: Scrape — Toll Brothers
         id: toll-brothers
         continue-on-error: true
+        timeout-minutes: 60
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/toll-brothers.ts
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -77,6 +78,7 @@ jobs:
       - name: Scrape — Lennar
         id: lennar
         continue-on-error: true
+        timeout-minutes: 60
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/lennar.ts
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -85,6 +87,7 @@ jobs:
       - name: Scrape — Pulte
         id: pulte
         continue-on-error: true
+        timeout-minutes: 45
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/pulte.ts
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -93,6 +96,7 @@ jobs:
       - name: Scrape — Del Webb
         id: del-webb
         continue-on-error: true
+        timeout-minutes: 45
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/del-webb.ts
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -101,6 +105,7 @@ jobs:
       - name: Scrape — KB Home
         id: kb-home
         continue-on-error: true
+        timeout-minutes: 45
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/kb-home.ts
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -109,6 +114,7 @@ jobs:
       - name: Scrape — Taylor Morrison
         id: taylor-morrison
         continue-on-error: true
+        timeout-minutes: 45
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/taylor-morrison.ts
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -117,6 +123,7 @@ jobs:
       - name: Scrape — Melia Homes
         id: melia-homes
         continue-on-error: true
+        timeout-minutes: 30
         run: node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/melia-homes.ts
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -125,6 +132,7 @@ jobs:
       - name: Scrape — Shea Homes
         id: shea-homes
         continue-on-error: true
+        timeout-minutes: 30
         run: node scripts/scrape-shea.mjs
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -133,6 +141,7 @@ jobs:
       - name: Scrape — Brookfield Residential
         id: brookfield
         continue-on-error: true
+        timeout-minutes: 20
         run: node "Brookfield Agent/scripts/scrape-brookfield.mjs"
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -141,6 +150,7 @@ jobs:
       - name: Scrape — TRI Pointe Homes
         id: tripointe
         continue-on-error: true
+        timeout-minutes: 30
         run: node "TriPointe Agent/scripts/scrape-tripointe.mjs"
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
@@ -148,6 +158,7 @@ jobs:
 
       - name: Send daily report email
         if: always()
+        timeout-minutes: 10
         run: node scripts/send-daily-report.mjs
         env:
           DATABASE_URL:   ${{ secrets.DATABASE_URL }}
