@@ -536,6 +536,18 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
     }
 
+    // Guard: if DB has active for-sale listings but scraper returned ZERO for-sale lots,
+    // the AlphaVision API likely failed to return QMI homes — skip to avoid false sold marks.
+    const dbForSaleCount = await prisma.listing.count({
+      where: { community: { builderId, name: row.communityName }, status: "for sale" }
+    })
+    const scrapedForSaleCount = listings.filter(l => l.status === "for sale").length
+    if (dbForSaleCount > 2 && scrapedForSaleCount === 0) {
+      const msg = `${row.communityName}: DB has ${dbForSaleCount} for-sale lots but scraper returned 0 — AlphaVision API likely missed QMIs, skipping`
+      console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
+      return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
+    }
+
     const community = await withReconnect(() =>
       prisma.community.upsert({
         where: { builderId_name: { builderId, name: row.communityName } },
