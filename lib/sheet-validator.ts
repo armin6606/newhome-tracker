@@ -22,6 +22,7 @@ const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
 export const BUILDER_SHEET_TABS: Record<string, string> = {
   "Toll Brothers":   "Toll Communities",
   "Lennar":          "Lennar Communities",
+  "Mennar":          "Lennar Communities",   // Firecrawl test clone of Lennar
   "Pulte":           "Pulte Communities",
   "Taylor Morrison": "Taylor Communities",
   "Del Webb":        "Del Webb Communities",

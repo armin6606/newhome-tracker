@@ -1,0 +1,104 @@
+name: Mennar (Firecrawl) Scrape
+
+on:
+  schedule:
+    - cron: '0 6 * * *'    # 11:00 PM PDT (06:00 UTC) nightly
+  workflow_dispatch:         # Manual trigger from GitHub Actions UI
+
+jobs:
+  scrape:
+    name: Scrape Mennar via Firecrawl
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Validate required secrets
+        run: |
+          MISSING=""
+          [ -z "$DATABASE_URL" ]      && MISSING="$MISSING DATABASE_URL"
+          [ -z "$FIRECRAWL_API_KEY" ] && MISSING="$MISSING FIRECRAWL_API_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "❌ Missing required secrets:$MISSING"
+            exit 1
+          fi
+          echo "✅ All required secrets present"
+        env:
+          DATABASE_URL:      ${{ secrets.DATABASE_URL }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+
+      - name: Ping database
+        run: |
+          node -e "
+          const { PrismaClient } = require('./node_modules/@prisma/client');
+          const p = new PrismaClient();
+          p.\$connect()
+            .then(() => { console.log('DB connection OK'); return p.\$disconnect(); })
+            .catch(e => { console.error('DB connection FAILED:', e.message); process.exit(1); });
+          "
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Record start time
+        run: echo "SCRAPER_START=$(date -u +%s)" >> $GITHUB_ENV
+
+      - name: Run Mennar Firecrawl scraper
+        id: run_scraper
+        continue-on-error: true
+        timeout-minutes: 75
+        run: node scripts/scrapers/mennar-firecrawl.mjs
+        env:
+          DATABASE_URL:      ${{ secrets.DATABASE_URL }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+
+      - name: Save scrape result
+        if: always()
+        run: |
+          END=$(date -u +%s)
+          START=${SCRAPER_START:-$END}
+          ELAPSED=$((END - START))
+          OUTCOME="${{ steps.run_scraper.outcome }}"
+
+          if [ "$OUTCOME" = "success" ]; then
+            STATUS="success"
+          elif [ "$OUTCOME" != "skipped" ] && [ "$ELAPSED" -ge "$((75 * 60 - 30))" ]; then
+            STATUS="timeout"
+          else
+            STATUS="failure"
+          fi
+
+          START_ISO=$(date -u -d @"$START" +%Y-%m-%dT%H:%M:%SZ)
+          END_ISO=$(date -u -d @"$END"   +%Y-%m-%dT%H:%M:%SZ)
+
+          printf '{"builder":"Mennar","status":"%s","startedAt":"%s","finishedAt":"%s"}\n' \
+            "$STATUS" "$START_ISO" "$END_ISO" > scrape-result.json
+
+          echo "Scrape result: $(cat scrape-result.json)"
+
+          # Merge with detailed result file if it exists
+          if [ -f /tmp/scrape-results.json ]; then
+            echo "--- Detailed results ---"
+            cat /tmp/scrape-results.json
+          fi
+
+      - name: Upload scrape result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mennar-scrape-result
+          path: scrape-result.json
+          retention-days: 7
