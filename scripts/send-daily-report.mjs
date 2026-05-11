@@ -48,7 +48,7 @@ const { PrismaClient } = require("@prisma/client")
 const prisma = new PrismaClient()
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
-const FROM           = "New Key <reports@newkey.us>"
+const FROM           = `New Key <${process.env.RESEND_FROM_EMAIL || "info@newkey.us"}>`
 const TO             = "armin.sabe@gmail.com"
 const SITE_URL       = "https://www.newkey.us"
 

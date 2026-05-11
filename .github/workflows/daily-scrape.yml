@@ -215,7 +215,8 @@ jobs:
         timeout-minutes: 10
         run: node scripts/send-daily-report.mjs
         env:
-          DATABASE_URL:     ${{ secrets.DATABASE_URL }}
-          DIRECT_URL:       ${{ secrets.DIRECT_URL }}
-          RESEND_API_KEY:   ${{ secrets.RESEND_API_KEY }}
-          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DATABASE_URL:       ${{ secrets.DATABASE_URL }}
+          DIRECT_URL:         ${{ secrets.DIRECT_URL }}
+          RESEND_API_KEY:     ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL:  info@newkey.us
+          WORKFLOW_RUN_URL:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
