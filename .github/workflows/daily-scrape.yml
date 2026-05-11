@@ -22,7 +22,7 @@ jobs:
           - builder: "Lennar"
             id: lennar
             cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/lennar.ts"
-            timeout: 60
+            timeout: 80
           - builder: "Pulte"
             id: pulte
             cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/pulte.ts"
