@@ -261,10 +261,10 @@ function table(headers, rows, emptyMsg) {
   ).join("")
   const bodyRows = rows.map(cells =>
     `<tr>${cells.map((c, i) =>
-      `<td style="padding:7px 10px;border-top:1px solid #f3f4f6;font-size:13px;color:${i === 0 ? "#111827" : "#374151"};${i > 0 ? "white-space:nowrap" : ""}">${c ?? ""}</td>`
+      `<td style="padding:7px 10px;border-top:1px solid #f3f4f6;font-size:13px;color:${i === 0 ? "#111827" : "#374151"};word-break:break-word">${c ?? ""}</td>`
     ).join("")}</tr>`
   ).join("")
-  return `<table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">
+  return `<table style="width:100%;table-layout:fixed;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">
     <thead><tr>${headerRow}</tr></thead>
     <tbody>${bodyRows}</tbody>
   </table>`
@@ -557,7 +557,6 @@ function section0ScraperStatus(scraperResults) {
         `⬜ ${builder}`,
         `<span style="color:#9ca3af">No data</span>`,
         `<span style="color:#9ca3af">—</span>`,
-        `<span style="color:#9ca3af">—</span>`,
       ]
     }
     const ok       = d.status === "success"
@@ -578,7 +577,6 @@ function section0ScraperStatus(scraperResults) {
       `${icon} ${builder}`,
       statusEl + errEl,
       timeEl,
-      String(d.communities ?? "—"),
     ]
   })
 
@@ -595,7 +593,7 @@ function section0ScraperStatus(scraperResults) {
 
   return card(`
     ${sectionHeader(header)}
-    ${table(["Builder", "Status", "Started (PDT)", "Communities"], rows, "No results.")}
+    ${table(["Builder", "Status", "Started / Duration (PDT)"], rows, "No results.")}
   `)
 }
 
