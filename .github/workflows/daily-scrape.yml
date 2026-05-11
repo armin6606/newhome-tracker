@@ -211,7 +211,17 @@ jobs:
           fs.writeFileSync('/tmp/scrape-results.json', JSON.stringify(results, null, 2));
           "
 
+      - name: Monitor — detect anomalies and alert
+        if: always()
+        timeout-minutes: 5
+        run: node scripts/monitor-scrapers.mjs
+        env:
+          DATABASE_URL:     ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY:   ${{ secrets.RESEND_API_KEY }}
+          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
       - name: Send daily report email
+        if: always()
         timeout-minutes: 10
         run: node scripts/send-daily-report.mjs
         env:
