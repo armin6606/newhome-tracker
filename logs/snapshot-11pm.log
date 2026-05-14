@@ -1,0 +1,573 @@
+============================================================
+ 11 PM Snapshot — 2026-04-02T17:06:58.193Z
+============================================================
+  For-sale listings: 93
+  Community cards captured: 27
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 13 communities
+    Lennar: 8 communities
+    Pulte: 3 communities
+    Taylor Morrison: 2 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 1 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-03T16:43:35.087Z
+============================================================
+  For-sale listings: 92
+  Community cards captured: 27
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 13 communities
+    Lennar: 8 communities
+    Pulte: 3 communities
+    Taylor Morrison: 2 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-04T17:14:22.994Z
+============================================================
+  For-sale listings: 115
+  Community cards captured: 31
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 13 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 2 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-04.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-06T17:48:25.924Z
+============================================================
+  For-sale listings: 119
+  Community cards captured: 35
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 13 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-06.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-07T16:39:33.853Z
+============================================================
+  For-sale listings: 130
+  Community cards captured: 35
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 13 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-07.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-08T17:19:20.955Z
+============================================================
+  For-sale listings: 167
+  Community cards captured: 58
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-08.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-11T21:14:46.922Z
+============================================================
+  For-sale listings: 186
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-11.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-12T16:31:03.851Z
+============================================================
+  For-sale listings: 186
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-12.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-13T18:25:03.637Z
+============================================================
+  For-sale listings: 180
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-13.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-15T16:24:45.564Z
+============================================================
+  For-sale listings: 178
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-15.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-16T18:48:37.155Z
+============================================================
+Fatal: PrismaClientKnownRequestError: 
+Invalid `prisma.listing.count()` invocation:
+
+
+Server has closed the connection.
+    at $n.handleRequestError (C:\New Key\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\New Key\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\New Key\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\New Key\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async main (file:///C:/New%20Key/scripts/snapshot-11pm.mjs:94:24) {
+  code: 'P1017',
+  clientVersion: '5.22.0',
+  meta: { modelName: 'Listing' }
+}
+============================================================
+ 11 PM Snapshot — 2026-04-17T18:50:54.719Z
+============================================================
+  For-sale listings: 181
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-17.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-18T15:19:44.298Z
+============================================================
+  For-sale listings: 180
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-18.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-19T18:36:24.077Z
+============================================================
+  For-sale listings: 179
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-19.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-20T17:10:53.809Z
+============================================================
+  For-sale listings: 173
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-20.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-22T21:16:53.137Z
+============================================================
+  For-sale listings: 173
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-22.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-23T17:23:03.511Z
+============================================================
+  For-sale listings: 170
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-23.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-24T06:04:00.367Z
+============================================================
+  For-sale listings: 170
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-24.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-26T16:34:47.046Z
+============================================================
+  For-sale listings: 250
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-26.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-27T16:35:28.910Z
+============================================================
+  For-sale listings: 251
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-27.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-04-30T20:55:03.091Z
+============================================================
+  For-sale listings: 248
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-04-30.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-01T18:32:15.743Z
+============================================================
+  For-sale listings: 242
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 3 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-05-01.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-02T19:36:51.910Z
+============================================================
+  For-sale listings: 172
+  Community cards captured: 40
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 4 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-05-02.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-03T14:27:21.950Z
+============================================================
+  For-sale listings: 168
+  Community cards captured: 41
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-05-03.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-04T16:50:07.870Z
+============================================================
+  For-sale listings: 172
+  Community cards captured: 41
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 14 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-05-04.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-06T14:29:40.616Z
+============================================================
+  For-sale listings: 169
+  Community cards captured: 41
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 31 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-05-06.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-07T13:42:19.777Z
+============================================================
+  For-sale listings: 167
+  Community cards captured: 41
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 31 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to C:\New Key\logs\nightly-snapshot.json
+  ✓ Archive saved to  C:\New Key\logs\snapshots\snapshot-2026-05-07.json
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-08T16:43:26.415Z
+============================================================
+  For-sale listings: 53
+  Community cards captured: 56
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 31 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to file
+  ✓ Snapshot saved to DB
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-09T17:18:16.645Z
+============================================================
+  For-sale listings: 66
+  Community cards captured: 56
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 31 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to file
+  ✓ Snapshot saved to DB
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-10T18:03:30.952Z
+============================================================
+  For-sale listings: 199
+  Community cards captured: 56
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 31 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to file
+  ✓ Snapshot saved to DB
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-11T17:35:41.038Z
+============================================================
+  For-sale listings: 195
+  Community cards captured: 56
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 31 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to file
+  ✓ Snapshot saved to DB
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-14T22:34:02.653Z
+============================================================
+  For-sale listings: 191
+  Community cards captured: 56
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 31 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to file
+  ✓ Snapshot saved to DB
+============================================================

@@ -1,0 +1,752 @@
+{
+  "timestamp": "2026-04-08T17:19:24.433Z",
+  "forSaleCount": 167,
+  "communityCards": {
+    "Laurel": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 2,
+      "future": 103,
+      "total": 105
+    },
+    "Stafford Glen": {
+      "builder": "KB Home",
+      "active": 1,
+      "sold": 17,
+      "future": 22,
+      "total": 40
+    },
+    "Parallel at Luna Park": {
+      "builder": "Pulte Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Sequoias": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 48,
+      "future": 7,
+      "total": 55
+    },
+    "Sella": {
+      "builder": "Lennar",
+      "active": 10,
+      "sold": 68,
+      "future": 4,
+      "total": 82
+    },
+    "Aria": {
+      "builder": "Lennar",
+      "active": 9,
+      "sold": 13,
+      "future": 168,
+      "total": 190
+    },
+    "Elm Collection": {
+      "builder": "Toll Brothers",
+      "active": 2,
+      "sold": 16,
+      "future": 48,
+      "total": 66
+    },
+    "Hazel": {
+      "builder": "Lennar",
+      "active": 4,
+      "sold": 20,
+      "future": 25,
+      "total": 49
+    },
+    "Crest": {
+      "builder": "Lennar",
+      "active": 14,
+      "sold": 31,
+      "future": 45,
+      "total": 90
+    },
+    "Rowan Collection": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 5,
+      "future": 39,
+      "total": 44
+    },
+    "Ridge View": {
+      "builder": "Lennar",
+      "active": 4,
+      "sold": 16,
+      "future": 72,
+      "total": 92
+    },
+    "Pinnacle": {
+      "builder": "Toll Brothers",
+      "active": 2,
+      "sold": 34,
+      "future": 13,
+      "total": 49
+    },
+    "Skyline": {
+      "builder": "Toll Brothers",
+      "active": 1,
+      "sold": 37,
+      "future": 3,
+      "total": 41
+    },
+    "Rhea": {
+      "builder": "Lennar",
+      "active": 6,
+      "sold": 11,
+      "future": 99,
+      "total": 116
+    },
+    "Torrey": {
+      "builder": "Lennar",
+      "active": 10,
+      "sold": 37,
+      "future": 0,
+      "total": 47
+    },
+    "Nova": {
+      "builder": "Lennar",
+      "active": 5,
+      "sold": 14,
+      "future": 33,
+      "total": 52
+    },
+    "Strata": {
+      "builder": "Lennar",
+      "active": 12,
+      "sold": 16,
+      "future": 44,
+      "total": 72
+    },
+    "Evergreens": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 5,
+      "future": 0,
+      "total": 5
+    },
+    "Alder (GPN)": {
+      "builder": "Toll Brothers",
+      "active": 5,
+      "sold": 4,
+      "future": 68,
+      "total": 77
+    },
+    "Birch": {
+      "builder": "Toll Brothers",
+      "active": 5,
+      "sold": 9,
+      "future": 63,
+      "total": 77
+    },
+    "Elevate": {
+      "builder": "Toll Brothers",
+      "active": 2,
+      "sold": 74,
+      "future": 4,
+      "total": 80
+    },
+    "Luna": {
+      "builder": "Del Webb",
+      "active": 3,
+      "sold": 17,
+      "future": 62,
+      "total": 82
+    },
+    "Elara": {
+      "builder": "Melia Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 24,
+      "total": 24
+    },
+    "Aurora": {
+      "builder": "Taylor Morrison",
+      "active": 5,
+      "sold": 2,
+      "future": 40,
+      "total": 47
+    },
+    "Oliva": {
+      "builder": "Taylor Morrison",
+      "active": 0,
+      "sold": 39,
+      "future": 118,
+      "total": 157
+    },
+    "Parallel": {
+      "builder": "Pulte",
+      "active": 4,
+      "sold": 0,
+      "future": 78,
+      "total": 82
+    },
+    "Isla at Luna Park": {
+      "builder": "Lennar",
+      "active": 8,
+      "sold": 17,
+      "future": 56,
+      "total": 81
+    },
+    "Rhythm": {
+      "builder": "KB Home",
+      "active": 2,
+      "sold": 40,
+      "future": 40,
+      "total": 82
+    },
+    "Arden at Luna Park": {
+      "builder": "Pulte Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Luna at Gavilan Ridge": {
+      "builder": "Del Webb",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Elara at Gavilan Ridge": {
+      "builder": "Del Webb",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Cerise at Citrus Square": {
+      "builder": "Melia Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Magnolia": {
+      "builder": "Brookfield Residential",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Esplanade at Madeira Ranch": {
+      "builder": "Taylor Morrison",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Aurora at Luna Park": {
+      "builder": "Taylor Morrison",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Master-Planned Living": {
+      "builder": "Taylor Morrison",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Sold Out": {
+      "builder": "Taylor Morrison",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Join the Interest List": {
+      "builder": "Taylor Morrison",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "36th & Holt": {
+      "builder": "Shea Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Breckyn": {
+      "builder": "Melia Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Indigo": {
+      "builder": "Taylor Morrison",
+      "active": 6,
+      "sold": 2,
+      "future": 90,
+      "total": 98
+    },
+    "Towns at Orange": {
+      "builder": "Melia Homes",
+      "active": 2,
+      "sold": 22,
+      "future": 0,
+      "total": 24
+    },
+    "Cerise": {
+      "builder": "Melia Homes",
+      "active": 3,
+      "sold": 0,
+      "future": 2,
+      "total": 5
+    },
+    "Townes at Orange": {
+      "builder": "Melia Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Crest View": {
+      "builder": "Shea Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 100,
+      "total": 100
+    },
+    "Elevate By Toll Brothers At Great Park Neighborhoods": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "The Sequoias At The Meadows": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "The Evergreens At The Meadows": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Icon": {
+      "builder": "Pulte",
+      "active": 9,
+      "sold": 0,
+      "future": 76,
+      "total": 85
+    },
+    "Toll Brothers At Great Park Neighborhoods": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Toll Brothers In Summit At Orchard Hills": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Juniper": {
+      "builder": "Taylor Morrison",
+      "active": 7,
+      "sold": 0,
+      "future": 12,
+      "total": 19
+    },
+    "Cobalt": {
+      "builder": "Taylor Morrison",
+      "active": 4,
+      "sold": 5,
+      "future": 118,
+      "total": 127
+    },
+    "Orange County, CA": {
+      "builder": "TRI Pointe Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Palm Court": {
+      "builder": "KB Home",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Fresco in the Reserve at Orchard Hills": {
+      "builder": "KB Home",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Icon at Luna Park": {
+      "builder": "Pulte Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Eclipse at Luna Park": {
+      "builder": "Pulte Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    }
+  },
+  "table2": {
+    "Toll Brothers": {
+      "Elm Collection": {
+        "sold": 16,
+        "forSale": 2,
+        "future": 48,
+        "total": 66
+      },
+      "Rowan Collection": {
+        "sold": 5,
+        "forSale": 2,
+        "future": 39,
+        "total": 46
+      },
+      "Pinnacle": {
+        "sold": 34,
+        "forSale": 2,
+        "future": 13,
+        "total": 49
+      },
+      "Skyline": {
+        "sold": 37,
+        "forSale": 2,
+        "future": 3,
+        "total": 42
+      },
+      "Birch": {
+        "sold": 9,
+        "forSale": 3,
+        "future": 63,
+        "total": 75
+      },
+      "Elevate": {
+        "sold": 74,
+        "forSale": 4,
+        "future": 4,
+        "total": 82
+      },
+      "Laurel": {
+        "sold": 2,
+        "forSale": 2,
+        "future": 103,
+        "total": 107
+      },
+      "Sequoias": {
+        "sold": 48,
+        "forSale": 2,
+        "future": 7,
+        "total": 57
+      },
+      "Evergreens": {
+        "sold": 5,
+        "forSale": 1,
+        "future": 0,
+        "total": 6
+      },
+      "Alder (GPN)": {
+        "sold": 4,
+        "forSale": 5,
+        "future": 68,
+        "total": 77
+      },
+      "Skyview": {
+        "sold": 33,
+        "forSale": 3,
+        "future": 63,
+        "total": 99
+      },
+      "Ironridge": {
+        "sold": 4,
+        "forSale": 6,
+        "future": 177,
+        "total": 187
+      },
+      "Silverstone": {
+        "sold": 22,
+        "forSale": 2,
+        "future": 48,
+        "total": 72
+      },
+      "Viewpoint": {
+        "sold": 33,
+        "forSale": 2,
+        "future": 64,
+        "total": 99
+      },
+      "Condo": {
+        "sold": 1,
+        "forSale": 1518,
+        "future": 3,
+        "total": 2
+      },
+      "Single Family": {
+        "sold": 3,
+        "forSale": 2801,
+        "future": 4,
+        "total": 3
+      },
+      "Single-Family Home": {
+        "sold": 3,
+        "forSale": 3772,
+        "future": 5,
+        "total": 5
+      }
+    },
+    "Lennar": {
+      "Isla at Luna Park": {
+        "sold": 17,
+        "forSale": 8,
+        "future": 56,
+        "total": 81
+      },
+      "Rhea": {
+        "sold": 11,
+        "forSale": 6,
+        "future": 99,
+        "total": 116
+      },
+      "Torrey": {
+        "sold": 37,
+        "forSale": 10,
+        "future": 0,
+        "total": 47
+      },
+      "Hazel": {
+        "sold": 20,
+        "forSale": 4,
+        "future": 25,
+        "total": 49
+      },
+      "Nova": {
+        "sold": 14,
+        "forSale": 5,
+        "future": 33,
+        "total": 52
+      },
+      "Strata": {
+        "sold": 16,
+        "forSale": 12,
+        "future": 44,
+        "total": 72
+      },
+      "Sella": {
+        "sold": 68,
+        "forSale": 10,
+        "future": 4,
+        "total": 82
+      },
+      "Aria": {
+        "sold": 13,
+        "forSale": 9,
+        "future": 168,
+        "total": 190
+      },
+      "Crest": {
+        "sold": 31,
+        "forSale": 14,
+        "future": 45,
+        "total": 90
+      },
+      "Ridge View": {
+        "sold": 16,
+        "forSale": 4,
+        "future": 72,
+        "total": 92
+      },
+      "Townhome": {
+        "sold": 3,
+        "forSale": 1931,
+        "future": 3,
+        "total": 3
+      },
+      "Single Family": {
+        "sold": 2,
+        "forSale": 3044,
+        "future": 5,
+        "total": 4
+      },
+      "Attached": {
+        "sold": 3,
+        "forSale": 1806,
+        "future": 3,
+        "total": 3
+      },
+      "Duplex": {
+        "sold": 3,
+        "forSale": 2066,
+        "future": 3,
+        "total": 3
+      }
+    },
+    "Pulte": {
+      "Icon": {
+        "sold": 0,
+        "forSale": 9,
+        "future": 76,
+        "total": 85
+      },
+      "Parallel": {
+        "sold": 0,
+        "forSale": 4,
+        "future": 78,
+        "total": 82
+      },
+      "Condominium": {
+        "sold": 3,
+        "forSale": 2371,
+        "future": 3,
+        "total": 3
+      }
+    },
+    "Taylor Morrison": {
+      "Aurora": {
+        "sold": 2,
+        "forSale": 5,
+        "future": 40,
+        "total": 47
+      },
+      "Oliva": {
+        "sold": 39,
+        "forSale": 0,
+        "future": 118,
+        "total": 157
+      },
+      "Cobalt": {
+        "sold": 5,
+        "forSale": 4,
+        "future": 118,
+        "total": 127
+      },
+      "Indigo": {
+        "sold": 2,
+        "forSale": 6,
+        "future": 90,
+        "total": 98
+      },
+      "Juniper": {
+        "sold": 0,
+        "forSale": 7,
+        "future": 12,
+        "total": 19
+      },
+      "Single Family": {
+        "sold": 2,
+        "forSale": 1894,
+        "future": 3,
+        "total": 2
+      },
+      "Attached": {
+        "sold": 2,
+        "forSale": 1843,
+        "future": 3,
+        "total": 2
+      },
+      "Detached": {
+        "sold": 2,
+        "forSale": 2420,
+        "future": 4,
+        "total": 3
+      }
+    },
+    "Del Webb": {
+      "Luna": {
+        "sold": 17,
+        "forSale": 3,
+        "future": 62,
+        "total": 82
+      },
+      "Elara": {
+        "sold": 7,
+        "forSale": 2,
+        "future": 35,
+        "total": 44
+      },
+      "Single Family": {
+        "sold": 2,
+        "forSale": 2911,
+        "future": 3,
+        "total": 3
+      }
+    },
+    "KB Home": {
+      "Stafford Glen": {
+        "sold": 17,
+        "forSale": 3,
+        "future": 22,
+        "total": 42
+      },
+      "Rhythm": {
+        "sold": 40,
+        "forSale": 4,
+        "future": 40,
+        "total": 84
+      },
+      "Townhome": {
+        "sold": 3,
+        "forSale": 2165,
+        "future": 4,
+        "total": 3
+      }
+    },
+    "Melia Homes": {
+      "Cerise": {
+        "sold": 0,
+        "forSale": 3,
+        "future": 2,
+        "total": 5
+      },
+      "Indigo": {
+        "sold": 4,
+        "forSale": 7,
+        "future": 57,
+        "total": 68
+      },
+      "Towns at Orange": {
+        "sold": 22,
+        "forSale": 2,
+        "future": 0,
+        "total": 24
+      },
+      "Elara": {
+        "sold": 0,
+        "forSale": 0,
+        "future": 24,
+        "total": 24
+      },
+      "Condominium": {
+        "sold": 0,
+        "forSale": 832,
+        "future": 1,
+        "total": 1
+      },
+      "Townhome": {
+        "sold": 3,
+        "forSale": 2175,
+        "future": 4,
+        "total": 3
+      }
+    }
+  }
+}

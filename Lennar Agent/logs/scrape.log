@@ -82,3 +82,95 @@ Processing 6 community(s)…
 
   Elapsed: 10.2s
 ============================================================
+============================================================
+ Lennar OC Scraper — 2026-04-24T08:00:02.009Z
+============================================================
+
+Reading community list from Sheet …
+  Found 10 community(s) in Sheet
+
+Processing 10 community(s)…
+
+─ Isla at Luna Park
+  Matched: "Isla at Luna Park" [CommunityType:c_11758] via exact — own slug: isla-at-luna-park
+  Map: 55 lots — 30 future, 7 active, 18 sold
+  Sheet Table 2 loaded (Lennar Communities): 14 communities
+  Placeholders synced: +7 sold, +0 avail, +0 future
+  ✔ Validation: all prices in sync
+
+─ Rhea
+  ⚠ Community name fuzzy-matched: Sheet="Rhea" → Apollo="Rhea at Luna Park" (prefix). Consider updating the name in Google Sheet Table 1 to exactly "Rhea at Luna Park".
+  Matched: "Rhea at Luna Park" [CommunityType:c_11757] via prefix — own slug: rhea-at-luna-park
+  Map: 62 lots — 13 sold, 43 future, 6 active
+  Sheet Table 2 loaded (Lennar Communities): 14 communities
+  Placeholders synced: +2 sold, +0 avail, +0 future
+  ✔ Validation: all prices in sync
+
+─ Torrey
+  Matched: "Torrey" [CommunityType:c_10600] via exact — own slug: torrey
+  Map: 49 lots — 42 sold, 7 active
+  Sheet Table 2 loaded (Lennar Communities): 14 communities
+  Placeholders synced: +3 sold, +0 avail, +0 future
+  ✔ Validation: all prices in sync
+
+─ Hazel
+  Matched: "Hazel" [CommunityType:c_10602] via exact — own slug: hazel
+  Map: 64 lots — 10 active, 29 future, 25 sold
+  Sheet Table 2 loaded (Lennar Communities): 14 communities
+  Placeholders synced: +7 sold, +0 avail, +0 future
+  + 10 newly for-sale
+  ✔ Validation: all prices in sync
+
+─ Nova
+  ⚠ Community name fuzzy-matched: Sheet="Nova" → Apollo="Nova | Active Adult" (prefix). Consider updating the name in Google Sheet Table 1 to exactly "Nova | Active Adult".
+  Matched: "Nova | Active Adult" [CommunityType:c_10603] via prefix — own slug: nova--active-adult
+  Map: 52 lots — 18 sold, 34 future
+  Sheet Table 2 loaded (Lennar Communities): 14 communities
+  Placeholders synced: +3 sold, +0 avail, +0 future
+
+─ Strata
+  ⚠ Community name fuzzy-matched: Sheet="Strata" → Apollo="Strata | Active Adult" (prefix). Consider updating the name in Google Sheet Table 1 to exactly "Strata | Active Adult".
+  Matched: "Strata | Active Adult" [CommunityType:c_10601] via prefix — own slug: strata--active-adult
+  Map: 66 lots — 17 sold, 7 active, 42 future
+  Sheet Table 2 loaded (Lennar Communities): 14 communities
+  Placeholders synced: +3 sold, +0 avail, +0 future
+  ✔ Validation: all prices in sync
+
+─ Sella
+  Matched: "Sella" [CommunityType:c_9007] via exact — own slug: sella
+  Map: 85 lots — 68 sold, 8 active, 9 future
+  Sheet Table 2 loaded (Lennar Communities): 14 communities
+  Placeholders synced: +3 sold, +0 avail, +0 future
+  + 1 newly for-sale
+  ✔ Validation: all prices in sync
+
+─ Aria
+  Matched: "Aria" [CommunityType:c_10604] via exact — own slug: aria
+  Map: 60 lots — 13 sold, 38 future, 9 active
+  Sheet Table 2 loaded (Lennar Communities): 14 communities
+  Placeholders synced: +1 sold, +0 avail, +0 future
+  + 1 newly for-sale
+  ✔ Validation: all prices in sync
+
+─ Crest
+  Matched: "Crest" [CommunityType:c_9385] via exact — own slug: crest
+  Map: 54 lots — 17 future, 37 sold
+  Sheet Table 2 loaded (Lennar Communities): 14 communities
+  Placeholders synced: +2 sold, +0 avail, +0 future
+  ✗ 2 newly sold
+
+─ Ridge View
+  ✗ ERROR: Community "Ridge View" not found on this Lennar page. Communities on this page: ["Crest" (/new-homes/california/los-angeles-ventura-county/montebello/metro-heights/crest), "Ridgeview" (/new-homes/california/los-angeles-ventura-county/montebello/metro-heights/ridgeview), "Aria" (/new-homes/california/los-angeles-ventura-county/montebello/metro-heights/aria)]. Fix the community name or URL in Google Sheet Table 1.
+
+============================================================
+ Run Summary
+============================================================
+  Communities  : 9 / 10 succeeded
+  New for-sale : 12
+  Newly sold   : 2
+  Price changes: 0
+  Failures     : 1
+    • Ridge View: Community "Ridge View" not found on this Lennar page. Communities on this page: ["Crest" (/new-homes/california/los-angeles-ventura-county/montebello/metro-heights/crest), "Ridgeview" (/new-homes/california/los-angeles-ventura-county/montebello/metro-heights/ridgeview), "Aria" (/new-homes/california/los-angeles-ventura-county/montebello/metro-heights/aria)]. Fix the community name or URL in Google Sheet Table 1.
+
+  Elapsed: 18.3s
+============================================================

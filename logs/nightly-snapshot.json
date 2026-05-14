@@ -1,0 +1,852 @@
+{
+  "timestamp": "2026-05-14T22:34:07.035Z",
+  "forSaleCount": 191,
+  "communityCards": {
+    "Sierra Crest": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Aria": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Cortona": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Parallel": {
+      "builder": "Pulte",
+      "active": 5,
+      "sold": 0,
+      "future": 77,
+      "total": 82
+    },
+    "Elevate": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 11,
+      "future": 0,
+      "total": 11
+    },
+    "Rhea": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Oliva": {
+      "builder": "Taylor Morrison",
+      "active": 0,
+      "sold": 39,
+      "future": 118,
+      "total": 157
+    },
+    "Torrey": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Elm Collection": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 19,
+      "future": 0,
+      "total": 19
+    },
+    "Moonlight": {
+      "builder": "KB Home",
+      "active": 0,
+      "sold": 3,
+      "future": 73,
+      "total": 76
+    },
+    "Rowan Collection": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 8,
+      "future": 0,
+      "total": 8
+    },
+    "Sequoias": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 17,
+      "future": 0,
+      "total": 17
+    },
+    "Alder (GPN)": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 5,
+      "future": 0,
+      "total": 5
+    },
+    "Strata": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Evergreens": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Oak": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Birch": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 12,
+      "future": 0,
+      "total": 12
+    },
+    "Ridge View": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Ruby": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Opal North": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Crest": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Pinnacle": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 31,
+      "future": 0,
+      "total": 31
+    },
+    "Hazel": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Elara": {
+      "builder": "Melia Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Aurora": {
+      "builder": "Taylor Morrison",
+      "active": 5,
+      "sold": 4,
+      "future": 38,
+      "total": 47
+    },
+    "Skyline": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 33,
+      "future": 0,
+      "total": 33
+    },
+    "Laurel": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Nova": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Stafford Glen": {
+      "builder": "KB Home",
+      "active": 3,
+      "sold": 17,
+      "future": 22,
+      "total": 42
+    },
+    "Rhythm": {
+      "builder": "KB Home",
+      "active": 5,
+      "sold": 39,
+      "future": 40,
+      "total": 84
+    },
+    "Isla at Luna Park": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Walnut": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Skyview": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 17,
+      "future": 0,
+      "total": 17
+    },
+    "Jewel": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Rowan (GPN)": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Arches": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Montilla": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Silverstone": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 11,
+      "future": 0,
+      "total": 11
+    },
+    "Arbor": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Viewpoint": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 11,
+      "future": 0,
+      "total": 11
+    },
+    "Indigo": {
+      "builder": "Taylor Morrison",
+      "active": 6,
+      "sold": 2,
+      "future": 90,
+      "total": 98
+    },
+    "Sierra Bella": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Crest View": {
+      "builder": "Shea Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Icon": {
+      "builder": "Pulte",
+      "active": 10,
+      "sold": 0,
+      "future": 76,
+      "total": 86
+    },
+    "Juniper": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Coral": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Cobalt": {
+      "builder": "Taylor Morrison",
+      "active": 4,
+      "sold": 5,
+      "future": 118,
+      "total": 127
+    },
+    "Sella": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Sunstone": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Sapphire": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Cerise": {
+      "builder": "Melia Homes",
+      "active": 3,
+      "sold": 0,
+      "future": 2,
+      "total": 5
+    },
+    "Sycamore": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Towns at Orange": {
+      "builder": "Melia Homes",
+      "active": 2,
+      "sold": 22,
+      "future": 0,
+      "total": 24
+    },
+    "Ironridge": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Luna": {
+      "builder": "Del Webb",
+      "active": 3,
+      "sold": 17,
+      "future": 62,
+      "total": 82
+    },
+    "Elm (GPN)": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    }
+  },
+  "table2": {
+    "Toll Brothers": {
+      "Elm Collection": {
+        "sold": 16,
+        "forSale": 2,
+        "future": 48,
+        "total": 66
+      },
+      "Rowan Collection": {
+        "sold": 5,
+        "forSale": 2,
+        "future": 39,
+        "total": 46
+      },
+      "Pinnacle": {
+        "sold": 34,
+        "forSale": 2,
+        "future": 13,
+        "total": 49
+      },
+      "Skyline": {
+        "sold": 37,
+        "forSale": 2,
+        "future": 3,
+        "total": 42
+      },
+      "Birch": {
+        "sold": 9,
+        "forSale": 3,
+        "future": 63,
+        "total": 75
+      },
+      "Elevate": {
+        "sold": 74,
+        "forSale": 4,
+        "future": 4,
+        "total": 82
+      },
+      "Laurel": {
+        "sold": 2,
+        "forSale": 2,
+        "future": 103,
+        "total": 107
+      },
+      "Sequoias": {
+        "sold": 48,
+        "forSale": 2,
+        "future": 7,
+        "total": 57
+      },
+      "Evergreens": {
+        "sold": 5,
+        "forSale": 1,
+        "future": 0,
+        "total": 6
+      },
+      "Alder (GPN)": {
+        "sold": 33,
+        "forSale": 5,
+        "future": 59,
+        "total": 97
+      },
+      "Skyview": {
+        "sold": 4,
+        "forSale": 6,
+        "future": 155,
+        "total": 165
+      },
+      "Ironridge": {
+        "sold": 21,
+        "forSale": 8,
+        "future": 74,
+        "total": 103
+      },
+      "Silverstone": {
+        "sold": 34,
+        "forSale": 4,
+        "future": 56,
+        "total": 94
+      },
+      "Viewpoint": {
+        "sold": 33,
+        "forSale": 2,
+        "future": 64,
+        "total": 99
+      },
+      "Condo": {
+        "sold": 1,
+        "forSale": 1518,
+        "future": 3,
+        "total": 2
+      },
+      "Single Family": {
+        "sold": 3,
+        "forSale": 2801,
+        "future": 4,
+        "total": 3
+      },
+      "Single-Family Home": {
+        "sold": 3,
+        "forSale": 3772,
+        "future": 5,
+        "total": 5
+      }
+    },
+    "Lennar": {
+      "Isla at Luna Park": {
+        "sold": 42,
+        "forSale": 16,
+        "future": 23,
+        "total": 81
+      },
+      "Rhea": {
+        "sold": 30,
+        "forSale": 11,
+        "future": 75,
+        "total": 116
+      },
+      "Torrey": {
+        "sold": 86,
+        "forSale": 6,
+        "future": -43,
+        "total": 49
+      },
+      "Hazel": {
+        "sold": 56,
+        "forSale": 20,
+        "future": -12,
+        "total": 64
+      },
+      "Nova": {
+        "sold": 36,
+        "forSale": 16,
+        "future": 0,
+        "total": 52
+      },
+      "Strata": {
+        "sold": 38,
+        "forSale": 22,
+        "future": 12,
+        "total": 72
+      },
+      "Sella": {
+        "sold": 66,
+        "forSale": 16,
+        "future": 3,
+        "total": 85
+      },
+      "Aria": {
+        "sold": 24,
+        "forSale": 20,
+        "future": 146,
+        "total": 190
+      },
+      "Crest": {
+        "sold": 79,
+        "forSale": 2,
+        "future": 9,
+        "total": 90
+      },
+      "Ridge View": {
+        "sold": 40,
+        "forSale": 16,
+        "future": 45,
+        "total": 101
+      },
+      "Sunstone": {
+        "sold": 42,
+        "forSale": 6,
+        "future": 0,
+        "total": 87
+      },
+      "Sapphire": {
+        "sold": 26,
+        "forSale": 6,
+        "future": 0,
+        "total": 92
+      },
+      "Ruby": {
+        "sold": 75,
+        "forSale": 7,
+        "future": 0,
+        "total": 67
+      },
+      "Jewel": {
+        "sold": 48,
+        "forSale": 10,
+        "future": 0,
+        "total": 164
+      },
+      "Arches": {
+        "sold": 67,
+        "forSale": 6,
+        "future": 0,
+        "total": 86
+      },
+      "Walnut": {
+        "sold": 17,
+        "forSale": 3,
+        "future": 0,
+        "total": 78
+      },
+      "Montilla": {
+        "sold": 99,
+        "forSale": 9,
+        "future": 0,
+        "total": 73
+      },
+      "Sierra Bella": {
+        "sold": 101,
+        "forSale": 0,
+        "future": 0,
+        "total": 124
+      },
+      "Opal North": {
+        "sold": 80,
+        "forSale": 4,
+        "future": 0,
+        "total": 60
+      },
+      "Arbor": {
+        "sold": 12,
+        "forSale": 2,
+        "future": 0,
+        "total": 77
+      },
+      "Coral": {
+        "sold": 57,
+        "forSale": 11,
+        "future": 0,
+        "total": 72
+      },
+      "Cortona": {
+        "sold": 223,
+        "forSale": 5,
+        "future": 0,
+        "total": 158
+      },
+      "Sierra Crest": {
+        "sold": 6,
+        "forSale": 0,
+        "future": 0,
+        "total": 87
+      },
+      "Juniper": {
+        "sold": 2,
+        "forSale": 0,
+        "future": 0,
+        "total": 80
+      },
+      "Laurel": {
+        "sold": 5,
+        "forSale": 0,
+        "future": 0,
+        "total": 55
+      },
+      "Oak": {
+        "sold": 1,
+        "forSale": 0,
+        "future": 0,
+        "total": 82
+      },
+      "Sycamore": {
+        "sold": 4,
+        "forSale": 0,
+        "future": 0,
+        "total": 87
+      },
+      "Townhome": {
+        "sold": 3,
+        "forSale": 1931,
+        "future": 3,
+        "total": 3
+      },
+      "Single Family": {
+        "sold": 2,
+        "forSale": 3044,
+        "future": 5,
+        "total": 4
+      },
+      "Attached": {
+        "sold": 3,
+        "forSale": 1806,
+        "future": 3,
+        "total": 3
+      },
+      "Duplex": {
+        "sold": 3,
+        "forSale": 2066,
+        "future": 3,
+        "total": 3
+      }
+    },
+    "Pulte": {
+      "Icon": {
+        "sold": 0,
+        "forSale": 10,
+        "future": 76,
+        "total": 85
+      },
+      "Parallel": {
+        "sold": 0,
+        "forSale": 5,
+        "future": 77,
+        "total": 82
+      },
+      "Condominium": {
+        "sold": 3,
+        "forSale": 2371,
+        "future": 3,
+        "total": 3
+      }
+    },
+    "Taylor Morrison": {
+      "Aurora": {
+        "sold": 4,
+        "forSale": 5,
+        "future": 38,
+        "total": 47
+      },
+      "Oliva": {
+        "sold": 39,
+        "forSale": 0,
+        "future": 118,
+        "total": 157
+      },
+      "Cobalt": {
+        "sold": 5,
+        "forSale": 4,
+        "future": 118,
+        "total": 127
+      },
+      "Indigo": {
+        "sold": 2,
+        "forSale": 6,
+        "future": 90,
+        "total": 98
+      },
+      "Juniper": {
+        "sold": 0,
+        "forSale": 7,
+        "future": 12,
+        "total": 19
+      },
+      "Single Family": {
+        "sold": 2,
+        "forSale": 1894,
+        "future": 3,
+        "total": 2
+      },
+      "Attached": {
+        "sold": 2,
+        "forSale": 1843,
+        "future": 3,
+        "total": 2
+      },
+      "Detached": {
+        "sold": 2,
+        "forSale": 2420,
+        "future": 4,
+        "total": 3
+      }
+    },
+    "Del Webb": {
+      "Luna": {
+        "sold": 17,
+        "forSale": 3,
+        "future": 62,
+        "total": 82
+      },
+      "Elara": {
+        "sold": 7,
+        "forSale": 2,
+        "future": 35,
+        "total": 44
+      },
+      "Single Family": {
+        "sold": 2,
+        "forSale": 2911,
+        "future": 3,
+        "total": 3
+      }
+    },
+    "KB Home": {
+      "Stafford Glen": {
+        "sold": 17,
+        "forSale": 3,
+        "future": 22,
+        "total": 42
+      },
+      "Rhythm": {
+        "sold": 39,
+        "forSale": 5,
+        "future": 40,
+        "total": 84
+      },
+      "Moonlight": {
+        "sold": 3,
+        "forSale": 0,
+        "future": 73,
+        "total": 76
+      },
+      "Townhome": {
+        "sold": 3,
+        "forSale": 2165,
+        "future": 4,
+        "total": 3
+      },
+      "Detached": {
+        "sold": 3,
+        "forSale": 2697,
+        "future": 4,
+        "total": 4
+      }
+    },
+    "Melia Homes": {
+      "Cerise": {
+        "sold": 0,
+        "forSale": 3,
+        "future": 2,
+        "total": 5
+      },
+      "Indigo": {
+        "sold": 4,
+        "forSale": 7,
+        "future": 57,
+        "total": 68
+      },
+      "Towns at Orange": {
+        "sold": 22,
+        "forSale": 2,
+        "future": 0,
+        "total": 24
+      },
+      "Elara": {
+        "sold": 0,
+        "forSale": 0,
+        "future": 24,
+        "total": 24
+      },
+      "Condominium": {
+        "sold": 0,
+        "forSale": 832,
+        "future": 1,
+        "total": 1
+      },
+      "Townhome": {
+        "sold": 3,
+        "forSale": 2175,
+        "future": 4,
+        "total": 3
+      }
+    }
+  }
+}

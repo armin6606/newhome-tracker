@@ -72,6 +72,7 @@ function mapStatus(s) {
   switch ((s || "").toUpperCase()) {
     case "SOLD":                return "sold"
     case "AVAILABLE":
+    case "FOR_SALE":
     case "UNDER_CONSTRUCTION":
     case "QUICK_MOVE_IN":      return "active"
     default:                   return "future"
@@ -175,6 +176,11 @@ function findCommKey(apollo, communityName) {
   // Strategy 3: DB name starts with Apollo name (reverse)
   entry = candidates.find(([, v]) => dbName.startsWith(norm(v.name)))
   if (entry) return { key: entry[0], apolloName: entry[1].name, apolloUrl: entry[1].url, strategy: "reverse-prefix" }
+
+  // Strategy 4: space-collapsed match ("Ridge View" → "ridgeview")
+  const collapse = s => s.replace(/\s+/g, "")
+  entry = candidates.find(([, v]) => collapse(norm(v.name)) === collapse(dbName))
+  if (entry) return { key: entry[0], apolloName: entry[1].name, apolloUrl: entry[1].url, strategy: "collapsed" }
 
   // Not found — build helpful error
   const available = candidates.map(([, v]) => `"${v.name}" (${v.url})`).join(", ")

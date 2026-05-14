@@ -10,7 +10,12 @@
       "Bash(find /c/newhome-tracker -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\) ! -path */node_modules/* ! -path */.next/* ! -path */app/*)",
       "Bash(grep -r \"Control\\\\|Intel\" /c/newhome-tracker --include=*.tsx --include=*.ts --exclude-dir=node_modules --exclude-dir=.next)",
       "Bash(grep:*)",
-      "WebFetch(domain:docs.google.com)"
+      "WebFetch(domain:docs.google.com)",
+      "PowerShell(Get-ScheduledTask)",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "WebFetch(domain:api.github.com)",
+      "PowerShell(Get-ScheduledTask | Where-Object { $_.TaskName -match 'scraper|lennar|toll|shea|newkey|new.key' -or $_.Actions.Execute -match 'scraper|lennar|toll|shea|newkey|new.key' } | Select-Object TaskName, TaskPath, @{N='Action';E={$_.Actions.Execute}})"
     ]
   }
 }

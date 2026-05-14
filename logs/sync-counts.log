@@ -56,3 +56,53 @@
 ============================================================
  Summary: 16 succeeded | 0 failed | 24.2s
 ============================================================
+============================================================
+ New Key Community Count Sync — 2026-04-24T09:00:01.868Z
+============================================================
+
+── Toll Brothers (gid=0)
+   14 community(s) in Table 2
+   ✓ Elm Collection: 16 sold | 2 for sale | 48 future | 66 total (66 updated)
+   ✓ Rowan Collection: 5 sold | 2 for sale | 39 future | 46 total (46 updated)
+   ✓ Pinnacle: 34 sold | 2 for sale | 13 future | 49 total (49 updated)
+   ✓ Skyline: 37 sold | 2 for sale | 3 future | 42 total (42 updated)
+   ✓ Birch: 9 sold | 3 for sale | 63 future | 75 total (75 updated)
+   ✓ Elevate: 74 sold | 4 for sale | 4 future | 82 total (82 updated)
+   ✓ Laurel: 2 sold | 2 for sale | 103 future | 107 total (107 updated)
+   ✓ Sequoias: 48 sold | 2 for sale | 7 future | 57 total (57 updated)
+   ✓ Evergreens: 5 sold | 1 for sale | 0 future | 6 total (6 updated)
+   ✓ Alder (GPN): 33 sold | 5 for sale | 59 future | 97 total (97 updated)
+   ✓ Skyview: 4 sold | 6 for sale | 155 future | 165 total (165 updated)
+   ✓ Ironridge: 21 sold | 8 for sale | 74 future | 103 total (103 updated)
+   ✓ Silverstone: 34 sold | 4 for sale | 56 future | 94 total (94 updated)
+   ✓ Viewpoint: 33 sold | 2 for sale | 64 future | 99 total (99 updated)
+
+── Lennar (gid=1235396983)
+   10 community(s) in Table 2
+   ✓ Isla at Luna Park: 17 sold | 8 for sale | 56 future | 81 total (81 updated)
+   ✓ Rhea: 11 sold | 6 for sale | 99 future | 116 total (116 updated)
+   ✓ Torrey: 37 sold | 10 for sale | 0 future | 47 total (47 updated)
+   ✓ Hazel: 20 sold | 4 for sale | 25 future | 49 total (49 updated)
+   ✓ Nova: 14 sold | 5 for sale | 33 future | 52 total (52 updated)
+   ✓ Strata: 16 sold | 12 for sale | 44 future | 72 total (72 updated)
+   ✓ Sella: 68 sold | 10 for sale | 4 future | 82 total (82 updated)
+   ✓ Aria: 13 sold | 9 for sale | 168 future | 190 total (190 updated)
+   ✓ Crest: 31 sold | 14 for sale | 45 future | 90 total (90 updated)
+   ✓ Ridge View: 16 sold | 4 for sale | 72 future | 92 total (92 updated)
+
+============================================================
+ Summary: 24 succeeded | 0 failed | 17.8s
+============================================================
+============================================================
+ New Key Community Count Sync — 2026-05-07T13:42:01.677Z
+============================================================
+
+── Toll Brothers (gid=0)
+   14 community(s) in Table 2
+   ✓ Elm Collection: 16 sold | 2 for sale | 48 future | 66 total (66 updated)
+   ✓ Rowan Collection: 5 sold | 2 for sale | 39 future | 46 total (46 updated)
+   ✓ Pinnacle: 34 sold | 2 for sale | 13 future | 49 total (49 updated)
+   ✓ Skyline: 37 sold | 2 for sale | 3 future | 42 total (42 updated)
+   ✓ Birch: 9 sold | 3 for sale | 63 future | 75 total (75 updated)
+   ✓ Elevate: 74 sold | 4 for sale | 4 future | 82 total (82 updated)
+^C
