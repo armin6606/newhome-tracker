@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { BUILDER_SHEET_TABS, getSheetCommunities } from "@/lib/sheet-validator"
+import { BUILDER_SHEET_TABS, getSheetCommunities, isNoSheetBuilder } from "@/lib/sheet-validator"
 import { normalizeBuilderName, normalizeCommunityName } from "@/lib/normalizer"
 import { updateTable2, type Table2Counts } from "@/lib/sheet-writer"
 import { getTable3Plans, lookupPlan, matchPlanBySpecs, normalizePlan } from "@/lib/table3-reader"
@@ -360,11 +360,14 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Sheet validator ───────────────────────────────────────────────────────
-  const sheetCommunities = await getSheetCommunities(canonicalBuilder)
-  if (!sheetCommunities) {
-    return NextResponse.json({
-      error: `Cannot fetch Google Sheet for "${canonicalBuilder}". Ingest blocked.`,
-    }, { status: 400 })
+  // Builders with no Google Sheet tab (e.g. TRI Pointe, Brookfield) bypass this check entirely.
+  if (!isNoSheetBuilder(canonicalBuilder)) {
+    const sheetCommunities = await getSheetCommunities(canonicalBuilder)
+    if (!sheetCommunities) {
+      return NextResponse.json({
+        error: `Cannot fetch Google Sheet for "${canonicalBuilder}". Ingest blocked.`,
+      }, { status: 400 })
+    }
   }
 
   // ── Rule 1: Builder must exist ────────────────────────────────────────────

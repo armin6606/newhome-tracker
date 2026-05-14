@@ -221,17 +221,6 @@ async function main() {
   console.log("Brookfield Residential OC Scraper (diff-based)")
   console.log("=".repeat(60))
 
-  const builder = await prisma.builder.findFirst({
-    where: { name: { contains: "Brookfield", mode: "insensitive" } },
-  })
-  if (!builder) {
-    console.error("Error: Could not find Brookfield builder in DB")
-    const all = await prisma.builder.findMany({ select: { id: true, name: true } })
-    all.forEach(b => console.log(`  [${b.id}] ${b.name}`))
-    process.exit(1)
-  }
-  console.log(`\nBuilder: [${builder.id}] ${builder.name}`)
-
   // Resolve canonical community name from DB
   const resolvedName = await resolveDbCommunityName(COMMUNITY_NAME, BUILDER_NAME, prisma)
   // Query DB active listings

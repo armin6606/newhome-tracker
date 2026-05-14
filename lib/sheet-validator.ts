@@ -19,16 +19,26 @@ const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
  * Map of exact DB builder name → Google Sheet tab name.
  * Builders NOT listed here are blocked from ingest and hidden from the site.
  */
-export const BUILDER_SHEET_TABS: Record<string, string> = {
-  "Toll Brothers":   "Toll Communities",
-  "Lennar":          "Lennar Communities",
-  "Mennar":          "Lennar Communities",   // Firecrawl test clone of Lennar
-  "Pulte":           "Pulte Communities",
-  "Taylor Morrison": "Taylor Communities",
-  "Del Webb":        "Del Webb Communities",
-  "KB Home":         "KB Communities",
-  "Melia Homes":     "Melia Communities",
-  "Shea Homes":      "Shea Communities",
+export const BUILDER_SHEET_TABS: Record<string, string | null> = {
+  "Toll Brothers":          "Toll Communities",
+  "Lennar":                 "Lennar Communities",
+  "Mennar":                 "Lennar Communities",   // Firecrawl test clone of Lennar
+  "Pulte":                  "Pulte Communities",
+  "Taylor Morrison":        "Taylor Communities",
+  "Del Webb":               "Del Webb Communities",
+  "KB Home":                "KB Communities",
+  "Melia Homes":            "Melia Communities",
+  "Shea Homes":             "Shea Communities",
+  "TRI Pointe Homes":       null,   // no Google Sheet tab — scraped directly
+  "Brookfield Residential": null,   // no Google Sheet tab — scraped directly
+}
+
+/**
+ * Returns true if the builder is known but has no Google Sheet tab.
+ * These builders bypass sheet validation entirely.
+ */
+export function isNoSheetBuilder(builderName: string): boolean {
+  return builderName in BUILDER_SHEET_TABS && BUILDER_SHEET_TABS[builderName] === null
 }
 
 // ── In-memory cache ────────────────────────────────────────────────────────
@@ -119,6 +129,7 @@ export async function getSheetCommunities(builderName: string): Promise<Set<stri
  * appears in Table 2 of that tab.
  */
 export async function isSheetVerified(builderName: string, communityName: string): Promise<boolean> {
+  if (isNoSheetBuilder(builderName)) return true  // no sheet needed — scraper is source of truth
   const communities = await getSheetCommunities(builderName)
   if (!communities) return false
   return communities.has(communityName)
