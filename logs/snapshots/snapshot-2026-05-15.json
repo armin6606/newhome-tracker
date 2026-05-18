@@ -1,83 +1,13 @@
 {
-  "timestamp": "2026-05-17T22:53:44.026Z",
-  "forSaleCount": 313,
+  "timestamp": "2026-05-15T21:30:07.566Z",
+  "forSaleCount": 191,
   "communityCards": {
-    "Rowan Collection": {
-      "builder": "Toll Brothers",
-      "active": 0,
-      "sold": 8,
-      "future": 0,
-      "total": 8
-    },
-    "Walnut": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
     "Elm Collection": {
       "builder": "Toll Brothers",
       "active": 0,
       "sold": 19,
       "future": 0,
       "total": 19
-    },
-    "Oliva": {
-      "builder": "Taylor Morrison",
-      "active": 0,
-      "sold": 39,
-      "future": 118,
-      "total": 157
-    },
-    "Sequoias": {
-      "builder": "Toll Brothers",
-      "active": 0,
-      "sold": 17,
-      "future": 0,
-      "total": 17
-    },
-    "Hazel": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Moonlight": {
-      "builder": "KB Home",
-      "active": 0,
-      "sold": 3,
-      "future": 73,
-      "total": 76
-    },
-    "Nova": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Pinnacle": {
-      "builder": "Toll Brothers",
-      "active": 0,
-      "sold": 31,
-      "future": 0,
-      "total": 31
-    },
-    "Cortona": {
-      "builder": "Lennar",
-      "active": 5,
-      "sold": 223,
-      "future": 0,
-      "total": 228
-    },
-    "Elara": {
-      "builder": "Melia Homes",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
     },
     "Rhea": {
       "builder": "Mennar",
@@ -86,84 +16,7 @@
       "future": 0,
       "total": 0
     },
-    "Strata": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
     "Sierra Crest": {
-      "builder": "Lennar",
-      "active": 0,
-      "sold": 6,
-      "future": 0,
-      "total": 6
-    },
-    "Opal North": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Evergreens": {
-      "builder": "Toll Brothers",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Oak": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Laurel": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Parallel": {
-      "builder": "Pulte",
-      "active": 1,
-      "sold": 0,
-      "future": 77,
-      "total": 78
-    },
-    "Ridge View": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Torrey": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Isla at Luna Park": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Birch": {
-      "builder": "Toll Brothers",
-      "active": 0,
-      "sold": 13,
-      "future": 0,
-      "total": 13
-    },
-    "Aria": {
       "builder": "Mennar",
       "active": 0,
       "sold": 0,
@@ -177,6 +30,13 @@
       "future": 38,
       "total": 47
     },
+    "Laurel": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
     "Stafford Glen": {
       "builder": "KB Home",
       "active": 3,
@@ -184,12 +44,33 @@
       "future": 22,
       "total": 42
     },
-    "Elevate": {
+    "Hazel": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Rowan Collection": {
       "builder": "Toll Brothers",
       "active": 0,
-      "sold": 11,
+      "sold": 8,
       "future": 0,
-      "total": 11
+      "total": 8
+    },
+    "Rhythm": {
+      "builder": "KB Home",
+      "active": 5,
+      "sold": 39,
+      "future": 40,
+      "total": 84
+    },
+    "Elara": {
+      "builder": "Melia Homes",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
     },
     "Alder (GPN)": {
       "builder": "Toll Brothers",
@@ -198,6 +79,48 @@
       "future": 0,
       "total": 5
     },
+    "Nova": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Walnut": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Strata": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Oak": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Elevate": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 11,
+      "future": 0,
+      "total": 11
+    },
+    "Evergreens": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
     "Ruby": {
       "builder": "Mennar",
       "active": 0,
@@ -205,12 +128,26 @@
       "future": 0,
       "total": 0
     },
-    "Rhythm": {
-      "builder": "KB Home",
-      "active": 5,
-      "sold": 39,
-      "future": 40,
-      "total": 84
+    "Torrey": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Cortona": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Isla at Luna Park": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
     },
     "Skyline": {
       "builder": "Toll Brothers",
@@ -226,14 +163,77 @@
       "future": 0,
       "total": 0
     },
-    "Viewpoint": {
+    "Parallel": {
+      "builder": "Pulte",
+      "active": 2,
+      "sold": 0,
+      "future": 77,
+      "total": 79
+    },
+    "Oliva": {
+      "builder": "Taylor Morrison",
+      "active": 0,
+      "sold": 39,
+      "future": 118,
+      "total": 157
+    },
+    "Birch": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 12,
+      "future": 0,
+      "total": 12
+    },
+    "Sequoias": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 17,
+      "future": 0,
+      "total": 17
+    },
+    "Ridge View": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Moonlight": {
+      "builder": "KB Home",
+      "active": 0,
+      "sold": 3,
+      "future": 73,
+      "total": 76
+    },
+    "Pinnacle": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 31,
+      "future": 0,
+      "total": 31
+    },
+    "Aria": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Opal North": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Silverstone": {
       "builder": "Toll Brothers",
       "active": 0,
       "sold": 11,
       "future": 0,
       "total": 11
     },
-    "Jewel": {
+    "Sapphire": {
       "builder": "Mennar",
       "active": 0,
       "sold": 0,
@@ -247,12 +247,26 @@
       "future": 0,
       "total": 0
     },
+    "Montilla": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
     "Arbor": {
       "builder": "Mennar",
       "active": 0,
       "sold": 0,
       "future": 0,
       "total": 0
+    },
+    "Viewpoint": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 11,
+      "future": 0,
+      "total": 11
     },
     "Coral": {
       "builder": "Mennar",
@@ -263,17 +277,10 @@
     },
     "Icon": {
       "builder": "Pulte",
-      "active": 6,
+      "active": 7,
       "sold": 0,
       "future": 76,
-      "total": 82
-    },
-    "Juniper": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
+      "total": 83
     },
     "Indigo": {
       "builder": "Taylor Morrison",
@@ -282,7 +289,7 @@
       "future": 90,
       "total": 98
     },
-    "Sunstone": {
+    "Sierra Bella": {
       "builder": "Mennar",
       "active": 0,
       "sold": 0,
@@ -296,6 +303,13 @@
       "future": 0,
       "total": 0
     },
+    "Juniper": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
     "Cobalt": {
       "builder": "Taylor Morrison",
       "active": 4,
@@ -303,7 +317,14 @@
       "future": 118,
       "total": 127
     },
-    "Sierra Bella": {
+    "Sella": {
+      "builder": "Mennar",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
+    },
+    "Arches": {
       "builder": "Mennar",
       "active": 0,
       "sold": 0,
@@ -317,35 +338,7 @@
       "future": 2,
       "total": 5
     },
-    "Silverstone": {
-      "builder": "Toll Brothers",
-      "active": 0,
-      "sold": 11,
-      "future": 0,
-      "total": 11
-    },
-    "Montilla": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Towns at Orange": {
-      "builder": "Melia Homes",
-      "active": 2,
-      "sold": 22,
-      "future": 0,
-      "total": 24
-    },
-    "Sella": {
-      "builder": "Mennar",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
-    "Sapphire": {
+    "Sunstone": {
       "builder": "Mennar",
       "active": 0,
       "sold": 0,
@@ -359,7 +352,14 @@
       "future": 0,
       "total": 17
     },
-    "Arches": {
+    "Towns at Orange": {
+      "builder": "Melia Homes",
+      "active": 2,
+      "sold": 22,
+      "future": 0,
+      "total": 24
+    },
+    "Jewel": {
       "builder": "Mennar",
       "active": 0,
       "sold": 0,
@@ -401,19 +401,19 @@
       "future": 0,
       "total": 0
     },
-    "Elm (GPN)": {
-      "builder": "Toll Brothers",
-      "active": 0,
-      "sold": 0,
-      "future": 0,
-      "total": 0
-    },
     "Luna": {
       "builder": "Del Webb",
       "active": 3,
       "sold": 17,
       "future": 62,
       "total": 82
+    },
+    "Elm (GPN)": {
+      "builder": "Toll Brothers",
+      "active": 0,
+      "sold": 0,
+      "future": 0,
+      "total": 0
     },
     "Ironridge": {
       "builder": "Toll Brothers",
@@ -536,9 +536,9 @@
         "total": 81
       },
       "Rhea": {
-        "sold": 62,
-        "forSale": 16,
-        "future": 38,
+        "sold": 46,
+        "forSale": 13,
+        "future": 57,
         "total": 116
       },
       "Torrey": {
@@ -572,9 +572,9 @@
         "total": 85
       },
       "Aria": {
-        "sold": 48,
-        "forSale": 33,
-        "future": 109,
+        "sold": 36,
+        "forSale": 27,
+        "future": 127,
         "total": 190
       },
       "Crest": {
@@ -584,20 +584,20 @@
         "total": 90
       },
       "Ridge View": {
-        "sold": 82,
-        "forSale": 23,
-        "future": -4,
+        "sold": 60,
+        "forSale": 21,
+        "future": 20,
         "total": 101
       },
       "Sunstone": {
-        "sold": 87,
+        "sold": 64,
         "forSale": 11,
         "future": 0,
         "total": 87
       },
       "Sapphire": {
-        "sold": 54,
-        "forSale": 9,
+        "sold": 39,
+        "forSale": 8,
         "future": 0,
         "total": 92
       },
@@ -608,8 +608,8 @@
         "total": 67
       },
       "Jewel": {
-        "sold": 100,
-        "forSale": 23,
+        "sold": 74,
+        "forSale": 17,
         "future": 0,
         "total": 164
       },
@@ -620,8 +620,8 @@
         "total": 86
       },
       "Walnut": {
-        "sold": 35,
-        "forSale": 6,
+        "sold": 26,
+        "forSale": 3,
         "future": 0,
         "total": 78
       },
@@ -632,8 +632,8 @@
         "total": 73
       },
       "Sierra Bella": {
-        "sold": 40,
-        "forSale": 6,
+        "sold": 101,
+        "forSale": 0,
         "future": 0,
         "total": 124
       },

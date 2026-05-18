@@ -571,3 +571,39 @@ Server has closed the connection.
   ✓ Snapshot saved to file
   ✓ Snapshot saved to DB
 ============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-15T21:29:54.930Z
+============================================================
+  For-sale listings: 191
+  Community cards captured: 60
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 31 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to file
+  ✓ Snapshot saved to DB
+============================================================
+============================================================
+ 11 PM Snapshot — 2026-05-17T22:53:40.170Z
+============================================================
+  For-sale listings: 313
+  Community cards captured: 60
+
+  Fetching Sheet Table 2…
+    Toll Brothers: 17 communities
+    Lennar: 31 communities
+    Pulte: 3 communities
+    Taylor Morrison: 8 communities
+    Del Webb: 3 communities
+    KB Home: 5 communities
+    Melia Homes: 6 communities
+
+  ✓ Snapshot saved to file
+  ✓ Snapshot saved to DB
+============================================================
