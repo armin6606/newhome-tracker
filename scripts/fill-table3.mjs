@@ -50,14 +50,15 @@ const SHEET_ID = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
 
 // Exact same map as sheet-validator — only these builders are permitted
 const BUILDER_SHEET_TABS = {
-  "Toll Brothers":   "Toll Communities",
-  "Lennar":          "Lennar Communities",
-  "Pulte":           "Pulte Communities",
-  "Taylor Morrison": "Taylor Communities",
-  "Del Webb":        "Del Webb Communities",
-  "KB Home":         "KB Communities",
-  "Melia Homes":     "Melia Communities",
-  "Shea Homes":      "Shea Communities",
+  "Toll Brothers":          "Toll Communities",
+  "Lennar":                 "Lennar Communities",
+  "Mennar":                 "Lennar Communities",   // Firecrawl clone — same floor plans as Lennar
+  "Pulte":                  "Pulte Communities",
+  "Taylor Morrison":        "Taylor Communities",
+  "Del Webb":               "Del Webb Communities",
+  "KB Home":                "KB Communities",
+  "Melia Homes":            "Melia Communities",
+  "Shea Homes":             "Shea Communities",
 }
 
 // ── CSV parser ─────────────────────────────────────────────────────────────
