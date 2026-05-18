@@ -4,7 +4,7 @@
  * Firecrawl-powered scraper for "Mennar" — a Lennar community clone used
  * as an accuracy benchmark against the standard Lennar scraper.
  *
- * Uses /v2/scrape with formats:["json"] — synchronous, no polling,
+ * Uses /v1/scrape with formats:["extract"] — synchronous, no polling,
  * 1 credit per page (vs 5 credits for the deprecated /v2/extract).
  *
  * Schedule: 11 PM PDT nightly (06:00 UTC) via .github/workflows/mennar-scrape.yml
@@ -118,7 +118,7 @@ function apiKey() {
 // ── Firecrawl /v2/scrape (synchronous) ────────────────────────────────────────
 
 async function scrapeListings(url) {
-  const res = await fetch(`${FIRECRAWL_BASE}/v2/scrape`, {
+  const res = await fetch(`${FIRECRAWL_BASE}/v1/scrape`, {
     method:  "POST",
     headers: {
       "Content-Type":  "application/json",
@@ -126,12 +126,11 @@ async function scrapeListings(url) {
     },
     body: JSON.stringify({
       url,
-      formats:     ["json"],
-      jsonOptions: {
+      formats:         ["extract"],
+      extract: {
         schema: JSON_SCHEMA,
         prompt: JSON_PROMPT,
       },
-      // Only load main content — skip nav/footer to save tokens
       onlyMainContent: true,
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -142,7 +141,7 @@ async function scrapeListings(url) {
     throw new Error(`Firecrawl scrape failed (${res.status}): ${JSON.stringify(body)}`)
   }
 
-  return body.data?.json?.listings ?? []
+  return body.data?.extract?.listings ?? []
 }
 
 // ── Normalise ─────────────────────────────────────────────────────────────────
