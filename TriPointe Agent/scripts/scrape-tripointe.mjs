@@ -375,8 +375,7 @@ async function main() {
   const page    = await context.newPage()
 
   try {
-    for (let comm of KNOWN_COMMUNITIES) {
-      comm = { ...comm, name: await resolveDbCommunityName(comm.name, BUILDER_NAME, prisma) }
+    for (const comm of KNOWN_COMMUNITIES) {
       console.log(`\n${"─".repeat(60)}`)
       console.log(`Community: ${comm.name} (${comm.city})`)
 

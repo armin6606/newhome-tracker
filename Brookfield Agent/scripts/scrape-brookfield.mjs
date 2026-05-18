@@ -221,8 +221,8 @@ async function main() {
   console.log("Brookfield Residential OC Scraper (diff-based)")
   console.log("=".repeat(60))
 
-  // Resolve canonical community name from DB
-  const resolvedName = await resolveDbCommunityName(COMMUNITY_NAME, BUILDER_NAME, prisma)
+  // Use the hardcoded community name directly (already matches DB exactly)
+  const resolvedName = COMMUNITY_NAME
   // Query DB active listings
   const db = await getDbActive(resolvedName, BUILDER_NAME)
   console.log(`DB active listings: ${db.all.length}`)
