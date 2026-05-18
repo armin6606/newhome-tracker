@@ -64,7 +64,7 @@ const SHEA_COMMUNITIES = [
     availableHomesUrl: "https://www.sheahomes.com/new-homes/california/orange-county/irvine/cielo-at-portola-springs-village?qmi-tab-select#available-homes",
   },
   {
-    name:  "Crestview",
+    name:  "Crest View",
     city:  "Irvine",
     state: "CA",
     url:   "https://www.sheahomes.com/new-homes/california/orange-county/irvine/crestview",

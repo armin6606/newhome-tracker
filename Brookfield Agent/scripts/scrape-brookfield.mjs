@@ -91,7 +91,7 @@ function compositeKey(communityName, rawLot) {
 async function getDbActive(communityName, builderName) {
   const listings = await prisma.listing.findMany({
     where: {
-      status:    "active",
+      status:    "for sale",
       community: { name: communityName, builder: { name: builderName } },
     },
     select: { id: true, address: true, lotNumber: true, currentPrice: true, sourceUrl: true },
@@ -290,7 +290,7 @@ async function main() {
           lotNumber:    home.lotNumber ? compositeKey(resolvedName, home.lotNumber) : null,
           currentPrice: price,
           moveInDate:   home.moveInDate || null,
-          status:       "active",
+          status:       "for sale",
           sourceUrl:    home.sourceUrl,
           floorPlan:    home.floorPlan || null,
           sqft:         home.sqft || null,
@@ -323,7 +323,7 @@ async function main() {
           priceUpdates.push({
             address:      dbEntry.address,
             currentPrice: price,
-            status:       "active",
+            status:       "for sale",
             sourceUrl:    url,
           })
           console.log(`    Price change detected: ${dbEntry.address} $${dbEntry.currentPrice?.toLocaleString()} → $${price?.toLocaleString()}`)

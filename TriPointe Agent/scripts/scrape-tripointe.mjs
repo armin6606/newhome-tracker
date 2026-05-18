@@ -93,7 +93,7 @@ function parseFloatSafe(val) {
 async function getDbActive(communityName, builderName) {
   const listings = await prisma.listing.findMany({
     where: {
-      status:    "active",
+      status:    "for sale",
       community: { name: communityName, builder: { name: builderName } },
     },
     select: { id: true, address: true, lotNumber: true, currentPrice: true },
@@ -224,9 +224,9 @@ async function scrapeCommunityPlans(page, comm) {
       const garM     = text.match(/([\d]+)\s*BAY\s*GARAGE/i)
       const storiesM = text.match(/([\d]+)\s*STORIE?S?/i)
 
-      let status = "active"
-      if (/coming\s*soon/i.test(text)) status = "coming-soon"
-      else if (/limited\s*availability/i.test(text)) status = "limited"
+      let status = "for sale"
+      if (/coming\s*soon/i.test(text)) status = "future"
+      else if (/limited\s*availability/i.test(text)) status = "for sale"
 
       plans.push({
         planSlug,
@@ -281,7 +281,7 @@ async function scrapeCommunityPlans(page, comm) {
         baths:    bathsM ? parseFloat(bathsM[1]) : null,
         sqft:     sqftM  ? parseInt((sqftM[2] || sqftM[1]).replace(/,/g, ""), 10) : null,
         garages:  garM   ? parseInt(garM[1], 10) : null,
-        status:   "active",
+        status:   "for sale",
         isMIR:    true,
         sourceUrl: `${baseUrl}/ca/orange-county/${commSlug}/${addrSlug}`,
       })
@@ -331,7 +331,7 @@ async function scrapeCommunityPlans(page, comm) {
       sqft:      mir.sqft,
       garages:   mir.garages,
       floors:    null,
-      status:    "active",
+      status:    "for sale",
       schools:   null,
       sourceUrl: mir.sourceUrl,
     })
@@ -411,7 +411,7 @@ async function main() {
             lotNumber:    item.rawLot ? compositeKey(comm.name, item.rawLot) : null,
             currentPrice: price,
             moveInDate:   item.moveInDate || null,
-            status:       item.status || "active",
+            status:       item.status || "for sale",
             sourceUrl:    item.sourceUrl || null,
           }
           // For new homes, include full detail
@@ -428,7 +428,7 @@ async function main() {
           priceUpdates.push({
             address:      item.address,
             currentPrice: price,
-            status:       item.status || "active",
+            status:       item.status || "for sale",
             sourceUrl:    item.sourceUrl || null,
           })
         }
