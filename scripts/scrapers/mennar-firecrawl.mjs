@@ -28,7 +28,7 @@ const BUILDER_NAME    = "Mennar"
 const FIRECRAWL_BASE  = "https://api.firecrawl.dev"
 const RESULTS_FILE    = "/tmp/scrape-results.json"
 const COMMUNITY_DELAY = 3_000   // 3 s between communities (rate limit)
-const TIMEOUT_MS      = 60_000  // 60 s per scrape request
+const TIMEOUT_MS      = 90_000  // 90 s per scrape request
 
 // ── JSON extraction schema ────────────────────────────────────────────────────
 
