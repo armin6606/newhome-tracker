@@ -53,6 +53,7 @@ const BUILDER_SHEET_TABS = {
   "Toll Brothers":          "Toll Communities",
   "Lennar":                 "Lennar Communities",
   "Mennar":                 "Lennar Communities",   // Firecrawl clone — same floor plans as Lennar
+  "Aneeq":                  "Lennar Communities",   // GraphQL benchmark — same floor plans as Lennar
   "Pulte":                  "Pulte Communities",
   "Taylor Morrison":        "Taylor Communities",
   "Del Webb":               "Del Webb Communities",

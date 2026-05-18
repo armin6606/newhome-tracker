@@ -31,6 +31,7 @@ export const BUILDER_SHEET_TABS: Record<string, string | null> = {
   "Shea Homes":             "Shea Communities",
   "TRI Pointe Homes":       null,   // no Google Sheet tab — scraped directly
   "Brookfield Residential": null,   // no Google Sheet tab — scraped directly
+  "Aneeq":                  "Lennar Communities",  // GraphQL benchmark — same communities as Lennar
 }
 
 /**
