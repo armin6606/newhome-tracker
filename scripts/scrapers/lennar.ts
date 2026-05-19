@@ -566,10 +566,27 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     console.log(`  [${BUILDER_NAME}] Scraping: ${row.communityName} → ${row.url}`)
     await randomDelayMs(10_000, 30_000)
 
-    let mapResult = await readLennarMap(row.url, row.communityName).catch(async (err: unknown) => {
+    // Build skip set: for-sale listings that already have property-details data
+    // (hoaFees or propertyType populated = property-details page was already visited).
+    // New listings won't be in this set and will always get full detail scraping.
+    const existingWithDetails = await prisma.listing.findMany({
+      where: {
+        community: { builderId, name: row.communityName },
+        status: "for sale",
+        sourceUrl: { not: null },
+        OR: [{ hoaFees: { not: null } }, { propertyType: { not: null } }],
+      },
+      select: { sourceUrl: true },
+    })
+    const skipDetailUrls = new Set(existingWithDetails.map(l => l.sourceUrl!))
+    if (skipDetailUrls.size > 0) {
+      console.log(`  [${BUILDER_NAME}] ${row.communityName}: ${skipDetailUrls.size} known listings — skipping property-details visits`)
+    }
+
+    let mapResult = await readLennarMap(row.url, row.communityName, skipDetailUrls).catch(async (err: unknown) => {
       console.warn(`  [${BUILDER_NAME}] ${row.communityName}: First attempt failed, retrying in 60s...`)
       await new Promise(r => setTimeout(r, 60_000))
-      return readLennarMap(row.url, row.communityName)
+      return readLennarMap(row.url, row.communityName, skipDetailUrls)
     })
 
     const firstAttemptTotal = (mapResult.lots?.length ?? 0) + mapResult.sold + mapResult.forSale + mapResult.future + mapResult.total

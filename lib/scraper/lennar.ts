@@ -641,7 +641,7 @@ async function extractGeoJsonLotIds(page: Page, prefix: string): Promise<string[
  * filter results when the URL returns multiple collections. Also used as the
  * Apollo pre-filter keyword.
  */
-export async function scrapeLennarCommunity(communityUrl: string, collectionFilter?: string): Promise<ScrapedListing[]> {
+export async function scrapeLennarCommunity(communityUrl: string, collectionFilter?: string, skipDetailUrls?: Set<string>): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ userAgent: randomUserAgent() })
   const allListings: ScrapedListing[] = []
@@ -703,7 +703,11 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           statusLower.includes("move-in") || statusLower.includes("quick") || statusLower.includes("ready")
             ? raw.statusText : undefined
 
-        const pd = await scrapeLennarPropertyDetails(page, raw.href)
+        let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
+        if (!skipDetailUrls?.has(raw.href)) {
+          pd = await scrapeLennarPropertyDetails(page, raw.href)
+          await page.waitForTimeout(randomDelayMs(300, 800))
+        }
         const detail = await scrapeLennarDetailPage(page, raw.href)
         moveInDate = moveInDate || pd.moveInDate || detail.moveInDate
         await page.waitForTimeout(randomDelayMs(300, 800))
@@ -884,10 +888,14 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
 
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
           if (raw.hasOwnUrl && listingStatus === "for sale") {
-            console.log(`  [Lennar] Details: ${raw.sourceUrl}`)
-            pd = await scrapeLennarPropertyDetails(page, raw.sourceUrl)
-            moveInDate = moveInDate || pd.moveInDate
-            await page.waitForTimeout(randomDelayMs(300, 800))
+            if (skipDetailUrls?.has(raw.sourceUrl)) {
+              console.log(`  [Lennar] Skip details (known): ${raw.sourceUrl}`)
+            } else {
+              console.log(`  [Lennar] Details: ${raw.sourceUrl}`)
+              pd = await scrapeLennarPropertyDetails(page, raw.sourceUrl)
+              moveInDate = moveInDate || pd.moveInDate
+              await page.waitForTimeout(randomDelayMs(300, 800))
+            }
           }
 
           const price = listingStatus === "for sale" ? raw.price : undefined
@@ -968,7 +976,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           else if (su === "COMING_SOON" || su.includes("COMING")) moveInDate = "Coming Soon"
 
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-          if (detailUrl) {
+          if (detailUrl && !skipDetailUrls?.has(detailUrl)) {
             pd = await scrapeLennarPropertyDetails(page, detailUrl)
             moveInDate = moveInDate || pd.moveInDate
             await page.waitForTimeout(randomDelayMs(300, 800))

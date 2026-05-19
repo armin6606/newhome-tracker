@@ -9,9 +9,10 @@ import type { MapResult, MapLot } from "./types"
 
 export async function readLennarMap(
   url: string,
-  communityName: string
+  communityName: string,
+  skipDetailUrls?: Set<string>
 ): Promise<MapResult> {
-  const listings = await scrapeLennarCommunity(url, communityName)
+  const listings = await scrapeLennarCommunity(url, communityName, skipDetailUrls)
 
   const lots: MapLot[] = listings.map((listing, i) => {
     let status: "for sale" | "sold" | "future"
