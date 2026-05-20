@@ -289,7 +289,7 @@ function section1ForSale(snapshot, forSaleNow) {
 // ── Section 2: Scraper Activity per Builder ────────────────────────────────────
 
 function section2ScraperActivity(newListings, newlySold, priceChanges) {
-  const builders = Object.keys(BUILDER_TABS)
+  const builders = ALL_BUILDERS
   const newByBuilder   = groupByBuilder(newListings,   l  => l.community.builder.name)
   const soldByBuilder  = groupByBuilder(newlySold,     l  => l.community.builder.name)
   const priceByBuilder = groupByBuilder(priceChanges,  pc => pc.listing.community.builder.name)
@@ -537,6 +537,8 @@ function fmtDuration(startIso, endIso) {
 const ALL_BUILDERS = [
   "Toll Brothers",
   "Lennar",
+  "Mennar",
+  "Aneeq",
   "Pulte",
   "Del Webb",
   "KB Home",
