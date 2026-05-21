@@ -537,8 +537,6 @@ function fmtDuration(startIso, endIso) {
 const ALL_BUILDERS = [
   "Toll Brothers",
   "Lennar",
-  "Mennar",
-  "Aneeq",
   "Pulte",
   "Del Webb",
   "KB Home",
@@ -659,7 +657,13 @@ async function sendEmail(subject, html) {
     headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
     body:    JSON.stringify({ from: FROM, to: TO, subject, html }),
   })
-  const data = await res.json()
+  const text = await res.text()
+  let data
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new Error(`Resend error (${res.status}): ${text.slice(0, 300)}`)
+  }
   if (!res.ok) throw new Error(`Resend error (${res.status}): ${JSON.stringify(data)}`)
   return data
 }
