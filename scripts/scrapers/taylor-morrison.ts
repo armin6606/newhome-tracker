@@ -189,8 +189,8 @@ async function detectAndApplyChanges(
 
   for (const scraped of scrapedListings) {
     const key = normalizeAddress(scraped.address)
-    const existing = existingByAddress.get(key)
-      ?? (scraped.lotNumber ? existingByLotNumber.get(scraped.lotNumber) : undefined)
+    const existing = (scraped.lotNumber ? existingByLotNumber.get(scraped.lotNumber) : undefined)
+      ?? existingByAddress.get(key)
 
     if (!existing) {
       if (scraped.lotNumber) {
