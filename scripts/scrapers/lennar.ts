@@ -567,8 +567,12 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     console.log(`  [${BUILDER_NAME}] Scraping: ${row.communityName} → ${row.url}`)
     await randomDelayMs(3_000, 8_000)
 
-    // ── Level 1: Community-level static cache (HOA, taxes, property type) ─────
+    // ── Level 1: Community-level static cache (HOA, taxes, property type, city) ─
     // These are identical for every listing in the community — once known, reuse forever.
+    const communityRecord = await prisma.community.findFirst({
+      where: { builderId, name: row.communityName },
+      select: { city: true },
+    })
     const communityStaticRow = await prisma.listing.findFirst({
       where: { community: { builderId, name: row.communityName }, hoaFees: { not: null } },
       select: { hoaFees: true, taxes: true, propertyType: true },
@@ -592,8 +596,13 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
 
     const staticCache: LennarCache = {
-      community: communityStaticRow
-        ? { hoaFees: communityStaticRow.hoaFees, taxes: communityStaticRow.taxes, propertyType: communityStaticRow.propertyType }
+      community: (communityStaticRow || communityRecord)
+        ? {
+            hoaFees:      communityStaticRow?.hoaFees,
+            taxes:        communityStaticRow?.taxes,
+            propertyType: communityStaticRow?.propertyType,
+            city:         communityRecord?.city,
+          }
         : null,
       plans: planStaticCache,
     }

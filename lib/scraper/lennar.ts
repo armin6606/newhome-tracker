@@ -18,9 +18,10 @@ import { randomDelayMs, randomUserAgent } from "./utils"
  */
 export interface LennarCache {
   community: {
-    hoaFees?:     number | null
-    taxes?:       string | number | null
+    hoaFees?:      number | null
+    taxes?:        string | number | null
     propertyType?: string | null
+    city?:         string | null
   } | null
   plans: Map<string, {
     floors?:  number | null
@@ -1031,7 +1032,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           allListings.push({
             communityName: buildCommunityName(raw.mpcName, raw.communityName),
             communityUrl,
-            city: pd.cityFromPD || raw.city,
+            city: pd.cityFromPD || staticCache?.community?.city || raw.city,
             address: addr,
             lotNumber:    pd.lotNumber || raw.lotNumber || undefined,
             floorPlan:    raw.planName || undefined,
