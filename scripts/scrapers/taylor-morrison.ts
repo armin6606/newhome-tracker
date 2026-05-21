@@ -528,7 +528,8 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       return { scraped: 0, stats: emptyStats }
     }
 
-    if (existingCount > 10 && listings.length < existingCount * 0.5) {
+    // Skip the 50% guard when qmiOnly=true (available-homes page only shows active listings)
+    if (!mapResult.qmiOnly && existingCount > 10 && listings.length < existingCount * 0.5) {
       const msg = `${row.communityName}: Only ${listings.length} lots but DB has ${existingCount} — looks incomplete, skipping`
       console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
       return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
