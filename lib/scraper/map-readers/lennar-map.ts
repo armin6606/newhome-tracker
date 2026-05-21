@@ -5,14 +5,16 @@
  */
 
 import { scrapeLennarCommunity } from "../lennar"
+import type { LennarCache } from "../lennar"
 import type { MapResult, MapLot } from "./types"
 
 export async function readLennarMap(
   url: string,
   communityName: string,
-  skipDetailUrls?: Set<string>
+  skipDetailUrls?: Set<string>,
+  staticCache?: LennarCache
 ): Promise<MapResult> {
-  const listings = await scrapeLennarCommunity(url, communityName, skipDetailUrls)
+  const listings = await scrapeLennarCommunity(url, communityName, skipDetailUrls, staticCache)
 
   const lots: MapLot[] = listings.map((listing, i) => {
     let status: "for sale" | "sold" | "future"

@@ -4,6 +4,33 @@ import { parseFloors } from "./toll-brothers"
 import { cleanAddress } from "./clean-address"
 import { randomDelayMs, randomUserAgent } from "./utils"
 
+/**
+ * Two-level static cache for Lennar communities.
+ *
+ * Level 1 — Community: HOA fees, taxes, property type are identical for
+ *   every listing in the same community. Once known, never fetch again.
+ *
+ * Level 2 — Floor plan: floors, beds, baths, sqft, garages are identical
+ *   for every listing with the same plan name. Once known, never fetch again.
+ *
+ * The property-details page visit is skipped entirely when both levels are
+ * populated for the listing being processed.
+ */
+export interface LennarCache {
+  community: {
+    hoaFees?:     number | null
+    taxes?:       string | number | null
+    propertyType?: string | null
+  } | null
+  plans: Map<string, {
+    floors?:  number | null
+    beds?:    number | null
+    baths?:   number | null
+    sqft?:    number | null
+    garages?: number | null
+  }>
+}
+
 const BASE_URL = "https://www.lennar.com"
 
 /** Lennar find-a-home search page scoped to Orange County bounding box */
@@ -641,7 +668,7 @@ async function extractGeoJsonLotIds(page: Page, prefix: string): Promise<string[
  * filter results when the URL returns multiple collections. Also used as the
  * Apollo pre-filter keyword.
  */
-export async function scrapeLennarCommunity(communityUrl: string, collectionFilter?: string, skipDetailUrls?: Set<string>): Promise<ScrapedListing[]> {
+export async function scrapeLennarCommunity(communityUrl: string, collectionFilter?: string, skipDetailUrls?: Set<string>, staticCache?: LennarCache): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ userAgent: randomUserAgent() })
   const allListings: ScrapedListing[] = []
@@ -703,8 +730,12 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           statusLower.includes("move-in") || statusLower.includes("quick") || statusLower.includes("ready")
             ? raw.statusText : undefined
 
+        const planCacheKey = (planName || "").toLowerCase()
+        const cachedPlan   = planCacheKey ? staticCache?.plans.get(planCacheKey) : undefined
+        const hasFullCache = staticCache?.community?.hoaFees != null && cachedPlan?.floors != null
+
         let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-        if (!skipDetailUrls?.has(raw.href)) {
+        if (!skipDetailUrls?.has(raw.href) && !hasFullCache) {
           pd = await scrapeLennarPropertyDetails(page, raw.href)
           await page.waitForTimeout(randomDelayMs(300, 800))
         }
@@ -712,6 +743,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
         moveInDate = moveInDate || pd.moveInDate || detail.moveInDate
         await page.waitForTimeout(randomDelayMs(300, 800))
 
+        const finalSqft = pd.sqft || sqft || cachedPlan?.sqft || undefined
         allListings.push({
           communityName: "",   // filled by applySheetDefaults
           communityUrl,
@@ -719,16 +751,18 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           address,
           lotNumber: pd.lotNumber || parseLotNumber(raw.lotText),
           floorPlan: planName || undefined,
-          sqft: pd.sqft || sqft,
-          beds: pd.beds || beds,
-          baths: pd.baths || baths,
-          garages: pd.garages,
-          floors: lennarPlanFloors(planName) ?? pd.floors ?? detail.floors ?? parseFloors(planName),
+          sqft: finalSqft,
+          beds:    pd.beds    || beds    || cachedPlan?.beds    || undefined,
+          baths:   pd.baths   || baths   || cachedPlan?.baths   || undefined,
+          garages: pd.garages ?? cachedPlan?.garages ?? undefined,
+          floors:  lennarPlanFloors(planName) ?? pd.floors ?? detail.floors ?? cachedPlan?.floors ?? parseFloors(planName),
           price,
-          pricePerSqft: price && (pd.sqft || sqft) ? Math.round(price / (pd.sqft || sqft)!) : undefined,
-          propertyType: pd.propertyType || "",
-          hoaFees: pd.hoaFees,
-          taxes: pd.taxRate && price ? Math.round(price * pd.taxRate / 100) : undefined,
+          pricePerSqft: price && finalSqft ? Math.round(price / finalSqft) : undefined,
+          propertyType: pd.propertyType || staticCache?.community?.propertyType || "",
+          hoaFees: pd.hoaFees ?? staticCache?.community?.hoaFees ?? undefined,
+          taxes:   pd.taxRate && price
+            ? Math.round(price * pd.taxRate / 100)
+            : staticCache?.community?.taxes ?? undefined,
           moveInDate,
           sourceUrl: raw.href,
           incentives: detail.incentives,
@@ -886,10 +920,15 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           if (raw.status === "MOVE_IN_READY")          moveInDate = "Move-In Ready"
           else if (raw.status === "UNDER_CONSTRUCTION") moveInDate = "Under Construction"
 
+          // Two-level static cache lookup
+          const planCacheKey = raw.planName?.toLowerCase() ?? ""
+          const cachedPlan   = planCacheKey ? staticCache?.plans.get(planCacheKey) : undefined
+          const hasFullCache = staticCache?.community?.hoaFees != null && cachedPlan?.floors != null
+
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
           if (raw.hasOwnUrl && listingStatus === "for sale") {
-            if (skipDetailUrls?.has(raw.sourceUrl)) {
-              console.log(`  [Lennar] Skip details (known): ${raw.sourceUrl}`)
+            if (skipDetailUrls?.has(raw.sourceUrl) || hasFullCache) {
+              console.log(`  [Lennar] Skip details (${hasFullCache ? "cached" : "known"}): ${raw.sourceUrl}`)
             } else {
               console.log(`  [Lennar] Details: ${raw.sourceUrl}`)
               pd = await scrapeLennarPropertyDetails(page, raw.sourceUrl)
@@ -898,29 +937,31 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             }
           }
 
-          const price = listingStatus === "for sale" ? raw.price : undefined
-          const sqft  = raw.sqft ?? pd.sqft
+          const price   = listingStatus === "for sale" ? raw.price : undefined
+          const sqft    = raw.sqft ?? pd.sqft ?? cachedPlan?.sqft ?? undefined
 
           allListings.push({
             communityName: "",  // filled by applySheetDefaults
             communityUrl,
             city: "",           // filled by applySheetDefaults
             address,
-            lotNumber: pd.lotNumber || raw.lotNumber,
-            floorPlan: raw.planName,
+            lotNumber:    pd.lotNumber || raw.lotNumber,
+            floorPlan:    raw.planName,
             sqft,
-            beds:  pd.beds  ?? raw.beds,
-            baths: pd.baths ?? raw.baths,
-            garages: pd.garages,
-            floors: lennarPlanFloors(raw.planName) ?? pd.floors,
+            beds:         pd.beds  ?? raw.beds  ?? cachedPlan?.beds    ?? undefined,
+            baths:        pd.baths ?? raw.baths ?? cachedPlan?.baths   ?? undefined,
+            garages:      pd.garages ?? cachedPlan?.garages ?? undefined,
+            floors:       lennarPlanFloors(raw.planName) ?? pd.floors ?? cachedPlan?.floors ?? undefined,
             price,
             pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
-            propertyType: pd.propertyType || "",
-            hoaFees: pd.hoaFees,
-            taxes: pd.taxRate && price ? Math.round(price * pd.taxRate / 100) : undefined,
+            propertyType: pd.propertyType || staticCache?.community?.propertyType || "",
+            hoaFees:      pd.hoaFees ?? staticCache?.community?.hoaFees ?? undefined,
+            taxes:        pd.taxRate && price
+              ? Math.round(price * pd.taxRate / 100)
+              : staticCache?.community?.taxes ?? undefined,
             moveInDate,
-            sourceUrl: raw.sourceUrl,
-            status: listingStatus,
+            sourceUrl:    raw.sourceUrl,
+            status:       listingStatus,
           })
         }
       } else {
@@ -975,31 +1016,37 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           else if (su.includes("CONSTRUCTION")) moveInDate = "Under Construction"
           else if (su === "COMING_SOON" || su.includes("COMING")) moveInDate = "Coming Soon"
 
+          const planCacheKeyOld = (raw.planName || "").toLowerCase()
+          const cachedPlanOld   = planCacheKeyOld ? staticCache?.plans.get(planCacheKeyOld) : undefined
+          const hasFullCacheOld = staticCache?.community?.hoaFees != null && cachedPlanOld?.floors != null
+
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-          if (detailUrl && !skipDetailUrls?.has(detailUrl)) {
+          if (detailUrl && !skipDetailUrls?.has(detailUrl) && !hasFullCacheOld) {
             pd = await scrapeLennarPropertyDetails(page, detailUrl)
             moveInDate = moveInDate || pd.moveInDate
             await page.waitForTimeout(randomDelayMs(300, 800))
           }
 
-          const finalSqft = pd.sqft || raw.sqft || undefined
+          const finalSqft = pd.sqft || raw.sqft || cachedPlanOld?.sqft || undefined
           allListings.push({
             communityName: buildCommunityName(raw.mpcName, raw.communityName),
             communityUrl,
             city: pd.cityFromPD || raw.city,
             address: addr,
-            lotNumber: pd.lotNumber || raw.lotNumber || undefined,
-            floorPlan: raw.planName || undefined,
-            sqft: finalSqft,
-            beds: pd.beds || raw.beds || undefined,
-            baths: pd.baths || baths || undefined,
-            garages: pd.garages,
-            floors: lennarPlanFloors(raw.planName) ?? pd.floors ?? parseFloors(raw.planName),
-            price: raw.price,
+            lotNumber:    pd.lotNumber || raw.lotNumber || undefined,
+            floorPlan:    raw.planName || undefined,
+            sqft:         finalSqft,
+            beds:         pd.beds  || raw.beds  || cachedPlanOld?.beds    || undefined,
+            baths:        pd.baths || baths     || cachedPlanOld?.baths   || undefined,
+            garages:      pd.garages ?? cachedPlanOld?.garages ?? undefined,
+            floors:       lennarPlanFloors(raw.planName) ?? pd.floors ?? cachedPlanOld?.floors ?? parseFloors(raw.planName),
+            price:        raw.price,
             pricePerSqft: raw.price && finalSqft ? Math.round(raw.price / finalSqft) : undefined,
-            propertyType: pd.propertyType || "",
-            hoaFees: pd.hoaFees,
-            taxes: pd.taxRate && raw.price ? Math.round(raw.price * pd.taxRate / 100) : undefined,
+            propertyType: pd.propertyType || staticCache?.community?.propertyType || "",
+            hoaFees:      pd.hoaFees ?? staticCache?.community?.hoaFees ?? undefined,
+            taxes:        pd.taxRate && raw.price
+              ? Math.round(raw.price * pd.taxRate / 100)
+              : staticCache?.community?.taxes ?? undefined,
             moveInDate,
             sourceUrl: detailUrl || communityUrl,
           })

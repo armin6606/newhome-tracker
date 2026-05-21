@@ -9,6 +9,7 @@ import { writeFileSync, readFileSync, existsSync } from "fs"
 import { notifyPriceChange, notifyNewListings } from "../../lib/scraper/notifications"
 import { updateTable2, setTable2Absolute } from "../../lib/sheet-writer"
 import { readLennarMap } from "../../lib/scraper/map-readers/lennar-map"
+import type { LennarCache } from "../../lib/scraper/lennar"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
 const prisma = new PrismaClient()
@@ -566,9 +567,44 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     console.log(`  [${BUILDER_NAME}] Scraping: ${row.communityName} → ${row.url}`)
     await randomDelayMs(3_000, 8_000)
 
-    // Build skip set: for-sale listings that already have property-details data
-    // (hoaFees or propertyType populated = property-details page was already visited).
-    // New listings won't be in this set and will always get full detail scraping.
+    // ── Level 1: Community-level static cache (HOA, taxes, property type) ─────
+    // These are identical for every listing in the community — once known, reuse forever.
+    const communityStaticRow = await prisma.listing.findFirst({
+      where: { community: { builderId, name: row.communityName }, hoaFees: { not: null } },
+      select: { hoaFees: true, taxes: true, propertyType: true },
+    })
+
+    // ── Level 2: Floor-plan-level static cache (floors, beds, baths, sqft) ───
+    // Identical for every listing with the same plan — once known, reuse forever.
+    const planStaticRows = await prisma.listing.findMany({
+      where: {
+        community: { builderId, name: row.communityName },
+        floorPlan: { not: null },
+        floors: { not: null },
+      },
+      select: { floorPlan: true, floors: true, beds: true, baths: true, sqft: true, garages: true },
+    })
+    const planStaticCache = new Map<string, { floors: number | null; beds: number | null; baths: number | null; sqft: number | null; garages: number | null }>()
+    for (const r of planStaticRows) {
+      if (r.floorPlan && !planStaticCache.has(r.floorPlan.toLowerCase())) {
+        planStaticCache.set(r.floorPlan.toLowerCase(), { floors: r.floors, beds: r.beds, baths: r.baths, sqft: r.sqft, garages: r.garages })
+      }
+    }
+
+    const staticCache: LennarCache = {
+      community: communityStaticRow
+        ? { hoaFees: communityStaticRow.hoaFees, taxes: communityStaticRow.taxes, propertyType: communityStaticRow.propertyType }
+        : null,
+      plans: planStaticCache,
+    }
+
+    const cacheMsg = [
+      communityStaticRow ? `community HOA=${communityStaticRow.hoaFees}` : null,
+      planStaticCache.size ? `${planStaticCache.size} plans cached` : null,
+    ].filter(Boolean).join(", ")
+    if (cacheMsg) console.log(`  [${BUILDER_NAME}] ${row.communityName}: static cache — ${cacheMsg}`)
+
+    // ── Per-URL skip set (fallback: specific listings already scraped) ─────────
     const existingWithDetails = await prisma.listing.findMany({
       where: {
         community: { builderId, name: row.communityName },
@@ -579,14 +615,11 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       select: { sourceUrl: true },
     })
     const skipDetailUrls = new Set(existingWithDetails.map(l => l.sourceUrl!))
-    if (skipDetailUrls.size > 0) {
-      console.log(`  [${BUILDER_NAME}] ${row.communityName}: ${skipDetailUrls.size} known listings — skipping property-details visits`)
-    }
 
-    let mapResult = await readLennarMap(row.url, row.communityName, skipDetailUrls).catch(async (err: unknown) => {
+    let mapResult = await readLennarMap(row.url, row.communityName, skipDetailUrls, staticCache).catch(async (err: unknown) => {
       console.warn(`  [${BUILDER_NAME}] ${row.communityName}: First attempt failed, retrying in 60s...`)
       await new Promise(r => setTimeout(r, 60_000))
-      return readLennarMap(row.url, row.communityName, skipDetailUrls)
+      return readLennarMap(row.url, row.communityName, skipDetailUrls, staticCache)
     })
 
     const firstAttemptTotal = (mapResult.lots?.length ?? 0) + mapResult.sold + mapResult.forSale + mapResult.future + mapResult.total
