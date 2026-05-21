@@ -22,7 +22,6 @@ const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
 export const BUILDER_SHEET_TABS: Record<string, string | null> = {
   "Toll Brothers":          "Toll Communities",
   "Lennar":                 "Lennar Communities",
-  "Mennar":                 "Lennar Communities",   // Firecrawl test clone of Lennar
   "Pulte":                  "Pulte Communities",
   "Taylor Morrison":        "Taylor Communities",
   "Del Webb":               "Del Webb Communities",
@@ -31,7 +30,6 @@ export const BUILDER_SHEET_TABS: Record<string, string | null> = {
   "Shea Homes":             "Shea Communities",
   "TRI Pointe Homes":       null,   // no Google Sheet tab — scraped directly
   "Brookfield Residential": null,   // no Google Sheet tab — scraped directly
-  "Aneeq":                  "Lennar Communities",  // GraphQL benchmark — same communities as Lennar
 }
 
 /**

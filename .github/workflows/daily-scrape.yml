@@ -79,10 +79,6 @@ jobs:
             id: tripointe
             cmd: 'node "TriPointe Agent/scripts/scrape-tripointe.mjs"'
             timeout: 30
-          - builder: "Aneeq"
-            id: aneeq
-            cmd: "node scripts/scrapers/aneeq-graphql.mjs"
-            timeout: 15
 
     steps:
       - uses: actions/checkout@v4
