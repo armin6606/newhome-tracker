@@ -239,8 +239,8 @@ async function detectAndApplyChanges(
 
   for (const scraped of scrapedListings) {
     const key = normalizeAddress(scraped.address)
-    const existing = existingByAddress.get(key)
-      ?? (scraped.lotNumber ? existingByLotNumber.get(scraped.lotNumber) : undefined)
+    const existing = (scraped.lotNumber ? existingByLotNumber.get(scraped.lotNumber) : undefined)
+      ?? existingByAddress.get(key)
 
     if (!existing) {
       if (scraped.lotNumber) {
@@ -564,7 +564,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
   const emptyStats: ChangeDetails = { added: 0, priceChanges: 0, removed: 0, unchanged: 0, reactivated: 0, newListings: [], priceChangeDetails: [], removedListings: [], reactivatedListings: [], newIncentives: [] }
   try {
     console.log(`  [${BUILDER_NAME}] Scraping: ${row.communityName} → ${row.url}`)
-    await randomDelayMs(10_000, 30_000)
+    await randomDelayMs(3_000, 8_000)
 
     // Build skip set: for-sale listings that already have property-details data
     // (hoaFees or propertyType populated = property-details page was already visited).
@@ -700,10 +700,23 @@ async function main() {
       })
     )
 
-    for (const row of communities) {
-      const result = await scrapeOneCommunity(builderRecord.id, row)
+    const BATCH_SIZE = 5
+    const BATCH_WAIT_MS = 10 * 60 * 1000  // 10 minutes between batches
+
+    for (let i = 0; i < communities.length; i++) {
+      const result = await scrapeOneCommunity(builderRecord.id, communities[i])
       totalScraped += result.scraped
       if (result.error) errors.push(result.error.error)
+
+      // After every BATCH_SIZE communities, pause before the next batch
+      const isEndOfBatch = (i + 1) % BATCH_SIZE === 0
+      const isLastCommunity = i === communities.length - 1
+      if (isEndOfBatch && !isLastCommunity) {
+        const batchNum = Math.floor((i + 1) / BATCH_SIZE)
+        console.log(`\n[${BUILDER_NAME}] Batch ${batchNum} complete (${i + 1}/${communities.length}) — waiting 10 min before next batch…`)
+        await new Promise(r => setTimeout(r, BATCH_WAIT_MS))
+        console.log(`[${BUILDER_NAME}] Resuming batch ${batchNum + 1}…\n`)
+      }
     }
 
     console.log(`\n[${BUILDER_NAME}] Done — ${totalScraped} listings processed, ${errors.length} errors`)
