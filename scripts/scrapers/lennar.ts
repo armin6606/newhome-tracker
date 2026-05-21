@@ -742,23 +742,10 @@ async function main() {
       })
     )
 
-    const BATCH_SIZE = 5
-    const BATCH_WAIT_MS = 10 * 60 * 1000  // 10 minutes between batches
-
-    for (let i = 0; i < communities.length; i++) {
-      const result = await scrapeOneCommunity(builderRecord.id, communities[i])
+    for (const row of communities) {
+      const result = await scrapeOneCommunity(builderRecord.id, row)
       totalScraped += result.scraped
       if (result.error) errors.push(result.error.error)
-
-      // After every BATCH_SIZE communities, pause before the next batch
-      const isEndOfBatch = (i + 1) % BATCH_SIZE === 0
-      const isLastCommunity = i === communities.length - 1
-      if (isEndOfBatch && !isLastCommunity) {
-        const batchNum = Math.floor((i + 1) / BATCH_SIZE)
-        console.log(`\n[${BUILDER_NAME}] Batch ${batchNum} complete (${i + 1}/${communities.length}) — waiting 10 min before next batch…`)
-        await new Promise(r => setTimeout(r, BATCH_WAIT_MS))
-        console.log(`[${BUILDER_NAME}] Resuming batch ${batchNum + 1}…\n`)
-      }
     }
 
     console.log(`\n[${BUILDER_NAME}] Done — ${totalScraped} listings processed, ${errors.length} errors`)
