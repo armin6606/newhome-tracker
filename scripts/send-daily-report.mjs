@@ -604,7 +604,6 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
   const s0 = section0ScraperStatus(scraperResults)
   const s1 = section1ForSale(snapshot, forSaleNow)
   const s2 = section2ScraperActivity(newListings, newlySold, priceChanges)
-  const s3 = section3CommunityCards(snapshot, communityCardsNow)
   const s4 = section4Table2(snapshot, table2Now)
   const s5 = section5Other(snapshot, communityCardsNow, table2Now)
 
@@ -627,7 +626,6 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
       ${s0}
       ${s1}
       ${s2}
-      ${s3}
       ${s4}
       ${s5}
     </div>
