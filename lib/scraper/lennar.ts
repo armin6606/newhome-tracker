@@ -190,7 +190,7 @@ async function scrapeLennarPropertyDetails(page: Page, listingUrl: string): Prom
         }
       })
 
-      function get(...keys: string[]): string | undefined {
+      const get = (...keys: string[]): string | undefined => {
         for (const searchKey of keys) {
           const found = Object.keys(kv).find(k => k.toLowerCase().includes(searchKey.toLowerCase()))
           if (found) return kv[found]

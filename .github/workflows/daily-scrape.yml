@@ -23,6 +23,9 @@ jobs:
         run: npx prisma generate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Check for named functions in page.evaluate() (esbuild __name guard)
+        run: node scripts/check-evaluate-functions.mjs
+
       - name: Run pre-scrape snapshot
         continue-on-error: true   # never block scrapers if snapshot fails
         run: node scripts/snapshot-11pm.mjs
