@@ -69,7 +69,7 @@ export async function readMeliaMap(
         )
       )
 
-      function isRedColor(el: Element): boolean {
+      const isRedColor = (el: Element): boolean => {
         const fill = el.getAttribute("fill") || ""
         const style = (el as HTMLElement).style?.backgroundColor || ""
         const classStr = el.className?.toString().toLowerCase() || ""
@@ -91,7 +91,7 @@ export async function readMeliaMap(
         )
       }
 
-      function isGreenColor(el: Element): boolean {
+      const isGreenColor = (el: Element): boolean => {
         const fill = el.getAttribute("fill") || ""
         const classStr = el.className?.toString().toLowerCase() || ""
         const dataStatus = (el.getAttribute("data-status") || "").toLowerCase()
