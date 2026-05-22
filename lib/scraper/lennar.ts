@@ -736,7 +736,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
         const hasFullCache = staticCache?.community?.hoaFees != null && cachedPlan?.floors != null
 
         let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-        if (!skipDetailUrls?.has(raw.href) && !hasFullCache) {
+        if (!hasFullCache && (!skipDetailUrls?.has(raw.href) || cachedPlan?.floors == null)) {
           pd = await scrapeLennarPropertyDetails(page, raw.href)
           await page.waitForTimeout(randomDelayMs(300, 800))
         }
@@ -928,7 +928,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
 
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
           if (raw.hasOwnUrl && listingStatus === "for sale") {
-            if (skipDetailUrls?.has(raw.sourceUrl) || hasFullCache) {
+            if (hasFullCache || (skipDetailUrls?.has(raw.sourceUrl) && cachedPlan?.floors != null)) {
               console.log(`  [Lennar] Skip details (${hasFullCache ? "cached" : "known"}): ${raw.sourceUrl}`)
             } else {
               console.log(`  [Lennar] Details: ${raw.sourceUrl}`)
@@ -1022,7 +1022,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           const hasFullCacheOld = staticCache?.community?.hoaFees != null && cachedPlanOld?.floors != null
 
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-          if (detailUrl && !skipDetailUrls?.has(detailUrl) && !hasFullCacheOld) {
+          if (detailUrl && !hasFullCacheOld && (!skipDetailUrls?.has(detailUrl) || cachedPlanOld?.floors == null)) {
             pd = await scrapeLennarPropertyDetails(page, detailUrl)
             moveInDate = moveInDate || pd.moveInDate
             await page.waitForTimeout(randomDelayMs(300, 800))
