@@ -294,11 +294,6 @@ function section2ScraperActivity(newListings, newlySold, priceChanges) {
   const soldByBuilder  = groupByBuilder(newlySold,     l  => l.community.builder.name)
   const priceByBuilder = groupByBuilder(priceChanges,  pc => pc.listing.community.builder.name)
 
-  const allChanged = builders.filter(b =>
-    (newByBuilder[b]?.length || 0) + (soldByBuilder[b]?.length || 0) + (priceByBuilder[b]?.length || 0) > 0
-  )
-  const allUnchanged = builders.filter(b => !allChanged.includes(b))
-
   // Summary table
   const summaryRows = builders.map(b => {
     const n = newByBuilder[b]?.length  || 0
@@ -310,53 +305,51 @@ function section2ScraperActivity(newListings, newlySold, priceChanges) {
     return [b, status]
   })
 
+  const statusBadge = (s) => {
+    if (s === "for sale") return `<span style="background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600">For Sale</span>`
+    if (s === "sold")     return `<span style="background:#fee2e2;color:#b91c1c;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600">Sold</span>`
+    if (s === "future")   return `<span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600">Future</span>`
+    return `<span style="color:#6b7280">${s || "—"}</span>`
+  }
+
+  // Combined flat tables — builder name included in every row
   let detailSections = ""
-  for (const b of allChanged) {
-    const news  = newByBuilder[b]   || []
-    const solds = soldByBuilder[b]  || []
-    const prices= priceByBuilder[b] || []
 
-    let detail = `<div style="margin-top:14px"><strong style="font-size:13px;color:#374151">${b}</strong>`
+  if (newListings.length > 0) {
+    const rows = newListings.map(l => [
+      l.community.builder.name,
+      lotAddr(l),
+      l.community.name,
+      statusBadge(l.status),
+      l.currentPrice ? fmt(l.currentPrice) : "—",
+      l.moveInDate || "—",
+    ])
+    detailSections += `<div style="margin-top:14px;font-size:12px;color:#16a34a;font-weight:600">New Listings (${newListings.length})</div>`
+    detailSections += table(["Builder","Address","Community","Status","Price","Move-In"], rows, "")
+  }
 
-    if (news.length > 0) {
-      const statusBadge = (s) => {
-        if (s === "for sale") return `<span style="background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600">For Sale</span>`
-        if (s === "sold")     return `<span style="background:#fee2e2;color:#b91c1c;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600">Sold</span>`
-        if (s === "future")   return `<span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600">Future</span>`
-        return `<span style="color:#6b7280">${s || "—"}</span>`
-      }
-      const rows = news.map(l => [
-        lotAddr(l),
-        l.community.name,
-        statusBadge(l.status),
-        l.currentPrice ? fmt(l.currentPrice) : "—",
-        l.moveInDate || "—",
-      ])
-      detail += `<div style="margin-top:8px;font-size:12px;color:#16a34a;font-weight:600">New Listings (${news.length})</div>`
-      detail += table(["Address","Community","Status","Price","Move-In"], rows, "")
-    }
+  if (newlySold.length > 0) {
+    const rows = newlySold.map(l => [
+      l.community.builder.name,
+      lotAddr(l),
+      l.community.name,
+      l.currentPrice ? fmt(l.currentPrice) : "—",
+    ])
+    detailSections += `<div style="margin-top:14px;font-size:12px;color:#dc2626;font-weight:600">Newly Sold (${newlySold.length})</div>`
+    detailSections += table(["Builder","Address","Community","Last Price"], rows, "")
+  }
 
-    if (solds.length > 0) {
-      const rows = solds.map(l => [lotAddr(l), l.community.name, l.currentPrice ? fmt(l.currentPrice) : "—"])
-      detail += `<div style="margin-top:8px;font-size:12px;color:#dc2626;font-weight:600">Newly Sold (${solds.length})</div>`
-      detail += table(["Address","Community","Last Price"], rows, "")
-    }
-
-    if (prices.length > 0) {
-      const rows = prices.map(pc => {
-        const l = pc.listing
-        const prev = pc.oldPrice ? fmt(pc.oldPrice) : "—"
-        const curr = fmt(pc.price)
-        const d2   = pc.oldPrice ? (pc.price - pc.oldPrice) : null
-        const chg  = d2 !== null ? (d2 > 0 ? `<span style="color:#dc2626">+${fmt(d2)}</span>` : `<span style="color:#16a34a">${fmt(d2)}</span>`) : "—"
-        return [lotAddr(l), l.community.name, prev, curr, chg]
-      })
-      detail += `<div style="margin-top:8px;font-size:12px;color:#2563eb;font-weight:600">Price Changes (${prices.length})</div>`
-      detail += table(["Address","Community","Old Price","New Price","Change"], rows, "")
-    }
-
-    detail += `</div>`
-    detailSections += detail
+  if (priceChanges.length > 0) {
+    const rows = priceChanges.map(pc => {
+      const l    = pc.listing
+      const prev = pc.oldPrice ? fmt(pc.oldPrice) : "—"
+      const curr = fmt(pc.price)
+      const d2   = pc.oldPrice ? (pc.price - pc.oldPrice) : null
+      const chg  = d2 !== null ? (d2 > 0 ? `<span style="color:#dc2626">+${fmt(d2)}</span>` : `<span style="color:#16a34a">${fmt(d2)}</span>`) : "—"
+      return [l.community.builder.name, lotAddr(l), l.community.name, prev, curr, chg]
+    })
+    detailSections += `<div style="margin-top:14px;font-size:12px;color:#2563eb;font-weight:600">Price Changes (${priceChanges.length})</div>`
+    detailSections += table(["Builder","Address","Community","Old Price","New Price","Change"], rows, "")
   }
 
   return card(`
