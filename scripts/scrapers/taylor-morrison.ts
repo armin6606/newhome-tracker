@@ -9,6 +9,7 @@ import { writeFileSync, readFileSync, existsSync } from "fs"
 import { notifyPriceChange, notifyNewListings } from "../../lib/scraper/notifications"
 import { updateTable2 } from "../../lib/sheet-writer"
 import { readTaylorMorrisonMap } from "../../lib/scraper/map-readers/taylor-morrison-map"
+import { cleanAddress } from "../../lib/scraper/clean-address"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
 const prisma = new PrismaClient()
@@ -132,7 +133,7 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
       const status: string = lot.status === "for sale" && !lot.price && !hasRealAddress ? "future" : lot.status
       return {
         communityName, communityUrl,
-        address: lot.address ?? `Lot ${lot.lotNumber}`,
+        address: lot.address ? (cleanAddress(lot.address) || lot.address) : `Lot ${lot.lotNumber}`,
         lotNumber: lot.lotNumber, floorPlan: lot.floorPlan,
         beds: lot.beds, baths: lot.baths, sqft: lot.sqft,
         price: status === "for sale" ? lot.price : undefined,
