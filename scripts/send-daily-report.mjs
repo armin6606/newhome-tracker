@@ -290,18 +290,30 @@ function section1ForSale(snapshot, forSaleNow) {
 
 function section2ScraperActivity(newListings, newlySold, priceChanges) {
   const builders = ALL_BUILDERS
-  const newByBuilder   = groupByBuilder(newListings,   l  => l.community.builder.name)
-  const soldByBuilder  = groupByBuilder(newlySold,     l  => l.community.builder.name)
-  const priceByBuilder = groupByBuilder(priceChanges,  pc => pc.listing.community.builder.name)
+
+  // Split price changes: initial (new release) vs actual increase/decrease
+  const newReleases   = priceChanges.filter(pc => pc.changeType === "initial")
+  const actualChanges = priceChanges.filter(pc => pc.changeType !== "initial")
+
+  const newByBuilder      = groupByBuilder(newListings,   l  => l.community.builder.name)
+  const soldByBuilder     = groupByBuilder(newlySold,     l  => l.community.builder.name)
+  const releaseByBuilder  = groupByBuilder(newReleases,   pc => pc.listing.community.builder.name)
+  const priceByBuilder    = groupByBuilder(actualChanges, pc => pc.listing.community.builder.name)
 
   // Summary table
   const summaryRows = builders.map(b => {
-    const n = newByBuilder[b]?.length  || 0
-    const s = soldByBuilder[b]?.length || 0
-    const p = priceByBuilder[b]?.length|| 0
-    const status = n + s + p === 0
+    const n  = newByBuilder[b]?.length     || 0
+    const s  = soldByBuilder[b]?.length    || 0
+    const r  = releaseByBuilder[b]?.length || 0
+    const p  = priceByBuilder[b]?.length   || 0
+    const status = n + s + r + p === 0
       ? `<span style="color:#9ca3af">No changes</span>`
-      : `<span style="color:#16a34a">${n} new</span>  <span style="color:#dc2626">${s} sold</span>  <span style="color:#2563eb">${p} price</span>`
+      : [
+          n ? `<span style="color:#16a34a">${n} new</span>`         : "",
+          s ? `<span style="color:#dc2626">${s} sold</span>`        : "",
+          r ? `<span style="color:#7c3aed">${r} released</span>`    : "",
+          p ? `<span style="color:#2563eb">${p} price chg</span>`   : "",
+        ].filter(Boolean).join("  ")
     return [b, status]
   })
 
@@ -312,7 +324,7 @@ function section2ScraperActivity(newListings, newlySold, priceChanges) {
     return `<span style="color:#6b7280">${s || "—"}</span>`
   }
 
-  // Combined flat tables — builder name included in every row
+  // Combined flat tables — builder name in every row
   let detailSections = ""
 
   if (newListings.length > 0) {
@@ -339,8 +351,17 @@ function section2ScraperActivity(newListings, newlySold, priceChanges) {
     detailSections += table(["Builder","Address","Community","Last Price"], rows, "")
   }
 
-  if (priceChanges.length > 0) {
-    const rows = priceChanges.map(pc => {
+  if (newReleases.length > 0) {
+    const rows = newReleases.map(pc => {
+      const l = pc.listing
+      return [l.community.builder.name, lotAddr(l), l.community.name, fmt(pc.price)]
+    })
+    detailSections += `<div style="margin-top:14px;font-size:12px;color:#7c3aed;font-weight:600">New Releases — First Price Set (${newReleases.length})</div>`
+    detailSections += table(["Builder","Address","Community","Price"], rows, "")
+  }
+
+  if (actualChanges.length > 0) {
+    const rows = actualChanges.map(pc => {
       const l    = pc.listing
       const prev = pc.oldPrice ? fmt(pc.oldPrice) : "—"
       const curr = fmt(pc.price)
@@ -348,7 +369,7 @@ function section2ScraperActivity(newListings, newlySold, priceChanges) {
       const chg  = d2 !== null ? (d2 > 0 ? `<span style="color:#dc2626">+${fmt(d2)}</span>` : `<span style="color:#16a34a">${fmt(d2)}</span>`) : "—"
       return [l.community.builder.name, lotAddr(l), l.community.name, prev, curr, chg]
     })
-    detailSections += `<div style="margin-top:14px;font-size:12px;color:#2563eb;font-weight:600">Price Changes (${priceChanges.length})</div>`
+    detailSections += `<div style="margin-top:14px;font-size:12px;color:#2563eb;font-weight:600">Price Changes (${actualChanges.length})</div>`
     detailSections += table(["Builder","Address","Community","Old Price","New Price","Change"], rows, "")
   }
 
