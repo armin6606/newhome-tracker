@@ -926,13 +926,26 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           const cachedPlan   = planCacheKey ? staticCache?.plans.get(planCacheKey) : undefined
           const hasFullCache = staticCache?.community?.hoaFees != null && cachedPlan?.floors != null
 
+          // Build individual lot URL — standard for ALL Lennar communities:
+          // If Lennar's Apollo state provides a URL, use it.
+          // Otherwise construct it from the pieces we always have:
+          //   communityUrl / plan-slug / lotId
+          //   e.g. .../coral/coral-3/11763510069
+          const planSlug = raw.planName
+            ? raw.planName.toLowerCase().replace(/\s+/g, "-")
+            : null
+          const constructedUrl = !raw.hasOwnUrl && planSlug && raw.lotId
+            ? `${communityUrl}/${planSlug}/${raw.lotId}`
+            : null
+          const detailUrl = raw.hasOwnUrl ? raw.sourceUrl : (constructedUrl ?? null)
+
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-          if (raw.hasOwnUrl && listingStatus === "for sale") {
-            if (hasFullCache || (skipDetailUrls?.has(raw.sourceUrl) && cachedPlan?.floors != null)) {
-              console.log(`  [Lennar] Skip details (${hasFullCache ? "cached" : "known"}): ${raw.sourceUrl}`)
+          if (detailUrl && listingStatus === "for sale") {
+            if (hasFullCache || (skipDetailUrls?.has(detailUrl) && cachedPlan?.floors != null)) {
+              console.log(`  [Lennar] Skip details (${hasFullCache ? "cached" : "known"}): ${detailUrl}`)
             } else {
-              console.log(`  [Lennar] Details: ${raw.sourceUrl}`)
-              pd = await scrapeLennarPropertyDetails(page, raw.sourceUrl)
+              console.log(`  [Lennar] Details${constructedUrl ? " (constructed)" : ""}: ${detailUrl}`)
+              pd = await scrapeLennarPropertyDetails(page, detailUrl)
               moveInDate = moveInDate || pd.moveInDate
               await page.waitForTimeout(randomDelayMs(300, 800))
             }
@@ -961,7 +974,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
               ? Math.round(price * pd.taxRate / 100)
               : staticCache?.community?.taxes ?? undefined,
             moveInDate,
-            sourceUrl:    raw.sourceUrl,
+            sourceUrl:    detailUrl ?? raw.sourceUrl,
             status:       listingStatus,
           })
         }
