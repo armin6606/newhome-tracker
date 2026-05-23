@@ -413,8 +413,10 @@ export async function readPulteMap(
           const address = addrMatch?.[1]?.trim()
           if (!address) continue
 
-          // Price ("$1,605,442 Priced at")
-          const priceMatch = text.match(/\$([\d,]+)\s*\n?\s*Priced at/i)
+          // Price ("$1,605,442 Priced at" or "$1,555,442\nWas $1,605,442")
+          const priceMatch =
+            text.match(/\$([\d,]+)\s*\n?\s*Was\s*\$/i) ??   // new: "$1,555,442\nWas $1,605,442"
+            text.match(/\$([\d,]+)\s*\n?\s*Priced at/i)       // old: "$1,605,442 Priced at"
           const price = priceMatch
             ? parseInt(priceMatch[1].replace(/,/g, ""), 10)
             : undefined

@@ -105,6 +105,52 @@ function parseNum(val: string | undefined): number {
   return isNaN(n) ? 0 : n
 }
 
+/** Cross-reference Zillow to confirm a home has actually sold. */
+async function checkZillowSold(
+  address: string,
+  communityName: string
+): Promise<{ sold: boolean; price?: number; date?: string }> {
+  try {
+    const url = `https://www.zillow.com/homes/${encodeURIComponent(address)}_rb/`
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+      },
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!res.ok) {
+      console.log(`  [Zillow] ${communityName}: ${address} → HTTP ${res.status}`)
+      return { sold: false }
+    }
+    const html = await res.text()
+    const nextMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)
+    if (nextMatch) {
+      try {
+        const str = nextMatch[1]
+        if (str.includes("RECENTLY_SOLD") || str.includes('"homeStatus":"SOLD"')) {
+          const priceMatch = str.match(/"soldPrice"\s*:\s*(\d+)/)
+          const dateMatch = str.match(/"dateSold"\s*:\s*"([^"]+)"/)
+          const price = priceMatch ? parseInt(priceMatch[1]) : undefined
+          const date = dateMatch ? dateMatch[1] : undefined
+          console.log(`  [Zillow] ${communityName}: ${address} → SOLD $${price?.toLocaleString() ?? "?"} on ${date ?? "?"}`)
+          return { sold: true, price, date }
+        }
+      } catch { /* ignore */ }
+    }
+    if (html.includes("RECENTLY_SOLD")) {
+      console.log(`  [Zillow] ${communityName}: ${address} → confirmed sold (raw match)`)
+      return { sold: true }
+    }
+    console.log(`  [Zillow] ${communityName}: ${address} → not confirmed sold`)
+    return { sold: false }
+  } catch (e) {
+    console.warn(`  [Zillow] ${communityName}: ${address} → error: ${(e as Error).message}`)
+    return { sold: false }
+  }
+}
+
 async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`
   const res = await fetch(url, { cache: "no-store" })
@@ -149,7 +195,8 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
 async function detectAndApplyChanges(
   scrapedListings: ScrapedListing[],
   communityId: number,
-  builderName?: string
+  builderName?: string,
+  qmiOnly?: boolean
 ): Promise<ChangeDetails> {
   const existing = await prisma.listing.findMany({
     where: { communityId, status: { not: "removed" } },
@@ -462,24 +509,55 @@ async function detectAndApplyChanges(
     if (scrapedAddresses.has(key)) continue
     if (listing.status !== "for sale") continue
 
-    if (listing.currentPrice != null) {
-      await prisma.listing.update({
-        where: { id: listing.id },
-        data: { status: "sold", soldAt: new Date() },
-      })
-      soldDelta++
+    if (qmiOnly && listing.address) {
+      // QMI-only community: no site plan → disappearance ≠ sold.
+      // Cross-reference Zillow to confirm before marking sold.
+      const zillow = await checkZillowSold(listing.address, communityName)
+      if (zillow.sold) {
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: {
+            status: "sold",
+            soldAt: new Date(),
+            ...(zillow.price ? { currentPrice: zillow.price } : {}),
+          },
+        })
+        soldDelta++
+        stats.removed++
+        stats.removedListings.push({
+          address: listing.address,
+          lotNumber: listing.lotNumber ?? null,
+          community: communityName,
+        })
+      } else {
+        // Not confirmed sold → likely pulled for repricing, flip to future
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: { status: "future", soldAt: null, currentPrice: null },
+        })
+        console.log(`  [future-flip] ${communityName}: ${listing.address} → future (not confirmed sold on Zillow)`)
+      }
     } else {
-      await prisma.listing.update({
-        where: { id: listing.id },
-        data: { status: "removed", soldAt: new Date() },
+      // Full site plan community: trust disappearance normally
+      if (listing.currentPrice != null) {
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: { status: "sold", soldAt: new Date() },
+        })
+        soldDelta++
+      } else {
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: { status: "removed", soldAt: new Date() },
+        })
+      }
+      stats.removed++
+      stats.removedListings.push({
+        address: listing.address,
+        lotNumber: listing.lotNumber ?? null,
+        community: communityName,
       })
     }
-    stats.removed++
-    stats.removedListings.push({
-      address: listing.address,
-      lotNumber: listing.lotNumber ?? null,
-      community: communityName,
-    })
   }
 
   await prisma.community.update({
@@ -566,7 +644,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
     const dedupedListings = [...seenAddrs.values(), ...seenLots.values()]
 
-    const stats = await detectAndApplyChanges(dedupedListings, community.id, BUILDER_NAME)
+    const stats = await detectAndApplyChanges(dedupedListings, community.id, BUILDER_NAME, mapResult.qmiOnly ?? false)
     console.log(`  [${BUILDER_NAME}] ${row.communityName}: +${stats.added} new, ${stats.priceChanges} price changes, ${stats.removed} removed, ${stats.unchanged} unchanged`)
     return { scraped: dedupedListings.length, stats }
   } catch (err) {
