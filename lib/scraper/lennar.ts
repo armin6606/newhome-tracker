@@ -897,6 +897,11 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           }
         }
 
+        // Plan-level detail cache: once we've fetched details for one lot of a given
+        // plan, we reuse them for all subsequent lots of the same plan — no extra page visits.
+        // Key: planName (lowercase). Value: the detail result from scrapeLennarPropertyDetails.
+        const planDetailCache = new Map<string, Awaited<ReturnType<typeof scrapeLennarPropertyDetails>>>()
+
         // Process Apollo listings
         for (const raw of listingsToProcess) {
           const address = cleanAddress(raw.address)
@@ -942,10 +947,17 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
           if (detailUrl && listingStatus === "for sale") {
             if (hasFullCache || (skipDetailUrls?.has(detailUrl) && cachedPlan?.floors != null)) {
+              // Static cache already has full community + plan data — no visit needed
               console.log(`  [Lennar] Skip details (${hasFullCache ? "cached" : "known"}): ${detailUrl}`)
+            } else if (planCacheKey && planDetailCache.has(planCacheKey)) {
+              // Already fetched details for this plan from an earlier lot — reuse them
+              pd = planDetailCache.get(planCacheKey)!
+              console.log(`  [Lennar] Reuse plan details for "${raw.planName}" (${address})`)
             } else {
+              // First lot of this plan — visit the detail page and cache the result
               console.log(`  [Lennar] Details${constructedUrl ? " (constructed)" : ""}: ${detailUrl}`)
               pd = await scrapeLennarPropertyDetails(page, detailUrl)
+              if (planCacheKey) planDetailCache.set(planCacheKey, pd)
               moveInDate = moveInDate || pd.moveInDate
               await page.waitForTimeout(randomDelayMs(300, 800))
             }
