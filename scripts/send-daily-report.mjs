@@ -439,61 +439,6 @@ function section3CommunityCards(snapshot, communityCardsNow) {
   `)
 }
 
-// ── Section 4: Sheet Table 2 Changes ──────────────────────────────────────────
-
-function section4Table2(snapshot, table2Now) {
-  const before = snapshot?.table2 || {}
-  const changed = []
-
-  for (const [builderName, nowCounts] of Object.entries(table2Now)) {
-    const beforeCounts = before[builderName] || {}
-    const allComms = new Set([...Object.keys(beforeCounts), ...Object.keys(nowCounts)])
-    for (const commName of allComms) {
-      const b4  = beforeCounts[commName]
-      const now = nowCounts[commName]
-      if (!b4 && now) {
-        changed.push({ builder: builderName, community: commName, b4: null, now })
-        continue
-      }
-      if (b4 && !now) {
-        changed.push({ builder: builderName, community: commName, b4, now: null })
-        continue
-      }
-      if (b4 && now) {
-        if (b4.sold !== now.sold || b4.forSale !== now.forSale || b4.future !== now.future || b4.total !== now.total) {
-          changed.push({ builder: builderName, community: commName, b4, now })
-        }
-      }
-    }
-  }
-
-  if (changed.length === 0) {
-    return card(`${sectionHeader("Sheet Table 2 Changes")}
-      <p style="color:#9ca3af;font-size:13px;margin:0">No changes detected in Google Sheet Table 2.</p>`)
-  }
-
-  const rows = changed.map(c => {
-    const fs = c.b4 && c.now
-      ? `${c.b4.forSale} → ${c.now.forSale} (${delta(c.now.forSale, c.b4.forSale)})`
-      : c.now ? `— → ${c.now.forSale}` : `${c.b4.forSale} → removed`
-    const sold = c.b4 && c.now
-      ? `${c.b4.sold} → ${c.now.sold} (${delta(c.now.sold, c.b4.sold)})`
-      : c.now ? `— → ${c.now.sold}` : `${c.b4.sold} → removed`
-    const future = c.b4 && c.now
-      ? `${c.b4.future} → ${c.now.future} (${delta(c.now.future, c.b4.future)})`
-      : c.now ? `— → ${c.now.future}` : `${c.b4.future} → removed`
-    const total = c.b4 && c.now
-      ? `${c.b4.total} → ${c.now.total}`
-      : c.now ? `${c.now.total}` : `removed`
-    return [c.community, c.builder, fs, sold, future, total]
-  })
-
-  return card(`
-    ${sectionHeader(`Sheet Table 2 Changes (${changed.length})`)}
-    ${table(["Community","Builder","For Sale","Sold","Future Release","Total"], rows, "")}
-  `)
-}
-
 // ── Section 5: Other Changes ───────────────────────────────────────────────────
 
 function section5Other(snapshot, communityCardsNow, table2Now) {
@@ -625,7 +570,6 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
   const s0 = section0ScraperStatus(scraperResults)
   const s1 = section1ForSale(snapshot, forSaleNow)
   const s2 = section2ScraperActivity(newListings, newlySold, priceChanges)
-  const s4 = section4Table2(snapshot, table2Now)
   const s5 = section5Other(snapshot, communityCardsNow, table2Now)
 
   return `<!DOCTYPE html>
@@ -647,7 +591,6 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
       ${s0}
       ${s1}
       ${s2}
-      ${s4}
       ${s5}
     </div>
 
