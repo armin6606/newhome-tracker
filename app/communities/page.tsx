@@ -59,9 +59,18 @@ export default function CommunitiesPage() {
       .catch(() => {})
   }, [])
 
-  const citiesWithCommunities     = Array.from(new Set(communities.map((c) => c.city).filter(Boolean))).sort()
-  const buildersWithCommunities   = Array.from(new Set(communities.map((c) => c.builderName).filter(Boolean))).sort()
-  const communityNames            = Array.from(new Set(communities.map((c) => cleanCommunityName(c.name)).filter(Boolean))).sort()
+  // Cascading filters — each dropdown only shows options valid given the other active filters
+  const filteredByBuilder = communities.filter((c) => !builderFilter || c.builderName === builderFilter)
+  const filteredByCity    = communities.filter((c) => !cityFilter    || c.city        === cityFilter)
+
+  const buildersWithCommunities = Array.from(new Set(communities.map((c) => c.builderName).filter(Boolean))).sort()
+  const citiesWithCommunities   = Array.from(new Set(filteredByBuilder.map((c) => c.city).filter(Boolean))).sort()
+  const communityNames          = Array.from(new Set(
+    communities
+      .filter((c) => (!builderFilter || c.builderName === builderFilter) && (!cityFilter || c.city === cityFilter))
+      .map((c) => cleanCommunityName(c.name))
+      .filter(Boolean)
+  )).sort()
 
   const displayed = communities.filter((c) => {
     if (cityFilter && c.city !== cityFilter) return false
@@ -125,7 +134,7 @@ export default function CommunitiesPage() {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">City</label>
-            <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className={`${selectCls} w-44`}>
+            <select value={cityFilter} onChange={(e) => { setCityFilter(e.target.value); setCommunitySearch("") }} className={`${selectCls} w-44`}>
               <option value="">All Cities</option>
               {citiesWithCommunities.map((city) => (
                 <option key={city} value={city}>{city}</option>
@@ -134,7 +143,7 @@ export default function CommunitiesPage() {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">Builder</label>
-            <select value={builderFilter} onChange={(e) => setBuilderFilter(e.target.value)} className={`${selectCls} w-44`}>
+            <select value={builderFilter} onChange={(e) => { setBuilderFilter(e.target.value); setCityFilter(""); setCommunitySearch("") }} className={`${selectCls} w-44`}>
               <option value="">All Builders</option>
               {buildersWithCommunities.map((b) => (
                 <option key={b} value={b}>{b}</option>
