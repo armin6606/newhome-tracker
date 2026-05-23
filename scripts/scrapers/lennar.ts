@@ -403,6 +403,7 @@ async function detectAndApplyChanges(
       }
 
       if (existing.status === "for sale" && scraped.status === "sold") {
+        updates.soldAt = new Date()
         soldDelta++
         const availPlaceholder = await prisma.listing.findFirst({
           where: {
