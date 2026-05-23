@@ -1,16 +1,20 @@
 /**
  * melia-map.ts
  *
- * Playwright-based map reader for Melia Homes interactive site plan.
- * Status detection:
- *   - Red circle lots   → sold
- *   - Green circle lots → for sale (active)
- *   - All numbered lots that are neither → future
+ * Reads lot data from the Melia Homes / Zonda Virtual interactive site plan.
  *
- * Total = all numbered lots
- * Sold  = red circle lots
- * For Sale = green circle lots
- * Future = Total - Sold - For Sale
+ * How it works:
+ *  1. Load the Melia community page with Playwright
+ *  2. Extract the OLAId from the iframe's data-oi-defer-src attribute
+ *     e.g. https://apps.zondavirtual.com/alphamap/index.html?OLAId=<id>
+ *  3. Fetch https://apps.zondavirtual.com/olajson/<OLAId>.json directly
+ *  4. Read MasterSiteplan.LotDetails[] — each lot has LotNumber + status
+ *
+ * Status mapping:
+ *  "Sold"                       → sold
+ *  "Available" / "Reserved" /
+ *  "Model"                      → for sale
+ *  "Not Released" / anything else → future
  */
 
 import { chromium } from "playwright"
@@ -29,134 +33,88 @@ export async function readMeliaMap(
   const page = await context.newPage()
 
   try {
-    console.log(`[Melia] Loading map: ${url}`)
-    await page.goto(url, { waitUntil: "load", timeout: 60000 })
-    await page.waitForTimeout(randomDelayMs(2000, 4000))
+    console.log(`[Melia] Loading page: ${url}`)
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 })
+    await page.waitForTimeout(randomDelayMs(1500, 3000))
 
-    // Try to navigate to the site plan section
-    const sitePlanSelectors = [
-      'a:has-text("Site Plan")',
-      'a:has-text("Homesites")',
-      'a:has-text("Available Homes")',
-      'button:has-text("Site Plan")',
-      '[class*="sitePlan"]',
-      '[class*="site-plan"]',
-    ]
-    for (const sel of sitePlanSelectors) {
-      try {
-        const el = page.locator(sel).first()
-        if (await el.isVisible({ timeout: 2000 })) {
-          await el.click()
-          await page.waitForTimeout(randomDelayMs(1500, 3000))
-          break
+    // ── Step 1: Extract OLAId from the Zonda Virtual iframe ──────────────────
+    // The iframe is lazy-loaded via data-oi-defer-src, never set as src
+    const deferSrc = await page.evaluate(`
+      (function() {
+        var iframes = document.querySelectorAll("iframe[data-oi-defer-src]")
+        for (var i = 0; i < iframes.length; i++) {
+          var src = iframes[i].getAttribute("data-oi-defer-src") || ""
+          if (src.indexOf("zondavirtual") !== -1 || src.indexOf("OLAId") !== -1) return src
         }
-      } catch {
-        // not found, continue
+        return null
+      })()
+    `) as string | null
+
+    if (!deferSrc) {
+      console.log(`[Melia] ${communityName}: No Zonda Virtual iframe found`)
+      return { sold: 0, forSale: 0, future: 0, total: 0, lots: [], qmiOnly: false }
+    }
+
+    const olaMatch = deferSrc.match(/OLAId=([a-f0-9-]+)/i)
+    if (!olaMatch) {
+      console.log(`[Melia] ${communityName}: Could not parse OLAId from: ${deferSrc}`)
+      return { sold: 0, forSale: 0, future: 0, total: 0, lots: [], qmiOnly: false }
+    }
+
+    const olaId = olaMatch[1]
+    console.log(`[Melia] ${communityName}: OLAId=${olaId}`)
+
+    // ── Step 2: Fetch the JSON data directly ─────────────────────────────────
+    const apiUrl = `https://apps.zondavirtual.com/olajson/${olaId}.json`
+    const response = await fetch(apiUrl)
+    if (!response.ok) {
+      console.log(`[Melia] ${communityName}: JSON API returned ${response.status}`)
+      return { sold: 0, forSale: 0, future: 0, total: 0, lots: [], qmiOnly: false }
+    }
+
+    const data = await response.json() as {
+      MasterSiteplan?: {
+        LotDetails?: Array<{
+          LotId?: number
+          LotNumber?: string
+          status?: string
+          Address?: string
+        }>
       }
     }
 
-    await page.waitForTimeout(randomDelayMs(1000, 2000))
+    const lotDetails = data?.MasterSiteplan?.LotDetails
+    if (!lotDetails || lotDetails.length === 0) {
+      console.log(`[Melia] ${communityName}: No LotDetails in JSON response`)
+      return { sold: 0, forSale: 0, future: 0, total: 0, lots: [], qmiOnly: false }
+    }
 
-    const rawLots = await page.evaluate(() => {
-      const processedIds = new Set<string>()
-      const results: Array<{ lotNumber: string; status: string }> = []
-
-      // Check all SVG and DOM elements for lot indicators
-      const candidates = Array.from(
-        document.querySelectorAll(
-          "svg circle, svg g[id], svg path[id], " +
-            "[class*='homesite'], [class*='lot'], [data-homesite], [data-lot]"
-        )
-      )
-
-      const isRedColor = (el: Element): boolean => {
-        const fill = el.getAttribute("fill") || ""
-        const style = (el as HTMLElement).style?.backgroundColor || ""
-        const classStr = el.className?.toString().toLowerCase() || ""
-        const dataStatus = (el.getAttribute("data-status") || "").toLowerCase()
-        if (
-          classStr.includes("sold") ||
-          classStr.includes("unavailable") ||
-          dataStatus.includes("sold")
-        )
-          return true
-        if (
-          fill.match(/^#[cCdDeEfF][0-5][0-5]/) ||
-          style.includes("rgb(") && style.match(/rgb\(2[0-4]\d|25[0-5]/)
-        )
-          return fill.toLowerCase().startsWith("#e") || fill.toLowerCase().startsWith("#f") || fill.toLowerCase().startsWith("#d")
-        return (
-          fill.toLowerCase().includes("red") ||
-          fill.match(/#[cCdDeEfF][0-4][0-4][0-9a-fA-F]{0,3}$/) !== null
-        )
+    // ── Step 3: Map lot statuses ──────────────────────────────────────────────
+    const lots: MapLot[] = lotDetails.map((lot, i) => {
+      const s = (lot.status || "").toLowerCase()
+      let status: "for sale" | "sold" | "future"
+      if (s === "sold") {
+        status = "sold"
+      } else if (s === "available" || s === "reserved" || s === "model") {
+        status = "for sale"
+      } else {
+        status = "future"
       }
-
-      const isGreenColor = (el: Element): boolean => {
-        const fill = el.getAttribute("fill") || ""
-        const classStr = el.className?.toString().toLowerCase() || ""
-        const dataStatus = (el.getAttribute("data-status") || "").toLowerCase()
-        if (
-          classStr.includes("available") ||
-          classStr.includes("active") ||
-          classStr.includes("for-sale") ||
-          dataStatus.includes("available") ||
-          dataStatus.includes("active")
-        )
-          return true
-        return (
-          fill.toLowerCase().includes("green") ||
-          fill.match(/#[0-9a-fA-F]{0,2}[7-9a-fA-F][0-9a-fA-F]{2,3}[0-4][0-9a-fA-F]$/) !== null
-        )
+      return {
+        lotNumber: lot.LotNumber ?? `lot-${i + 1}`,
+        status,
+        address: lot.Address || undefined,
       }
-
-      for (const el of candidates) {
-        const id =
-          el.getAttribute("id") ||
-          el.getAttribute("data-lot") ||
-          el.getAttribute("data-homesite") ||
-          `${el.tagName}-${el.className}-${el.textContent?.trim().slice(0, 10)}`
-
-        if (processedIds.has(id)) continue
-        processedIds.add(id)
-
-        // Extract the numeric lot number from any available attribute
-        const rawNum =
-          el.getAttribute("data-lot") ||
-          el.getAttribute("data-homesite") ||
-          el.getAttribute("data-lot-number") ||
-          el.id ||
-          el.textContent?.trim() ||
-          ""
-        const numMatch = rawNum.trim().match(/\d+/)
-        if (!numMatch) continue
-        const lotNumber = numMatch[0]
-
-        let status: string
-        if (isRedColor(el)) status = "sold"
-        else if (isGreenColor(el)) status = "for sale"
-        else status = "future"
-
-        results.push({ lotNumber, status })
-      }
-
-      return results
     })
 
-    const lots: MapLot[] = rawLots.map((l) => ({
-      lotNumber: l.lotNumber,
-      status: l.status as "for sale" | "sold" | "future",
-    }))
-
-    const sold    = lots.filter((l) => l.status === "sold").length
-    const forSale = lots.filter((l) => l.status === "for sale").length
-    const future  = lots.filter((l) => l.status === "future").length
+    const sold    = lots.filter(l => l.status === "sold").length
+    const forSale = lots.filter(l => l.status === "for sale").length
+    const future  = lots.filter(l => l.status === "future").length
     const total   = lots.length
 
-    console.log(
-      `[Melia] ${communityName}: total=${total} sold=${sold} forSale=${forSale} future=${future}`
-    )
-
+    console.log(`[Melia] ${communityName}: total=${total} sold=${sold} forSale=${forSale} future=${future}`)
     return { sold, forSale, future, total, lots }
+
   } finally {
     await browser.close()
   }
