@@ -17,6 +17,7 @@ const BUILDER_NAME = "Toll Brothers"
 const SHEET_GID = "0"
 const WEBSITE_URL = "https://www.tollbrothers.com"
 const RESULTS_FILE = "/tmp/scrape-results.json"
+const DEBUG_DIR = "debug/toll"
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,10 @@ const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
 
 function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
+}
+
+function normalizeTaxes(taxes: number | string | undefined | null): string | undefined {
+  return taxes == null ? undefined : String(taxes)
 }
 
 function randomDelayMs(min: number, max: number): Promise<void> {
@@ -223,7 +228,7 @@ async function detectAndApplyChanges(
             pricePerSqft: scraped.pricePerSqft,
             propertyType: scraped.propertyType,
             hoaFees: scraped.hoaFees,
-            taxes: scraped.taxes,
+            taxes: normalizeTaxes(scraped.taxes),
             moveInDate: scraped.moveInDate,
             schools: scraped.schools,
             incentives: scraped.incentives,
@@ -254,7 +259,7 @@ async function detectAndApplyChanges(
               pricePerSqft: scraped.pricePerSqft,
               propertyType: scraped.propertyType,
               hoaFees: scraped.hoaFees,
-              taxes: scraped.taxes,
+              taxes: normalizeTaxes(scraped.taxes),
               moveInDate: scraped.moveInDate,
               schools: scraped.schools,
               incentives: scraped.incentives,
@@ -333,7 +338,7 @@ async function detectAndApplyChanges(
         pricePerSqft: scraped.pricePerSqft ?? existing.pricePerSqft,
         propertyType: scraped.propertyType ?? existing.propertyType,
         hoaFees: scraped.hoaFees ?? existing.hoaFees,
-        taxes: scraped.taxes ?? existing.taxes,
+        taxes: normalizeTaxes(scraped.taxes) ?? existing.taxes,
         moveInDate: scraped.moveInDate ?? existing.moveInDate,
         schools: scraped.schools ?? existing.schools,
         incentives: scraped.incentives ?? existing.incentives,
@@ -471,10 +476,16 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     console.log(`  [${BUILDER_NAME}] Scraping: ${row.communityName} → ${row.url}`)
     await randomDelayMs(10_000, 30_000)
 
-    let mapResult = await readTollBrothersMap(row.url, row.communityName).catch(async (err: unknown) => {
+    let mapResult = await readTollBrothersMap(row.url, row.communityName, {
+      expectedTotal: row.total,
+      debugDir: DEBUG_DIR,
+    }).catch(async (err: unknown) => {
       console.warn(`  [${BUILDER_NAME}] ${row.communityName}: First attempt failed, retrying in 60s...`)
       await new Promise(r => setTimeout(r, 60_000))
-      return readTollBrothersMap(row.url, row.communityName)
+      return readTollBrothersMap(row.url, row.communityName, {
+        expectedTotal: row.total,
+        debugDir: DEBUG_DIR,
+      })
     })
 
     // ── Sold-out community: mark all active/future lots sold, no error ───────────
@@ -506,8 +517,17 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       if (dbCount > 3) {
         console.warn(`  [${BUILDER_NAME}] ${row.communityName}: Got 0 lots but DB has ${dbCount}, retrying in 60s...`)
         await new Promise(r => setTimeout(r, 60_000))
-        mapResult = await readTollBrothersMap(row.url, row.communityName).catch(() => mapResult)
+        mapResult = await readTollBrothersMap(row.url, row.communityName, {
+          expectedTotal: row.total,
+          debugDir: DEBUG_DIR,
+        }).catch(() => mapResult)
       }
+    }
+
+    if (row.total > 0 && mapResult.total !== row.total) {
+      const msg = `${row.communityName}: Scraped ${mapResult.total} lots but Table 2 Total Homes is ${row.total} — skipping DB update`
+      console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
+      return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
     }
 
     const listings = buildListings(mapResult, row.communityName, row.url)

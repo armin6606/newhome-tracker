@@ -10,9 +10,14 @@ import type { MapResult, MapLot } from "./types"
 
 export async function readTollBrothersMap(
   url: string,
-  _communityName: string
+  communityName: string,
+  options: { expectedTotal?: number; debugDir?: string } = {}
 ): Promise<MapResult> {
-  const result = await scrapeTollApollo(url)
+  const result = await scrapeTollApollo(url, {
+    communityName,
+    expectedTotal: options.expectedTotal,
+    debugDir: options.debugDir,
+  })
 
   const lots: MapLot[] = result.lots.map((lot) => {
     const s = lot.status.toLowerCase()

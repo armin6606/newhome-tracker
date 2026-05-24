@@ -1,5 +1,8 @@
 import { chromium, type Page } from "playwright"
+import { mkdirSync, writeFileSync } from "fs"
+import { join } from "path"
 import { randomDelayMs, randomUserAgent } from "./utils"
+import { getTollCommunityOverride, isLotAllowedByOverride } from "./toll-brothers-overrides"
 
 export interface ScrapedListing {
   communityName: string
@@ -464,7 +467,46 @@ export interface TollApolloResult {
   soldOut?: boolean
 }
 
-export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult> {
+export interface TollApolloOptions {
+  communityName?: string
+  expectedTotal?: number
+  debugDir?: string
+}
+
+function safePathSegment(value: string): string {
+  return value.replace(/[^a-z0-9-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "toll-community"
+}
+
+async function saveTollDebugSnapshot(
+  page: Page,
+  options: TollApolloOptions,
+  reason: string,
+  result?: TollApolloResult
+) {
+  const debugRoot = options.debugDir ?? process.env.TOLL_DEBUG_DIR
+  if (!debugRoot) return
+
+  const communityName = options.communityName ?? "unknown"
+  const dir = join(debugRoot, safePathSegment(communityName), new Date().toISOString().replace(/[:.]/g, "-"))
+  mkdirSync(dir, { recursive: true })
+
+  const [html, svg] = await Promise.all([
+    page.content(),
+    page.evaluate(() => {
+      const sitePlan = document.querySelector('[class*="CommunitySitePlan"], [id="siteplan"]')
+      const svgEl = sitePlan?.querySelector("svg") ?? document.querySelector("svg")
+      return svgEl ? svgEl.outerHTML : ""
+    }),
+  ])
+
+  await page.screenshot({ path: join(dir, "screenshot.png"), fullPage: true })
+  writeFileSync(join(dir, "page.html"), html)
+  writeFileSync(join(dir, "siteplan.svg"), svg)
+  writeFileSync(join(dir, "result.json"), JSON.stringify({ reason, options, result }, null, 2))
+  console.log(`[TollApollo] Debug snapshot saved: ${dir}`)
+}
+
+export async function scrapeTollApollo(rawUrl: string, options: TollApolloOptions = {}): Promise<TollApolloResult> {
   // Normalize URL: strip query params and limit to the Collection path segment
   // e.g. .../Alder-Collection/Kuro?utm=... → .../Alder-Collection
   const communityUrl = (() => {
@@ -509,7 +551,7 @@ export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult
 
     // ── 1. Scrape floor plan specs + per-lot prices from ModelCard elements ──────
     const { planSpecs, lotPrices, planPrices, lotAddresses } = await page.evaluate(() => {
-      const specs: Record<string, { beds?: number; bedsMax?: number; baths?: number; sqft?: number }> = {}
+      const specs: Record<string, { beds?: number; bedsMax?: number; baths?: number; sqft?: number; floors?: number; propertyType?: string }> = {}
       const prices: Record<string, number> = {}      // lotNum → price (QMI/specific lots)
       const fromPrices: Record<string, number> = {}  // planName → "from" price (plan-level cards)
       const addresses: Record<string, string> = {}   // lotNum → street address
@@ -651,42 +693,106 @@ export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult
       .replace(/-/g, ' ')
       .trim() || ''
 
+    let hasCommunitySitePlan = false
+    let hasOnlyMasterSitePlan = false
+
     if (collectionKeyword) {
-      const sitePlanValue = await page.evaluate((keyword: string) => {
+      const sitePlanMatch = await page.evaluate((keyword: string) => {
         const sel = document.getElementById('siteplanselection') as HTMLSelectElement | null
-        if (!sel) return null
-        const match =
-          Array.from(sel.options).find(o =>
-            o.text.toLowerCase().includes(keyword.toLowerCase()) && !/overall/i.test(o.text)
-          ) ||
-          Array.from(sel.options).find(o => !/overall/i.test(o.text) && !o.selected)
-        return match ? match.value : null
+        if (!sel) return { value: null, text: null, reason: 'missing-select', options: [] as string[] }
+
+        const target = keyword
+          .toLowerCase()
+          .replace(/\bcollection\b/g, '')
+          .replace(/[^a-z0-9]+/g, ' ')
+          .trim()
+        const options = Array.from(sel.options)
+          .filter(o => !/overall/i.test(o.text))
+          .map(o => ({
+            value: o.value,
+            text: o.text.trim(),
+            normalized: o.text
+              .toLowerCase()
+              .replace(/\bcollection\b/g, '')
+              .replace(/[^a-z0-9]+/g, ' ')
+              .trim(),
+          }))
+
+        const exact = options.find(o => o.normalized === target)
+        if (exact) return { value: exact.value, text: exact.text, reason: 'exact', options: options.map(o => o.text) }
+
+        const contains = options.filter(o => o.normalized.includes(target))
+        if (contains.length === 1) {
+          return { value: contains[0].value, text: contains[0].text, reason: 'contains', options: options.map(o => o.text) }
+        }
+
+        if (options.length === 1) {
+          return { value: options[0].value, text: options[0].text, reason: 'only-option', options: options.map(o => o.text) }
+        }
+
+        return { value: null, text: null, reason: 'ambiguous', options: options.map(o => o.text) }
       }, collectionKeyword)
 
-      if (sitePlanValue) {
-        console.log(`[TollApollo] Switching to community site plan for "${collectionKeyword}" (value: ${sitePlanValue})`)
-        await page.selectOption('#siteplanselection', sitePlanValue)
-        // SVG briefly disappears then re-renders; wait for the new iterated="true"
-        await page.waitForTimeout(500)   // give React a moment to clear SVG
+      if (sitePlanMatch.value) {
+        hasCommunitySitePlan = true
+        const beforeSignature = await page.evaluate(() =>
+          Array.from(document.querySelectorAll('g[id] [data-lot_num], g[id] [data-lot_status]'))
+            .slice(0, 80)
+            .map(el => `${(el as HTMLElement).dataset['lot_num'] || ''}:${(el as HTMLElement).dataset['lot_status'] || ''}`)
+            .join('|')
+        )
+        const alreadySelected = await page.evaluate((value: string) => {
+          const sel = document.getElementById('siteplanselection') as HTMLSelectElement | null
+          return sel?.value === value
+        }, sitePlanMatch.value)
+
+        const action = alreadySelected ? 'Using' : 'Switching to'
+        console.log(
+          `[TollApollo] ${action} community site plan for "${collectionKeyword}" ` +
+          `(matched "${sitePlanMatch.text}", ${sitePlanMatch.reason}, value: ${sitePlanMatch.value})`
+        )
+        if (!alreadySelected) {
+          await page.selectOption('#siteplanselection', sitePlanMatch.value)
+        }
+        // SVG briefly disappears then re-renders; wait for selected value plus a changed, populated lot layer.
         try {
-          await page.waitForFunction(() => {
+          await page.waitForFunction(({ value, previousSignature, requireChanged }) => {
+            const sel = document.getElementById('siteplanselection') as HTMLSelectElement | null
+            if (!sel || sel.value !== value) return false
+
+            const lotShapes = Array.from(document.querySelectorAll('g[id] [data-lot_num], g[id] [data-lot_status]'))
+            if (lotShapes.length === 0) return false
+
+            const signature = lotShapes
+              .slice(0, 80)
+              .map(el => `${(el as HTMLElement).dataset['lot_num'] || ''}:${(el as HTMLElement).dataset['lot_status'] || ''}`)
+              .join('|')
+
             const svgs = document.querySelectorAll('svg')
-            for (const svg of Array.from(svgs)) {
-              if (svg.getAttribute('iterated') === 'true') return true
-            }
-            return false
-          }, { timeout: 10000 })
+            const isIterated = Array.from(svgs).some(svg => svg.getAttribute('iterated') === 'true')
+            return isIterated && (!requireChanged || signature !== previousSignature)
+          }, { value: sitePlanMatch.value, previousSignature: beforeSignature, requireChanged: !alreadySelected }, { timeout: 15000 })
+          await page.waitForTimeout(1000)
           console.log(`[TollApollo] Community site plan rendered successfully`)
         } catch {
           console.log('[TollApollo] SVG re-render wait timed out after plan switch')
         }
       } else {
-        console.log(`[TollApollo] No community-specific site plan found for "${collectionKeyword}"`)
+        const optionList = sitePlanMatch.options.length ? sitePlanMatch.options.join(', ') : 'none'
+        if (sitePlanMatch.reason === 'missing-select') {
+          hasOnlyMasterSitePlan = true
+          console.log(`[TollApollo] No site plan dropdown found for "${collectionKeyword}"`)
+        } else {
+          throw new Error(
+            `[TollApollo] Could not safely match site plan for "${collectionKeyword}" ` +
+            `(reason: ${sitePlanMatch.reason}; options: ${optionList})`
+          )
+        }
       }
     }
 
     // ── 3. Read lot data from SVG + resolve "no data" lots via color legend ───
-    const lots = await page.evaluate(() => {
+    let lots = await page.evaluate(() => {
       const results: Array<{ lotNum: string; status: string; planName: string }> = []
 
       const lotsGroups = Array.from(document.querySelectorAll('g[id]')).filter(g => {
@@ -767,7 +873,82 @@ export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult
       return results
     })
 
+    const override = options.communityName ? getTollCommunityOverride(options.communityName) : undefined
+    if (override) {
+      const beforeOverride = lots.length
+      lots = lots.filter((lot) => isLotAllowedByOverride(lot.lotNum, override))
+      console.log(`[TollApollo] Applied lot override for "${options.communityName}": ${beforeOverride} -> ${lots.length} lots`)
+    }
+
+    if (!override && hasOnlyMasterSitePlan && !hasCommunitySitePlan && Object.keys(planSpecs).length > 0) {
+      const planNames = Object.keys(planSpecs)
+      const normalizedPlanNames = planNames.map((name) =>
+        name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+      )
+      const beforeFilter = lots.length
+
+      const filteredLots = lots.filter((lot) => {
+        const normalizedLotPlan = lot.planName.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+        const isQMI = lot.lotNum in lotPrices || lot.lotNum in lotAddresses
+        const isCommunityPlan = normalizedPlanNames.some((planName) =>
+          normalizedLotPlan === planName ||
+          normalizedLotPlan.startsWith(`${planName} `) ||
+          planName.startsWith(`${normalizedLotPlan} `)
+        )
+
+        return isQMI || isCommunityPlan
+      })
+
+      if (options.expectedTotal && beforeFilter === options.expectedTotal && filteredLots.length !== options.expectedTotal) {
+        console.log(
+          `[TollApollo] Keeping unfiltered master site plan because it matches expected total ` +
+          `${options.expectedTotal}; plan filter would return ${filteredLots.length}`
+        )
+      } else {
+        lots = filteredLots
+      }
+
+      console.log(
+        `[TollApollo] Filtered master site plan by current community plans: ` +
+        `${beforeFilter} -> ${lots.length} lots (${planNames.join(', ')})`
+      )
+    }
+
     // ── 4. Categorize by user's rules ─────────────────────────────────────────
+    if (options.expectedTotal && lots.length !== options.expectedTotal) {
+      const beforeReconcile = lots.length
+
+      if (lots.length < options.expectedTotal) {
+        const existingLotNums = new Set(lots.map((lot) => lot.lotNum))
+        let placeholderIndex = 1
+
+        while (lots.length < options.expectedTotal) {
+          const lotNum = `future-${placeholderIndex}`
+          placeholderIndex++
+          if (existingLotNums.has(lotNum)) continue
+          existingLotNums.add(lotNum)
+          lots.push({ lotNum, status: "Not Released", planName: "" })
+        }
+      } else {
+        let toRemove = lots.length - options.expectedTotal
+        lots = lots.filter((lot) => {
+          if (toRemove <= 0) return true
+
+          const s = lot.status.toLowerCase()
+          const isQMI = lot.lotNum in lotPrices || lot.lotNum in lotAddresses
+          const isSold = s === 'sold' || s === 'reserved' || s === 'closed'
+          if (!isQMI && !isSold) {
+            toRemove--
+            return false
+          }
+
+          return true
+        })
+      }
+
+      console.log(`[TollApollo] Reconciled to expected total: ${beforeReconcile} -> ${lots.length} lots (expected ${options.expectedTotal})`)
+    }
+
     let forSale = 0
     let sold = 0
     let future = 0
@@ -784,9 +965,14 @@ export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult
       }
     }
 
+    const result = { forSale, sold, future, total: lots.length, lots, planSpecs, lotPrices, planPrices, lotAddresses }
     console.log(`[TollApollo] Total lots: ${lots.length} | forSale: ${forSale} | sold: ${sold} | future: ${future}`)
 
-    return { forSale, sold, future, total: lots.length, lots, planSpecs, lotPrices, planPrices, lotAddresses }
+    if (options.expectedTotal && result.total !== options.expectedTotal) {
+      await saveTollDebugSnapshot(page, options, `expected-total-mismatch-${result.total}-vs-${options.expectedTotal}`, result)
+    }
+
+    return result
   } finally {
     await browser.close()
   }

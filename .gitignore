@@ -6,5 +6,6 @@ node_modules/
 Toll Specialist/
 *.bak
 **/service_account.json
+debug/
 
 .vercel
