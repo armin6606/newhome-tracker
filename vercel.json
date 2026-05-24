@@ -3,10 +3,6 @@
     {
       "path": "/api/cron/hourly-scrape",
       "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/trigger-scrape",
-      "schedule": "17 8 * * *"
     }
   ]
 }
