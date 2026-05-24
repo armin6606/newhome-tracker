@@ -73,6 +73,14 @@ function parseLotNumber(raw: string): string | undefined {
   return m ? m[1] : undefined
 }
 
+function lotNumberFromLennarLotId(lotId: string | null | undefined): string | undefined {
+  if (!lotId) return undefined
+  const digits = String(lotId).replace(/\D/g, "")
+  if (!digits) return undefined
+  const n = parseInt(digits.slice(-4), 10)
+  return Number.isFinite(n) && n > 0 ? String(n) : undefined
+}
+
 /** "Rhea 3 in Great Park Neighborhoods" → { planName, communityName } */
 function parsePlanAndCommunity(description: string): { planName: string; communityName: string } {
   const m = description.match(/^(.+?)\s+in\s+(.+)$/i)
@@ -829,7 +837,8 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
               planName:   plan ? String(plan.name || "") || undefined : undefined,
               sourceUrl, hasOwnUrl,
               status:     String(h?.status || "").toUpperCase(),
-              lotNumber:  h?.number ? String(parseInt(String(h.number), 10)) : undefined,
+              lotNumber:  lotNumberFromLennarLotId(h?.lotid ? String(h.lotid) : undefined)
+                ?? (h?.number ? String(parseInt(String(h.number), 10)) : undefined),
               lotId:      h?.lotid  ? String(h.lotid) : undefined,
               apolloCollectionName,
             })
@@ -880,7 +889,8 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             )
 
             for (const lotId of phantomIds) {
-              const lotNumber = String(parseInt(lotId.slice(-4), 10))
+              const lotNumber = lotNumberFromLennarLotId(lotId)
+              if (!lotNumber) continue
               const syntheticAddress = `Lot ${lotNumber}`
               if (seenAddresses.has(syntheticAddress)) continue
               seenAddresses.add(syntheticAddress)
@@ -972,7 +982,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             communityUrl,
             city: "",           // filled by applySheetDefaults
             address,
-            lotNumber:    pd.lotNumber || raw.lotNumber,
+            lotNumber:    pd.lotNumber || lotNumberFromLennarLotId(raw.lotId) || raw.lotNumber,
             floorPlan:    raw.planName,
             sqft,
             beds:         pd.beds  ?? raw.beds  ?? cachedPlan?.beds    ?? undefined,
@@ -1014,7 +1024,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             communityUrl,
             city: raw.city,
             address: addr,
-            lotNumber: raw.lotNumber || undefined,
+            lotNumber: lotNumberFromLennarLotId(raw.lotId) || raw.lotNumber || undefined,
             floorPlan: raw.planName || undefined,
             sourceUrl: communityUrl,
             status: "sold",
@@ -1060,7 +1070,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             communityUrl,
             city: pd.cityFromPD || staticCache?.community?.city || raw.city,
             address: addr,
-            lotNumber:    pd.lotNumber || raw.lotNumber || undefined,
+            lotNumber:    pd.lotNumber || lotNumberFromLennarLotId(raw.lotId) || raw.lotNumber || undefined,
             floorPlan:    raw.planName || undefined,
             sqft:         finalSqft,
             beds:         pd.beds  || raw.beds  || cachedPlanOld?.beds    || undefined,
