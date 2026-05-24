@@ -20,10 +20,10 @@ export async function readTollBrothersMap(
       lot.lotNum in result.lotPrices || lot.lotNum in result.lotAddresses
 
     let status: "for sale" | "sold" | "future"
-    if (isQMI) {
-      status = "for sale"
-    } else if (s === "sold" || s === "reserved") {
+    if (s === "sold" || s === "reserved") {
       status = "sold"
+    } else if (isQMI || s === "available" || s === "quick move-in") {
+      status = "for sale"
     } else {
       status = "future"
     }
