@@ -428,7 +428,7 @@ export async function scrapeCommunityPage(
 // Reads the interactive SVG site plan to get per-lot status counts.
 // Status mapping:
 //   Available, Quick Move-In  → forSale
-//   Sold, Reserved            → sold
+//   Sold, Reserved, Closed    → sold
 //   Not Released, Unavailable, (anything else) → future
 
 export interface TollApolloLot {
