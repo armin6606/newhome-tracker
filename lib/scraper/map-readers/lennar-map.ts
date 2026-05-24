@@ -36,6 +36,10 @@ export async function readLennarMap(
       beds: listing.beds,
       baths: listing.baths,
       sqft: listing.sqft,
+      floors: listing.floors,
+      garages: listing.garages,
+      moveInDate: listing.moveInDate,
+      sourceUrl: listing.sourceUrl,
     } satisfies MapLot
   })
 

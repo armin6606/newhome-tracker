@@ -14,6 +14,7 @@ export interface MapLot {
   floors?: number
   garages?: number
   moveInDate?: string
+  sourceUrl?: string
 }
 
 export interface MapResult {
