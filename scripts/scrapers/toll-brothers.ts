@@ -128,8 +128,8 @@ async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
 function buildListings(result: MapResult, communityName: string, communityUrl: string): ScrapedListing[] {
   if (result.lots && result.lots.length > 0) {
     return result.lots.map(lot => {
-      // Keep the lot status as-is — "for sale" comes from SVG "Available"/"Quick Move-In" or QMI listing
-      const status: string = lot.status
+      const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
+      const status: string = lot.status === "for sale" && !lot.price && !hasRealAddress ? "future" : lot.status
       return {
         communityName, communityUrl,
         address: lot.address ?? `Lot ${lot.lotNumber}`,
@@ -375,14 +375,6 @@ async function detectAndApplyChanges(
         }
       }
 
-      // future → for sale transition (available lots newly released)
-      if (existing.status === "future" && scraped.status === "for sale") {
-        if (builderName && builderName !== "Unknown") {
-          updateTable2(builderName, communityName, { forSale: +1 })
-            .catch((e) => console.error(`[sheet-writer] ${communityName} future→active:`, e))
-        }
-        console.log(`  [released] ${communityName}: ${scraped.address} (future → for sale)`)
-      }
 
       if (scraped.price && scraped.price !== existing.currentPrice) {
         const changeType =

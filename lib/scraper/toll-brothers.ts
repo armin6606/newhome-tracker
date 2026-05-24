@@ -761,10 +761,10 @@ export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult
     for (const lot of lots) {
       const s = lot.status.toLowerCase()
       const isQMI = lot.lotNum in lotPrices || lot.lotNum in lotAddresses
-      if (s === 'sold' || s === 'reserved') {
-        sold++
-      } else if (isQMI || s === 'available' || s === 'quick move-in') {
+      if (isQMI) {
         forSale++
+      } else if (s === 'sold' || s === 'reserved') {
+        sold++
       } else {
         future++
       }
