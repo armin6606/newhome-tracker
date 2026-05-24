@@ -236,6 +236,7 @@ async function detectAndApplyChanges(
     newIncentives: [],
   }
   const newListingIds: number[] = []
+  const matchedExistingIds = new Set<number>()
   let soldDelta = 0
 
   for (const scraped of scrapedListings) {
@@ -356,6 +357,7 @@ async function detectAndApplyChanges(
         }
       }
     } else {
+      matchedExistingIds.add(existing.id)
       const newLotNumber = scraped.lotNumber ?? existing.lotNumber
       const lotNumberOwner = newLotNumber ? existingByLotNumber.get(newLotNumber) : undefined
       const lotNumberConflicts =
@@ -511,6 +513,7 @@ async function detectAndApplyChanges(
 
   for (const [key, listing] of existingByAddress.entries()) {
     if (scrapedAddresses.has(key)) continue
+    if (matchedExistingIds.has(listing.id)) continue
     if (listing.status !== "for sale") continue
 
     if (listing.currentPrice != null) {
