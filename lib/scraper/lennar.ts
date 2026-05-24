@@ -951,7 +951,8 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
               console.log(`  [Lennar] Skip details (${hasFullCache ? "cached" : "known"}): ${detailUrl}`)
             } else if (planCacheKey && planDetailCache.has(planCacheKey)) {
               // Already fetched details for this plan from an earlier lot — reuse them
-              pd = planDetailCache.get(planCacheKey)!
+              const cachedDetails = planDetailCache.get(planCacheKey)!
+              pd = { ...cachedDetails, lotNumber: undefined, moveInDate: undefined }
               console.log(`  [Lennar] Reuse plan details for "${raw.planName}" (${address})`)
             } else {
               // First lot of this plan — visit the detail page and cache the result

@@ -677,6 +677,18 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
     const dedupedListings = [...seenAddrs.values(), ...seenLots.values()]
 
+    if (row.total >= 10) {
+      const lowerBound = Math.ceil(row.total * 0.8)
+      const upperBound = Math.floor(row.total * 1.2)
+      if (dedupedListings.length < lowerBound || dedupedListings.length > upperBound) {
+        const msg =
+          `${row.communityName}: scraped ${dedupedListings.length} lots, but Table 2 expects ${row.total} ` +
+          `(allowed ${lowerBound}-${upperBound}) — looks incomplete or cross-community, skipping`
+        console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
+        return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
+      }
+    }
+
     const stats = await detectAndApplyChanges(dedupedListings, community.id, BUILDER_NAME)
     console.log(`  [${BUILDER_NAME}] ${row.communityName}: +${stats.added} new, ${stats.priceChanges} price changes, ${stats.removed} removed, ${stats.unchanged} unchanged`)
 
