@@ -524,25 +524,39 @@ export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult
         const planName = nameEl?.innerText?.trim().split('\n')[0].trim()
         if (!planName) continue
 
-        // Extract address — "Home Site 36\n | 152 Jack" format for QMI lots
+        // Extract address — two formats:
+        //   GPN Collection: "Home Site 36 | 152 Jack" (lot + pipe + street in address element)
+        //   GPN non-Collection: address element = "165 Apron Irvine, CA"; "Home Site 2" is in card body
         const addrEl =
           card.querySelector('[class*="calloutAddressWrapper"]') as HTMLElement | null ||
           card.querySelector('[class*="address"]') as HTMLElement | null
         const addrRaw = addrEl?.innerText?.trim() || ''
-        const lotMatch = addrRaw.match(/(?:home\s*site|lot)\s*(\d+)/i)
-        const lotNum = lotMatch ? lotMatch[1] : ''
+        const cardText = (card as HTMLElement).innerText || ''
 
-        // Street address is the part after " | " (e.g. "152 Jack")
+        // Try to extract lot number from address element first, then full card text
+        const addrLotMatch = addrRaw.match(/(?:home\s*site|lot)\s*(\d+)/i)
+        const cardLotMatch = cardText.match(/home\s*site\s*(\d+)/i)
+        const lotNum = addrLotMatch ? addrLotMatch[1] : (cardLotMatch ? cardLotMatch[1] : '')
+
+        // Street address: pipe-separated ("Home Site N | Street"), or plain address element
         const streetParts = addrRaw.split('|')
-        const streetAddr = streetParts.length > 1 ? streetParts[streetParts.length - 1].trim() : ''
+        const streetAddr = streetParts.length > 1
+          ? streetParts[streetParts.length - 1].trim()
+          : addrLotMatch ? '' : addrRaw.trim()   // if no "Home Site" in addrEl, addrEl IS the street
         if (lotNum && streetAddr) addresses[lotNum] = streetAddr
 
-        // Extract price
+        // Extract price — try multiple selectors including GridModelCard variant (case-sensitive)
         const priceEl =
           card.querySelector('[class*="price__adjust"]') as HTMLElement | null ||
-          card.querySelector('[class*="ModelCard_modelPrice"]') as HTMLElement | null
+          card.querySelector('[class*="ModelCard_modelPrice"]') as HTMLElement | null ||
+          card.querySelector('[class*="GridModelCard_price"]') as HTMLElement | null
         const priceRaw = priceEl?.innerText?.trim() || ''
-        const priceNum = priceRaw ? parseInt(priceRaw.replace(/[^0-9]/g, ''), 10) : 0
+        let priceNum = priceRaw ? parseInt(priceRaw.replace(/[^0-9]/g, ''), 10) : 0
+        // Fallback: parse first dollar amount from card text ("Priced at $X,XXX,XXX")
+        if (!priceNum || priceNum < 100000) {
+          const pMatch = cardText.match(/\$\s*([\d,]+)/)
+          if (pMatch) { const n = parseInt(pMatch[1].replace(/,/g, ''), 10); if (n > 100000) priceNum = n }
+        }
 
         if (priceNum > 100000) {
           if (lotNum) {
@@ -763,7 +777,7 @@ export async function scrapeTollApollo(rawUrl: string): Promise<TollApolloResult
       const isQMI = lot.lotNum in lotPrices || lot.lotNum in lotAddresses
       if (isQMI) {
         forSale++
-      } else if (s === 'sold' || s === 'reserved') {
+      } else if (s === 'sold' || s === 'reserved' || s === 'closed') {
         sold++
       } else {
         future++

@@ -22,7 +22,7 @@ export async function readTollBrothersMap(
     let status: "for sale" | "sold" | "future"
     if (isQMI) {
       status = "for sale"
-    } else if (s === "sold" || s === "reserved") {
+    } else if (s === "sold" || s === "reserved" || s === "closed") {
       status = "sold"
     } else {
       status = "future"
