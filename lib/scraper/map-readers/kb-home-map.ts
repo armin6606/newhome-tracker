@@ -182,11 +182,11 @@ export async function readKBHomeMap(
     await page.waitForTimeout(randomDelayMs(1000, 2000))
 
     // ── Step 3: extract all lot data from kb-vu.com ──────────────────────────
-    const rawLots: Array<{ lotNumber: string; status: "for sale" | "sold"; address?: string; price?: number }> =
+    const rawLots: Array<{ lotNumber: string; status: "for sale" | "sold" | "future"; address?: string; price?: number }> =
       await page.evaluate(
         ({ TEAL, GREEN, ORANGE, YELLOW }) => {
           const seen = new Set<string>()
-          const results: Array<{ lotNumber: string; status: "for sale" | "sold"; address?: string; price?: number }> = []
+          const results: Array<{ lotNumber: string; status: "for sale" | "sold" | "future"; address?: string; price?: number }> = []
 
           const allEls = Array.from(document.querySelectorAll("span, div"))
           const circles = allEls.filter(el => {
@@ -203,7 +203,10 @@ export async function readKBHomeMap(
             seen.add(lotNum)
 
             const bg = window.getComputedStyle(el).backgroundColor
-            const status: "for sale" | "sold" = bg === ORANGE ? "sold" : "for sale"
+            const status: "for sale" | "sold" | "future" =
+              bg === ORANGE ? "sold" :
+              bg === YELLOW ? "future" :
+              "for sale"
 
             // Walk up the DOM to find the card containing address + price
             let parent: Element | null = el.parentElement
@@ -211,7 +214,7 @@ export async function readKBHomeMap(
             for (let i = 0; i < 8; i++) {
               if (!parent) break
               const t = parent.textContent?.trim() || ""
-              if (t.includes("$") && t.length < 300) {
+              if (t.includes(`Homesite ${lotNum}`) && t.length < 300) {
                 cardText = t.replace(/\s+/g, " ")
                 break
               }
@@ -223,12 +226,15 @@ export async function readKBHomeMap(
 
             if (cardText) {
               // Pattern: "Homesite {lot}{streetNumber} {street...}${price}Home price"
-              const m = cardText.match(new RegExp(`Homesite ${lotNum}(\\d{4,5}[^$]+?)\\$([0-9,]+)`))
+              // Some Irvine streets are 3 digits (for example "309 Pluto").
+              const m = cardText.match(new RegExp(`Homesite\\s+${lotNum}\\s*(\\d{3,5}[^$]+?)(?:\\$([0-9,]+))?(?:Home price|$)`))
               if (m) {
                 address = m[1].trim()
-                const parsedPrice = parseInt(m[2].replace(/,/g, ""), 10)
-                // Reject placeholder prices (KB Home occasionally posts $10 or $1 for pending homes)
-                price = parsedPrice >= 10_000 ? parsedPrice : undefined
+                if (m[2]) {
+                  const parsedPrice = parseInt(m[2].replace(/,/g, ""), 10)
+                  // Reject placeholder prices (KB Home occasionally posts $10 or $1 for pending homes)
+                  price = parsedPrice >= 10_000 ? parsedPrice : undefined
+                }
               }
             }
 

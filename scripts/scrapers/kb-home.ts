@@ -314,16 +314,6 @@ async function detectAndApplyChanges(
           updateTable2(builderName, communityName, { forSale: +1 })
             .catch((e) => console.error(`[sheet-writer] ${communityName} new listing:`, e))
         }
-        const futurePlaceholder = await prisma.listing.findFirst({
-          where: { communityId, lotNumber: { startsWith: "future-" }, status: "future" },
-        })
-        if (futurePlaceholder) {
-          await prisma.listing.update({
-            where: { id: futurePlaceholder.id },
-            data: { status: "for sale" },
-          })
-          console.log(`  [placeholder-sync] ${communityName}: flipped ${futurePlaceholder.lotNumber} → active (new listing released)`)
-        }
       }
     } else {
       const newLotNumber = scraped.lotNumber ?? existing.lotNumber
@@ -375,20 +365,6 @@ async function detectAndApplyChanges(
       if (existing.status === "for sale" && scraped.status === "sold") {
         updates.soldAt = new Date()
         soldDelta++
-        const availPlaceholder = await prisma.listing.findFirst({
-          where: {
-            communityId,
-            lotNumber: { startsWith: "avail-" },
-            status: "for sale",
-          },
-        })
-        if (availPlaceholder) {
-          await prisma.listing.update({
-            where: { id: availPlaceholder.id },
-            data: { status: "sold", soldAt: new Date() },
-          })
-          console.log(`  [placeholder-sync] ${communityName}: flipped ${availPlaceholder.lotNumber} → sold`)
-        }
         updateTable2(builderName ?? "Unknown", communityName, { sold: +1, forSale: -1 })
           .catch((e) => console.error(`[sheet-writer] ${communityName} active→sold:`, e))
       }
@@ -408,20 +384,6 @@ async function detectAndApplyChanges(
         console.log(`  [reactivated] ${communityName}: ${scraped.address} (was ${existing.status} → active)`)
 
         if (existing.status === "sold") {
-          const soldAvailPlaceholder = await prisma.listing.findFirst({
-            where: {
-              communityId,
-              lotNumber: { startsWith: "avail-" },
-              status: "sold",
-            },
-          })
-          if (soldAvailPlaceholder) {
-            await prisma.listing.update({
-              where: { id: soldAvailPlaceholder.id },
-              data: { status: "for sale", soldAt: null },
-            })
-            console.log(`  [placeholder-sync] ${communityName}: flipped ${soldAvailPlaceholder.lotNumber} back → active`)
-          }
           updateTable2(builderName ?? "Unknown", communityName, { sold: -1, forSale: +1 })
             .catch((e) => console.error(`[sheet-writer] ${communityName} reactivation:`, e))
         }
