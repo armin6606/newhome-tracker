@@ -120,7 +120,7 @@ async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
   const results: SheetCommunityRow[] = []
   for (const line of dataRows) {
     const cols = parseCsvLine(line)
-    const communityName = cols[0]?.trim() || ""
+    const communityName = cols[3]?.trim() || cols[0]?.trim() || ""
     const url = cols[1]?.trim() || ""
     if (!communityName || !url || !url.startsWith("http")) continue
     results.push({ communityName, url, sold: parseNum(cols[4]), forSale: parseNum(cols[5]), future: parseNum(cols[6]), total: parseNum(cols[7]) })

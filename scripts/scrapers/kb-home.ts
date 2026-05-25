@@ -64,6 +64,10 @@ function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
 }
 
+function normalizeTaxes(taxes: number | string | undefined | null): string | undefined {
+  return taxes == null ? undefined : String(taxes)
+}
+
 function randomDelayMs(min: number, max: number): Promise<void> {
   const ms = Math.floor(Math.random() * (max - min + 1)) + min
   return new Promise((r) => setTimeout(r, ms))
@@ -105,6 +109,13 @@ function parseNum(val: string | undefined): number {
   return isNaN(n) ? 0 : n
 }
 
+function cleanCommunityUrl(url: string): string {
+  return url
+    .replace(/utm_source=.*$/i, "")
+    .replace(/[?&](utm|gad|gbraid|gclid)[^#]*$/i, "")
+    .replace(/[?&]+$/, "")
+}
+
 async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`
   const res = await fetch(url, { cache: "no-store" })
@@ -116,7 +127,7 @@ async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
   for (const line of dataRows) {
     const cols = parseCsvLine(line)
     const communityName = cols[0]?.trim() || ""
-    const url = cols[1]?.trim() || ""
+    const url = cleanCommunityUrl(cols[1]?.trim() || "")
     if (!communityName || !url || !url.startsWith("http")) continue
     results.push({ communityName, url, sold: parseNum(cols[4]), forSale: parseNum(cols[5]), future: parseNum(cols[6]), total: parseNum(cols[7]) })
   }
@@ -178,6 +189,8 @@ async function detectAndApplyChanges(
     removedListings.filter((l) => l.lotNumber).map((l) => [l.lotNumber!, l.id])
   )
   const scrapedAddresses = new Set(scrapedListings.map((l) => normalizeAddress(l.address)))
+  const scrapedLotNumbers = new Set(scrapedListings.map((l) => l.lotNumber).filter(Boolean))
+  const matchedExistingIds = new Set<number>()
 
   const stats: ChangeDetails = {
     added: 0,
@@ -198,6 +211,7 @@ async function detectAndApplyChanges(
     const key = normalizeAddress(scraped.address)
     const existing = existingByAddress.get(key)
       ?? (scraped.lotNumber ? existingByLotNumber.get(scraped.lotNumber) : undefined)
+    if (existing) matchedExistingIds.add(existing.id)
 
     if (!existing) {
       if (scraped.lotNumber) {
@@ -226,7 +240,7 @@ async function detectAndApplyChanges(
             pricePerSqft: scraped.pricePerSqft,
             propertyType: scraped.propertyType,
             hoaFees: scraped.hoaFees,
-            taxes: scraped.taxes,
+            taxes: normalizeTaxes(scraped.taxes),
             moveInDate: scraped.moveInDate,
             schools: scraped.schools,
             incentives: scraped.incentives,
@@ -255,7 +269,7 @@ async function detectAndApplyChanges(
               pricePerSqft: scraped.pricePerSqft,
               propertyType: scraped.propertyType,
               hoaFees: scraped.hoaFees,
-              taxes: scraped.taxes,
+              taxes: normalizeTaxes(scraped.taxes),
               moveInDate: scraped.moveInDate,
               schools: scraped.schools,
               incentives: scraped.incentives,
@@ -343,7 +357,7 @@ async function detectAndApplyChanges(
         pricePerSqft: scraped.pricePerSqft ?? existing.pricePerSqft,
         propertyType: scraped.propertyType ?? existing.propertyType,
         hoaFees: scraped.hoaFees ?? existing.hoaFees,
-        taxes: scraped.taxes ?? existing.taxes,
+        taxes: normalizeTaxes(scraped.taxes) ?? existing.taxes,
         moveInDate: scraped.moveInDate ?? existing.moveInDate,
         schools: scraped.schools ?? existing.schools,
         incentives: scraped.incentives ?? existing.incentives,
@@ -467,6 +481,8 @@ async function detectAndApplyChanges(
 
   for (const [key, listing] of existingByAddress.entries()) {
     if (scrapedAddresses.has(key)) continue
+    if (matchedExistingIds.has(listing.id)) continue
+    if (listing.lotNumber && scrapedLotNumbers.has(listing.lotNumber)) continue
     if (listing.status !== "for sale") continue
 
     // A lot is only marked SOLD if it has BOTH a real price AND a real address.

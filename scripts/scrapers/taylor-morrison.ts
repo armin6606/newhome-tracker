@@ -65,6 +65,10 @@ function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
 }
 
+function normalizeTaxes(taxes: number | string | undefined | null): string | undefined {
+  return taxes == null ? undefined : String(taxes)
+}
+
 function randomDelayMs(min: number, max: number): Promise<void> {
   const ms = Math.floor(Math.random() * (max - min + 1)) + min
   return new Promise((r) => setTimeout(r, ms))
@@ -150,7 +154,8 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
 async function detectAndApplyChanges(
   scrapedListings: ScrapedListing[],
   communityId: number,
-  builderName?: string
+  builderName?: string,
+  qmiOnly = false
 ): Promise<ChangeDetails> {
   const existing = await prisma.listing.findMany({
     where: { communityId, status: { not: "removed" } },
@@ -220,7 +225,7 @@ async function detectAndApplyChanges(
             pricePerSqft: scraped.pricePerSqft,
             propertyType: scraped.propertyType,
             hoaFees: scraped.hoaFees,
-            taxes: scraped.taxes,
+            taxes: normalizeTaxes(scraped.taxes),
             moveInDate: scraped.moveInDate,
             schools: scraped.schools,
             incentives: scraped.incentives,
@@ -249,7 +254,7 @@ async function detectAndApplyChanges(
               pricePerSqft: scraped.pricePerSqft,
               propertyType: scraped.propertyType,
               hoaFees: scraped.hoaFees,
-              taxes: scraped.taxes,
+              taxes: normalizeTaxes(scraped.taxes),
               moveInDate: scraped.moveInDate,
               schools: scraped.schools,
               incentives: scraped.incentives,
@@ -337,7 +342,7 @@ async function detectAndApplyChanges(
         pricePerSqft: scraped.pricePerSqft ?? existing.pricePerSqft,
         propertyType: scraped.propertyType ?? existing.propertyType,
         hoaFees: scraped.hoaFees ?? existing.hoaFees,
-        taxes: scraped.taxes ?? existing.taxes,
+        taxes: normalizeTaxes(scraped.taxes) ?? existing.taxes,
         moveInDate: scraped.moveInDate ?? existing.moveInDate,
         schools: scraped.schools ?? existing.schools,
         incentives: scraped.incentives ?? existing.incentives,
@@ -459,28 +464,30 @@ async function detectAndApplyChanges(
     notifyNewListings({ communityId, newListingIds }).catch(console.error)
   }
 
-  for (const [key, listing] of existingByAddress.entries()) {
-    if (scrapedAddresses.has(key)) continue
-    if (listing.status !== "for sale") continue
+  if (!qmiOnly) {
+    for (const [key, listing] of existingByAddress.entries()) {
+      if (scrapedAddresses.has(key)) continue
+      if (listing.status !== "for sale") continue
 
-    if (listing.currentPrice != null) {
-      await prisma.listing.update({
-        where: { id: listing.id },
-        data: { status: "sold", soldAt: new Date() },
-      })
-      soldDelta++
-    } else {
-      await prisma.listing.update({
-        where: { id: listing.id },
-        data: { status: "removed", soldAt: new Date() },
+      if (listing.currentPrice != null) {
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: { status: "sold", soldAt: new Date() },
+        })
+        soldDelta++
+      } else {
+        await prisma.listing.update({
+          where: { id: listing.id },
+          data: { status: "removed", soldAt: new Date() },
+        })
+      }
+      stats.removed++
+      stats.removedListings.push({
+        address: listing.address,
+        lotNumber: listing.lotNumber ?? null,
+        community: communityName,
       })
     }
-    stats.removed++
-    stats.removedListings.push({
-      address: listing.address,
-      lotNumber: listing.lotNumber ?? null,
-      community: communityName,
-    })
   }
 
   await prisma.community.update({
@@ -554,7 +561,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
     const dedupedListings = [...seenAddrs.values(), ...seenLots.values()]
 
-    const stats = await detectAndApplyChanges(dedupedListings, community.id, BUILDER_NAME)
+    const stats = await detectAndApplyChanges(dedupedListings, community.id, BUILDER_NAME, mapResult.qmiOnly ?? false)
     console.log(`  [${BUILDER_NAME}] ${row.communityName}: +${stats.added} new, ${stats.priceChanges} price changes, ${stats.removed} removed, ${stats.unchanged} unchanged`)
     return { scraped: dedupedListings.length, stats }
   } catch (err) {

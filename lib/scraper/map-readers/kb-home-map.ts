@@ -47,9 +47,11 @@ function normalizeAddr(addr: string): string {
 function buildFloorplanMaps(payload: Record<string, unknown>): {
   byLot: Map<string, FloorPlanData>
   byAddr: Map<string, FloorPlanData>
+  payloadLots: Map<string, MapLot>
 } {
-  const byLot  = new Map<string, FloorPlanData>()
-  const byAddr = new Map<string, FloorPlanData>()
+  const byLot       = new Map<string, FloorPlanData>()
+  const byAddr      = new Map<string, FloorPlanData>()
+  const payloadLots = new Map<string, MapLot>()
 
   const floorplansArr = (payload.floorplans as Array<{ uid: string; name?: string; specs?: Record<string, unknown> }>) ?? []
   const fpMap: Record<string, { name?: string; specs?: Record<string, unknown> }> = {}
@@ -83,9 +85,23 @@ function buildFloorplanMaps(payload: Record<string, unknown>): {
     // Index by normalized address
     const rawAddr = ((seg.address as string) || (seg.shortAddress as string) || "").replace(/,.*$/, "").trim()
     if (rawAddr) byAddr.set(normalizeAddr(rawAddr), data)
+
+    if (lotNum) {
+      payloadLots.set(lotNum, {
+        lotNumber: lotNum,
+        status: "future",
+        address: rawAddr || undefined,
+        floorPlan: data.floorPlan,
+        sqft: data.sqft,
+        beds: data.beds,
+        baths: data.baths,
+        floors: data.floors,
+        garages: data.garages,
+      })
+    }
   }
 
-  return { byLot, byAddr }
+  return { byLot, byAddr, payloadLots }
 }
 
 export async function readKBHomeMap(
@@ -139,9 +155,9 @@ export async function readKBHomeMap(
     }
 
     // Build floor plan lookup maps from Firebase payload (may be null if tab didn't load)
-    const { byLot: fpByLot, byAddr: fpByAddr } = firebasePayload
+    const { byLot: fpByLot, byAddr: fpByAddr, payloadLots } = firebasePayload
       ? buildFloorplanMaps(firebasePayload)
-      : { byLot: new Map<string, FloorPlanData>(), byAddr: new Map<string, FloorPlanData>() }
+      : { byLot: new Map<string, FloorPlanData>(), byAddr: new Map<string, FloorPlanData>(), payloadLots: new Map<string, MapLot>() }
 
     if (firebasePayload) {
       console.log(`[KBHome] ${communityName}: Firebase payload captured — ${fpByLot.size} lots with floor plan data`)
@@ -244,8 +260,14 @@ export async function readKBHomeMap(
       } satisfies MapLot
     })
 
+    const renderedLotNumbers = new Set(lots.map(l => l.lotNumber))
+    for (const [lotNumber, payloadLot] of payloadLots.entries()) {
+      if (!renderedLotNumbers.has(lotNumber)) lots.push(payloadLot)
+    }
+
     const active = lots.filter(l => l.status === "for sale")
     const sold   = lots.filter(l => l.status === "sold")
+    const future = lots.filter(l => l.status === "future")
     const withFP = lots.filter(l => l.floorPlan).length
 
     console.log(
@@ -255,7 +277,7 @@ export async function readKBHomeMap(
     return {
       sold:    sold.length,
       forSale: active.length,
-      future:  0,   // KB Home shows no future lots on kb-vu.com
+      future:  future.length,
       total:   lots.length,
       lots,
     }
