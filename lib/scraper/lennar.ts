@@ -1,4 +1,6 @@
 import { chromium, type Page } from "playwright"
+import { mkdirSync, writeFileSync } from "fs"
+import path from "path"
 import type { ScrapedListing } from "./toll-brothers"
 import { parseFloors } from "./toll-brothers"
 import { cleanAddress } from "./clean-address"
@@ -73,12 +75,65 @@ function parseLotNumber(raw: string): string | undefined {
   return m ? m[1] : undefined
 }
 
+export interface LennarDebugOptions {
+  debugDir?: string
+  communityName?: string
+  skipDetails?: boolean
+}
+
 function lotNumberFromLennarLotId(lotId: string | null | undefined): string | undefined {
   if (!lotId) return undefined
   const digits = String(lotId).replace(/\D/g, "")
   if (!digits) return undefined
   const n = parseInt(digits.slice(-4), 10)
   return Number.isFinite(n) && n > 0 ? String(n) : undefined
+}
+
+function slugForFile(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/https?:\/\//g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "lennar-community"
+}
+
+async function writeLennarDebugSnapshot(
+  page: Page,
+  options: LennarDebugOptions,
+  communityUrl: string,
+  error: unknown
+) {
+  if (!options.debugDir) return
+
+  try {
+    mkdirSync(options.debugDir, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-")
+    const base = `${stamp}-${slugForFile(options.communityName || communityUrl)}`
+    const htmlPath = path.join(options.debugDir, `${base}.html`)
+    const pngPath = path.join(options.debugDir, `${base}.png`)
+    const jsonPath = path.join(options.debugDir, `${base}.json`)
+
+    const nextData = await page.evaluate(() => {
+      const el = document.getElementById("__NEXT_DATA__")
+      if (!el?.textContent) return null
+      try { return JSON.parse(el.textContent) } catch { return el.textContent.slice(0, 5000) }
+    }).catch(() => null)
+
+    writeFileSync(htmlPath, await page.content(), "utf8")
+    await page.screenshot({ path: pngPath, fullPage: true }).catch(() => {})
+    writeFileSync(jsonPath, JSON.stringify({
+      communityName: options.communityName,
+      communityUrl,
+      pageUrl: page.url(),
+      error: error instanceof Error ? error.message : String(error),
+      nextData,
+    }, null, 2))
+
+    console.warn(`[Lennar] Debug snapshot saved: ${jsonPath}`)
+  } catch (snapshotErr) {
+    console.warn("[Lennar] Could not write debug snapshot:", snapshotErr)
+  }
 }
 
 /** "Rhea 3 in Great Park Neighborhoods" → { planName, communityName } */
@@ -114,6 +169,13 @@ function parseNumber(text: string): number | undefined {
   const cleaned = text.replace(/[^0-9.]/g, "")
   const n = parseFloat(cleaned)
   return isNaN(n) ? undefined : n
+}
+
+function normalizeTaxValue(value: string | number | null | undefined): number | undefined {
+  if (typeof value === "number") return value
+  if (!value) return undefined
+  const n = parseFloat(value.replace(/[^0-9.]/g, ""))
+  return Number.isFinite(n) ? n : undefined
 }
 
 function parseMeta(items: string[]): { beds?: number; baths?: number; sqft?: number } {
@@ -612,6 +674,15 @@ function buildDetailUrl(raw: ApolloHomesite): string {
   return ""
 }
 
+function buildOldHomesiteDetailUrl(raw: ApolloHomesite, communityUrl: string): string {
+  const direct = buildDetailUrl(raw)
+  if (direct) return direct
+
+  if (!raw.lotId || !raw.planName) return ""
+  const planSlug = raw.planName.toLowerCase().replace(/\s+/g, "-")
+  return `${communityUrl.replace(/\/$/, "")}/${planSlug}/${raw.lotId}`
+}
+
 
 /**
  * Traverse the React fiber tree on the current page to find the GeoJSON map
@@ -677,14 +748,21 @@ async function extractGeoJsonLotIds(page: Page, prefix: string): Promise<string[
  * filter results when the URL returns multiple collections. Also used as the
  * Apollo pre-filter keyword.
  */
-export async function scrapeLennarCommunity(communityUrl: string, collectionFilter?: string, skipDetailUrls?: Set<string>, staticCache?: LennarCache): Promise<ScrapedListing[]> {
+export async function scrapeLennarCommunity(
+  communityUrl: string,
+  collectionFilter?: string,
+  skipDetailUrls?: Set<string>,
+  staticCache?: LennarCache,
+  debugOptions: LennarDebugOptions = {}
+): Promise<ScrapedListing[]> {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ userAgent: randomUserAgent() })
   const allListings: ScrapedListing[] = []
   const seenAddresses = new Set<string>()
+  let page: Page | null = null
 
   try {
-    const page = await context.newPage()
+    page = await context.newPage()
     console.log(`[Lennar] Loading: ${communityUrl}`)
     await page.goto(communityUrl, { waitUntil: "domcontentloaded", timeout: 60000 })
 
@@ -744,11 +822,11 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
         const hasFullCache = staticCache?.community?.hoaFees != null && cachedPlan?.floors != null
 
         let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-        if (!hasFullCache && (!skipDetailUrls?.has(raw.href) || cachedPlan?.floors == null)) {
+        if (!debugOptions.skipDetails && !hasFullCache && (!skipDetailUrls?.has(raw.href) || cachedPlan?.floors == null)) {
           pd = await scrapeLennarPropertyDetails(page, raw.href)
           await page.waitForTimeout(randomDelayMs(300, 800))
         }
-        const detail = await scrapeLennarDetailPage(page, raw.href)
+        const detail = debugOptions.skipDetails ? {} : await scrapeLennarDetailPage(page, raw.href)
         moveInDate = moveInDate || pd.moveInDate || detail.moveInDate
         await page.waitForTimeout(randomDelayMs(300, 800))
 
@@ -771,7 +849,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           hoaFees: pd.hoaFees ?? staticCache?.community?.hoaFees ?? undefined,
           taxes:   pd.taxRate && price
             ? Math.round(price * pd.taxRate / 100)
-            : staticCache?.community?.taxes ?? undefined,
+            : normalizeTaxValue(staticCache?.community?.taxes),
           moveInDate,
           sourceUrl: raw.href,
           incentives: detail.incentives,
@@ -837,8 +915,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
               planName:   plan ? String(plan.name || "") || undefined : undefined,
               sourceUrl, hasOwnUrl,
               status:     String(h?.status || "").toUpperCase(),
-              lotNumber:  lotNumberFromLennarLotId(h?.lotid ? String(h.lotid) : undefined)
-                ?? (h?.number ? String(parseInt(String(h.number), 10)) : undefined),
+              lotNumber:  h?.number ? String(parseInt(String(h.number), 10)) : undefined,
               lotId:      h?.lotid  ? String(h.lotid) : undefined,
               apolloCollectionName,
             })
@@ -911,12 +988,23 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
         // plan, we reuse them for all subsequent lots of the same plan — no extra page visits.
         // Key: planName (lowercase). Value: the detail result from scrapeLennarPropertyDetails.
         const planDetailCache = new Map<string, Awaited<ReturnType<typeof scrapeLennarPropertyDetails>>>()
+        const addressCounts = new Map<string, number>()
+        for (const raw of listingsToProcess) {
+          const address = cleanAddress(raw.address).toLowerCase()
+          if (address) addressCounts.set(address, (addressCounts.get(address) ?? 0) + 1)
+        }
 
         // Process Apollo listings
         for (const raw of listingsToProcess) {
-          const address = cleanAddress(raw.address)
-          if (!address || seenAddresses.has(address)) continue
-          seenAddresses.add(address)
+          const baseAddress = cleanAddress(raw.address)
+          if (!baseAddress) continue
+          const rawLotNumber = lotNumberFromLennarLotId(raw.lotId) || raw.lotNumber
+          const address = (addressCounts.get(baseAddress.toLowerCase()) ?? 0) > 1 && rawLotNumber
+            ? `${baseAddress} (Lot ${rawLotNumber})`
+            : baseAddress
+          const seenKey = raw.lotId ? `lot:${raw.lotId}` : `addr:${address.toLowerCase()}`
+          if (seenAddresses.has(seenKey)) continue
+          seenAddresses.add(seenKey)
 
           // Lennar status mapping — Apollo status is the ground truth:
           // - SOLD / CLOSED                        → sold
@@ -956,7 +1044,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           const detailUrl = raw.hasOwnUrl ? raw.sourceUrl : (constructedUrl ?? null)
 
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-          if (detailUrl && listingStatus === "for sale") {
+          if (!debugOptions.skipDetails && detailUrl && listingStatus === "for sale") {
             if (hasFullCache || (skipDetailUrls?.has(detailUrl) && cachedPlan?.floors != null)) {
               // Static cache already has full community + plan data — no visit needed
               console.log(`  [Lennar] Skip details (${hasFullCache ? "cached" : "known"}): ${detailUrl}`)
@@ -983,7 +1071,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             communityUrl,
             city: "",           // filled by applySheetDefaults
             address,
-            lotNumber:    pd.lotNumber || lotNumberFromLennarLotId(raw.lotId) || raw.lotNumber,
+            lotNumber:    pd.lotNumber || rawLotNumber,
             floorPlan:    raw.planName,
             sqft,
             beds:         pd.beds  ?? raw.beds  ?? cachedPlan?.beds    ?? undefined,
@@ -996,7 +1084,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             hoaFees:      pd.hoaFees ?? staticCache?.community?.hoaFees ?? undefined,
             taxes:        pd.taxRate && price
               ? Math.round(price * pd.taxRate / 100)
-              : staticCache?.community?.taxes ?? undefined,
+              : normalizeTaxValue(staticCache?.community?.taxes),
             moveInDate,
             sourceUrl:    detailUrl ?? raw.sourceUrl,
             status:       listingStatus,
@@ -1026,6 +1114,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           const addr = cleanAddress(raw.address)
           if (!addr || seenAddresses.has(addr)) continue
           seenAddresses.add(addr)
+          const detailUrl = buildOldHomesiteDetailUrl(raw, communityUrl)
           allListings.push({
             communityName: buildCommunityName(raw.mpcName, raw.communityName),
             communityUrl,
@@ -1033,7 +1122,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             address: addr,
             lotNumber: lotNumberFromLennarLotId(raw.lotId) || raw.lotNumber || undefined,
             floorPlan: raw.planName || undefined,
-            sourceUrl: communityUrl,
+            sourceUrl: detailUrl || communityUrl,
             status: "sold",
           })
         }
@@ -1050,6 +1139,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           else if (su.includes("CONSTRUCTION")) moveInDate = "Under Construction"
           else if (su === "COMING_SOON" || su.includes("COMING")) moveInDate = "Coming Soon"
 
+          const detailUrl = buildOldHomesiteDetailUrl(raw, communityUrl)
           allListings.push({
             communityName: buildCommunityName(raw.mpcName, raw.communityName),
             communityUrl,
@@ -1061,7 +1151,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             beds: raw.beds || undefined,
             baths: raw.baths + raw.halfBaths * 0.5 || undefined,
             moveInDate,
-            sourceUrl: communityUrl,
+            sourceUrl: detailUrl || communityUrl,
             status: "future",
           })
         }
@@ -1072,15 +1162,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           seenAddresses.add(addr)
 
           const baths = raw.baths + raw.halfBaths * 0.5
-          const collectionSlug = raw.communityName.toLowerCase().replace(/\s+/g, "-")
-          const planSlug = raw.planName.toLowerCase().replace(/\s+/g, "-")
-          const citySlug = raw.city.toLowerCase().replace(/\s+/g, "-")
-          const mpcSlug  = raw.mpcName.toLowerCase().replace(/\s+/g, "-")
-
-          let detailUrl = buildDetailUrl(raw)
-          if (!detailUrl && raw.lotId && citySlug && mpcSlug) {
-            detailUrl = `${BASE_URL}/new-homes/california/orange-county/${citySlug}/${mpcSlug}/${collectionSlug}/${planSlug}/${raw.lotId}`
-          }
+          const detailUrl = buildOldHomesiteDetailUrl(raw, communityUrl)
 
           let moveInDate: string | undefined
           const su = raw.status.toUpperCase()
@@ -1093,7 +1175,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
           const hasFullCacheOld = staticCache?.community?.hoaFees != null && cachedPlanOld?.floors != null
 
           let pd: Awaited<ReturnType<typeof scrapeLennarPropertyDetails>> = {}
-          if (detailUrl && !hasFullCacheOld && (!skipDetailUrls?.has(detailUrl) || cachedPlanOld?.floors == null)) {
+          if (!debugOptions.skipDetails && detailUrl && !hasFullCacheOld && (!skipDetailUrls?.has(detailUrl) || cachedPlanOld?.floors == null)) {
             pd = await scrapeLennarPropertyDetails(page, detailUrl)
             moveInDate = moveInDate || pd.moveInDate
             await page.waitForTimeout(randomDelayMs(300, 800))
@@ -1118,7 +1200,7 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
             hoaFees:      pd.hoaFees ?? staticCache?.community?.hoaFees ?? undefined,
             taxes:        pd.taxRate && raw.price
               ? Math.round(raw.price * pd.taxRate / 100)
-              : staticCache?.community?.taxes ?? undefined,
+              : normalizeTaxValue(staticCache?.community?.taxes),
             moveInDate,
             sourceUrl: detailUrl || communityUrl,
             status: "for sale",
@@ -1126,6 +1208,9 @@ export async function scrapeLennarCommunity(communityUrl: string, collectionFilt
         }
       }
     }
+  } catch (err) {
+    if (page) await writeLennarDebugSnapshot(page, debugOptions, communityUrl, err)
+    throw err
   } finally {
     await browser.close()
   }

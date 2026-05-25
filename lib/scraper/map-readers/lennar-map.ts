@@ -5,23 +5,24 @@
  */
 
 import { scrapeLennarCommunity } from "../lennar"
-import type { LennarCache } from "../lennar"
+import type { LennarCache, LennarDebugOptions } from "../lennar"
 import type { MapResult, MapLot } from "./types"
 
 export async function readLennarMap(
   url: string,
   communityName: string,
   skipDetailUrls?: Set<string>,
-  staticCache?: LennarCache
+  staticCache?: LennarCache,
+  debugOptions?: LennarDebugOptions
 ): Promise<MapResult> {
-  const listings = await scrapeLennarCommunity(url, communityName, skipDetailUrls, staticCache)
+  const listings = await scrapeLennarCommunity(url, communityName, skipDetailUrls, staticCache, debugOptions)
 
   const lots: MapLot[] = listings.map((listing, i) => {
     let status: "for sale" | "sold" | "future"
     if (listing.status === "sold") {
       status = "sold"
     } else if (listing.status === "for sale") {
-      // Trust Apollo "for sale" status — Lennar often omits price for active homes
+      // Only homes with an active Lennar status and a real price are treated as for sale.
       status = "for sale"
     } else {
       status = "future"

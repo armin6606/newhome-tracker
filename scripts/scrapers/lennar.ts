@@ -5,7 +5,8 @@
  */
 
 import { PrismaClient } from "@prisma/client"
-import { writeFileSync, readFileSync, existsSync } from "fs"
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs"
+import path from "path"
 import { notifyPriceChange, notifyNewListings } from "../../lib/scraper/notifications"
 import { updateTable2, setTable2Absolute } from "../../lib/sheet-writer"
 import { readLennarMap } from "../../lib/scraper/map-readers/lennar-map"
@@ -18,6 +19,7 @@ const BUILDER_NAME = "Lennar"
 const SHEET_GID = "1235396983"
 const WEBSITE_URL = "https://www.lennar.com"
 const RESULTS_FILE = "/tmp/scrape-results.json"
+const DEBUG_DIR = "debug/lennar"
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -68,6 +70,38 @@ function normalizeAddress(address: string | null): string {
 function randomDelayMs(min: number, max: number): Promise<void> {
   const ms = Math.floor(Math.random() * (max - min + 1)) + min
   return new Promise((r) => setTimeout(r, ms))
+}
+
+function slugForFile(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/https?:\/\//g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "lennar-community"
+}
+
+function writeDebugJson(row: SheetCommunityRow, reason: string, data: Record<string, unknown>) {
+  try {
+    mkdirSync(DEBUG_DIR, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-")
+    const file = path.join(DEBUG_DIR, `${stamp}-${slugForFile(row.communityName)}.json`)
+    writeFileSync(file, JSON.stringify({
+      communityName: row.communityName,
+      url: row.url,
+      expected: {
+        sold: row.sold,
+        forSale: row.forSale,
+        future: row.future,
+        total: row.total,
+      },
+      reason,
+      ...data,
+    }, null, 2))
+    console.warn(`  [${BUILDER_NAME}] Debug snapshot saved: ${file}`)
+  } catch (err) {
+    console.warn(`  [${BUILDER_NAME}] Could not write debug snapshot:`, err)
+  }
 }
 
 async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
@@ -629,10 +663,11 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     })
     const skipDetailUrls = new Set(existingWithDetails.map(l => l.sourceUrl!))
 
-    let mapResult = await readLennarMap(row.url, row.communityName, skipDetailUrls, staticCache).catch(async (err: unknown) => {
+    const debugOptions = { debugDir: DEBUG_DIR, communityName: row.communityName }
+    let mapResult = await readLennarMap(row.url, row.communityName, skipDetailUrls, staticCache, debugOptions).catch(async (err: unknown) => {
       console.warn(`  [${BUILDER_NAME}] ${row.communityName}: First attempt failed, retrying in 60s...`)
       await new Promise(r => setTimeout(r, 60_000))
-      return readLennarMap(row.url, row.communityName, skipDetailUrls, staticCache)
+      return readLennarMap(row.url, row.communityName, skipDetailUrls, staticCache, debugOptions)
     })
 
     const firstAttemptTotal = (mapResult.lots?.length ?? 0) + mapResult.sold + mapResult.forSale + mapResult.future + mapResult.total
@@ -641,7 +676,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       if (dbCount > 3) {
         console.warn(`  [${BUILDER_NAME}] ${row.communityName}: Got 0 lots but DB has ${dbCount}, retrying in 60s...`)
         await new Promise(r => setTimeout(r, 60_000))
-        mapResult = await readLennarMap(row.url, row.communityName).catch(() => mapResult)
+        mapResult = await readLennarMap(row.url, row.communityName, undefined, undefined, debugOptions).catch(() => mapResult)
       }
     }
 
@@ -652,6 +687,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       if (existingCount > 3) {
         const msg = `${row.communityName}: Zero lots returned but community had ${existingCount} lots in DB — skipping`
         console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
+        writeDebugJson(row, "zero-lots-with-existing-db", { existingCount, mapResult, listings })
         return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
       }
       return { scraped: 0, stats: emptyStats }
@@ -660,6 +696,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     if (existingCount > 10 && listings.length < existingCount * 0.5) {
       const msg = `${row.communityName}: Only ${listings.length} lots but DB has ${existingCount} — looks incomplete, skipping`
       console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
+      writeDebugJson(row, "below-db-half-count-guard", { existingCount, mapResult, listings })
       return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
     }
 
@@ -688,6 +725,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
           `${row.communityName}: scraped ${dedupedListings.length} lots, but Table 2 expects ${row.total} ` +
           `(allowed ${lowerBound}-${upperBound}) — looks incomplete or cross-community, skipping`
         console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
+        writeDebugJson(row, "table-2-total-guard", { lowerBound, upperBound, mapResult, listings, dedupedListings })
         return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
       }
     }
