@@ -12,12 +12,11 @@ import { getTable3Plans, lookupPlan, matchPlanBySpecs, normalizePlan } from "@/l
  *  TABLE 3 RULE — IMMUTABLE, NEVER REMOVE:
  *
  *  beds / sqft / baths / floors / propertyType / hoaFees / taxes
- *  come EXCLUSIVELY from Table 3 of the builder's Google Sheet.
+ *  come from the scraper first. Table 3 is a fallback when the scraper cannot
+ *  determine the value.
  *
- *  These fields are STRIPPED from every ingest payload regardless of
- *  scraperMode, manual ingest, or any other context. The ingest route
- *  looks them up internally via lib/table3-reader.ts — scrapers and
- *  callers have no say in these values.
+ *  Scraper payload values are accepted for these fields. Table 3 is used only
+ *  to fill blanks.
  *
  *  If a listing's floorplan is not found in Table 3:
  *    - The listing is still created/updated (with null for the above fields)
@@ -121,8 +120,8 @@ interface RawListing {
   address?:       string
   lotNumber?:     string
   floorPlan?:     string
-  // NOTE: sqft/beds/baths/floors/propertyType/hoaFees/taxes are intentionally
-  // accepted in the interface but ALWAYS stripped — Table 3 is the only source.
+  // Scraper-provided physical/financial details are accepted. Table 3 is a
+  // fallback for values the scraper cannot determine.
   sqft?:          number
   beds?:          number
   baths?:         number
@@ -408,8 +407,7 @@ export async function POST(req: NextRequest) {
   // Note: placeholder reconciliation is handled automatically by syncPlaceholders() below.
 
   // ── Load Table 3 for this builder (READ-ONLY floorplan data) ─────────────
-  // RULE: beds/sqft/baths/floors/propertyType/hoaFees/taxes come ONLY from here.
-  // The ingest payload values for those fields are always stripped and ignored.
+  // Table 3 can fill fields the scraper did not provide.
   const table3Plans   = await getTable3Plans(existingBuilder.name)
   const missingPlans  = new Set<string>() // floorplan names not yet in Table 3
 
@@ -468,8 +466,7 @@ export async function POST(req: NextRequest) {
     const lotNumber = rawLotNumber
 
     // ── Table 3 lookup — real listings only (not placeholders) ───────────────
-    // RULE: payload beds/sqft/baths/floors/propertyType/hoaFees/taxes ALWAYS ignored.
-    // We pull these exclusively from Table 3 by (community, floorPlan).
+    // Scraper values win. Table 3 fills values the scraper could not determine.
     //
     // Matching order:
     //   1. Named lookup:  l.floorPlan → lookupPlan()
@@ -557,36 +554,36 @@ export async function POST(req: NextRequest) {
         lotOwner.id !== existing.id
       const safeLotNumber = lotNumberConflicts ? existing.lotNumber : candidateLotNumber
 
-      // Apply Table 3 values — always overwrite, Table 3 is the source of truth.
-      const t3Fill = t3 ? {
-        ...(t3.beds         != null ? { beds:         t3.beds         } : {}),
-        ...(t3.sqft         != null ? { sqft:         t3.sqft         } : {}),
-        ...(t3.baths        != null ? { baths:        t3.baths        } : {}),
-        ...(t3.floors       != null ? { floors:       t3.floors       } : {}),
-        ...(t3.propertyType != null ? { propertyType: t3.propertyType } : {}),
-        ...(t3.hoaFees      != null ? { hoaFees:      t3.hoaFees      } : {}),
-        ...(t3.taxes        != null ? { taxes:        t3.taxes        } : {}),
-        ...(existing.moveInDate == null && t3.moveInDate != null ? { moveInDate: t3.moveInDate } : {}),
-      } : {}
+      // Scraper values win; Table 3 fills only fields the scraper did not provide.
+      const detailFill = {
+        beds:         l.beds         ?? t3?.beds         ?? existing.beds,
+        sqft:         l.sqft         ?? t3?.sqft         ?? existing.sqft,
+        baths:        l.baths        ?? t3?.baths        ?? existing.baths,
+        floors:       l.floors       ?? t3?.floors       ?? existing.floors,
+        propertyType: l.propertyType ?? t3?.propertyType ?? existing.propertyType,
+        hoaFees:      l.hoaFees      ?? t3?.hoaFees      ?? existing.hoaFees,
+        taxes:        l.taxes        ?? t3?.taxes        ?? existing.taxes,
+        ...(existing.moveInDate == null && t3?.moveInDate != null ? { moveInDate: t3.moveInDate } : {}),
+      }
 
-      if (Object.keys(t3Fill).length > 0) results.table3Filled++
+      if (t3 && Object.keys(detailFill).length > 0) results.table3Filled++
 
       // scraperMode: only update status/price/soldAt/sourceUrl/lotNumber
       // non-scraperMode: also update garages, moveInDate, incentives, sourceUrl
-      // NEITHER mode ever updates beds/sqft/baths/floors/propertyType/hoaFees/taxes from payload
+      // Physical/financial fields use scraper values first, then Table 3 fallback.
       const _eid = existing.id
       if (scraperMode) {
         const _d = {
           lotNumber:    safeLotNumber,
           floorPlan:    resolvedFloorPlan                  ?? existing.floorPlan,
           currentPrice: l.currentPrice      ?? existing.currentPrice,
-          pricePerSqft: (l.currentPrice && (t3?.sqft ?? existing.sqft))
-            ? Math.round(l.currentPrice / (t3?.sqft ?? existing.sqft)!)
+          pricePerSqft: (l.currentPrice && detailFill.sqft)
+            ? Math.round(l.currentPrice / detailFill.sqft)
             : existing.pricePerSqft,
           status,
           sourceUrl:    l.sourceUrl         ?? existing.sourceUrl,
           soldAt:       soldAt              ?? existing.soldAt,
-          ...t3Fill,
+          ...detailFill,
         }
         dbOps.push((tx) => tx.listing.update({ where: { id: _eid }, data: _d }))
       } else {
@@ -595,8 +592,8 @@ export async function POST(req: NextRequest) {
           floorPlan:     resolvedFloorPlan                       ?? existing.floorPlan,
           garages:       l.garages           ?? existing.garages,
           currentPrice:  l.currentPrice      ?? existing.currentPrice,
-          pricePerSqft:  (l.currentPrice && (t3?.sqft ?? existing.sqft))
-            ? Math.round(l.currentPrice / (t3?.sqft ?? existing.sqft)!)
+          pricePerSqft:  (l.currentPrice && detailFill.sqft)
+            ? Math.round(l.currentPrice / detailFill.sqft)
             : l.pricePerSqft ?? existing.pricePerSqft,
           moveInDate:    sanitizeMoveInDate(l.moveInDate) ?? existing.moveInDate,
           incentives:    l.incentives         ?? existing.incentives,
@@ -604,28 +601,28 @@ export async function POST(req: NextRequest) {
           status,
           sourceUrl:     l.sourceUrl          ?? existing.sourceUrl,
           soldAt:        soldAt               ?? existing.soldAt,
-          ...t3Fill,
+          ...detailFill,
         }
         dbOps.push((tx) => tx.listing.update({ where: { id: _eid }, data: _d }))
       }
       results.updated++
 
     } else {
-      // New listing — Table 3 fields used directly, payload fields for those stripped
-      const sqft = t3?.sqft ?? null
+      // New listing: scraper values first, Table 3 fallback second.
+      const sqft = l.sqft ?? t3?.sqft ?? null
       const _createData = {
         communityId:   community.id,
         address,
         lotNumber,
         floorPlan:     resolvedFloorPlan || null,
-        // ── Table 3 fields ONLY ─────────────────────────────────────────
+        // ── Scraper-first detail fields with Table 3 fallback ───────────
         sqft,
-        beds:          t3?.beds         ?? null,
-        baths:         t3?.baths        ?? null,
-        floors:        t3?.floors       ?? null,
-        propertyType:  t3?.propertyType ?? null,
-        hoaFees:       t3?.hoaFees      ?? null,
-        taxes:         t3?.taxes        ?? null,
+        beds:          l.beds         ?? t3?.beds         ?? null,
+        baths:         l.baths        ?? t3?.baths        ?? null,
+        floors:        l.floors       ?? t3?.floors       ?? null,
+        propertyType:  l.propertyType ?? t3?.propertyType ?? null,
+        hoaFees:       l.hoaFees      ?? t3?.hoaFees      ?? null,
+        taxes:         l.taxes        ?? t3?.taxes        ?? null,
         // ── Scraper/payload fields ──────────────────────────────────────
         garages:       l.garages        || null,
         currentPrice:  l.currentPrice   || null,

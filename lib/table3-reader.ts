@@ -6,9 +6,8 @@
  * RULES:
  *  - This file is ONLY called by the ingest route and backfill scripts.
  *  - Scrapers NEVER import or access this module directly.
- *  - Table 3 is the sole source of truth for: beds, sqft, baths, floors,
- *    propertyType, hoaFees, taxes. These fields are NEVER taken from the
- *    scraper payload — always looked up here.
+ *  - Table 3 is a fallback source for: beds, sqft, baths, floors,
+ *    propertyType, hoaFees, taxes. Scraper-provided values win.
  *
  * Table 3 column layout (0-indexed, same sheet as Table 2):
  *   col 0 (A): Community name
