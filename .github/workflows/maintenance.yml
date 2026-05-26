@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - no-price-active-to-future
+          - merge-duplicate-communities
 
 jobs:
   run:
@@ -35,5 +36,11 @@ jobs:
       - name: Move no-price active listings to future
         if: ${{ inputs.task == 'no-price-active-to-future' }}
         run: npx tsx scripts/fix-no-price-active-to-future.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Merge duplicate communities
+        if: ${{ inputs.task == 'merge-duplicate-communities' }}
+        run: npx tsx scripts/merge-duplicate-communities.mjs
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
