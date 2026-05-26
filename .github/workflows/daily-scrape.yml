@@ -2,14 +2,109 @@ name: Daily Scrape
 
 on:
   schedule:
-    - cron: '17 8 * * *'  # 1:17 AM PDT (8:17 AM UTC) daily
+    - cron: '43 7 * * *'   # 12:43 AM Pacific during daylight saving time
+    - cron: '59 8 * * *'   # 1:59 AM Pacific watchdog during daylight saving time
+    - cron: '3 10 * * *'   # 3:03 AM Pacific watchdog during daylight saving time
   workflow_dispatch:        # Manual trigger from GitHub Actions UI
 
+permissions:
+  actions: read
+  contents: read
+
 jobs:
+  gate:
+    name: Decide whether to run
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      reason: ${{ steps.decide.outputs.reason }}
+    steps:
+      - name: Check today's Daily Scrape runs
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_FILE: daily-scrape.yml
+          PRIMARY_SCHEDULE: "43 7 * * *"
+        run: |
+          node <<'NODE'
+          const fs = require("fs")
+
+          const outPath = process.env.GITHUB_OUTPUT
+          const write = (key, value) => fs.appendFileSync(outPath, `${key}=${String(value).replace(/\r?\n/g, " ")}\n`)
+
+          const eventName = process.env.EVENT_NAME
+          const eventSchedule = process.env.EVENT_SCHEDULE || ""
+
+          if (eventName !== "schedule") {
+            write("should_run", "true")
+            write("reason", "manual run")
+            process.exit(0)
+          }
+
+          if (eventSchedule === process.env.PRIMARY_SCHEDULE) {
+            write("should_run", "true")
+            write("reason", "primary schedule")
+            process.exit(0)
+          }
+
+          const pacificDate = (iso) => new Intl.DateTimeFormat("en-CA", {
+            timeZone: "America/Los_Angeles",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date(iso))
+
+          const todayPacific = pacificDate(new Date().toISOString())
+          const url = `https://api.github.com/repos/${process.env.REPOSITORY}/actions/workflows/${process.env.WORKFLOW_FILE}/runs?branch=main&per_page=50`
+          const res = await fetch(url, {
+            headers: {
+              Authorization: `Bearer ${process.env.GH_TOKEN}`,
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+            },
+          })
+
+          if (!res.ok) {
+            const body = await res.text()
+            console.log(`Could not check prior runs (${res.status}): ${body.slice(0, 300)}`)
+            write("should_run", "true")
+            write("reason", "watchdog could not verify prior run")
+            process.exit(0)
+          }
+
+          const data = await res.json()
+          const currentRunId = Number(process.env.RUN_ID)
+          const activeStatuses = ["queued", "in_progress", "waiting", "pending", "requested"]
+
+          const priorRun = (data.workflow_runs || []).find((run) => {
+            if (run.id === currentRunId) return false
+            if (pacificDate(run.created_at) !== todayPacific) return false
+            if (!["schedule", "workflow_dispatch"].includes(run.event)) return false
+            return run.conclusion === "success" || activeStatuses.includes(run.status)
+          })
+
+          if (priorRun) {
+            write("should_run", "false")
+            write("reason", `watchdog skipped; prior ${priorRun.event} run ${priorRun.id} is ${priorRun.status}/${priorRun.conclusion || "not finished"}`)
+          } else {
+            write("should_run", "true")
+            write("reason", "watchdog found no successful or active run today")
+          }
+          NODE
+
+      - name: Show decision
+        run: echo "${{ steps.decide.outputs.reason }}"
+
   # ── Pre-scrape snapshot ────────────────────────────────────────────────────
   snapshot:
     name: Pre-scrape Snapshot
     runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true'
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -189,7 +284,7 @@ jobs:
     name: Send Daily Report
     runs-on: ubuntu-latest
     needs: scrape
-    if: always()
+    if: always() && needs.scrape.result != 'skipped'
     timeout-minutes: 15
 
     steps:
@@ -270,7 +365,7 @@ jobs:
     name: Fill Table 3 Fields
     runs-on: ubuntu-latest
     needs: report
-    if: always()
+    if: always() && needs.report.result != 'skipped'
     timeout-minutes: 10
 
     steps:
