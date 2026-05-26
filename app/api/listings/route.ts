@@ -13,6 +13,8 @@ const LISTING_SELECT = {
   floors:        true,
   garages:       true,
   propertyType:  true,
+  hoaFees:       true,
+  taxes:         true,
   currentPrice:  true,
   pricePerSqft:  true,
   moveInDate:    true,
