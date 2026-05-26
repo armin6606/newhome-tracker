@@ -238,6 +238,13 @@ jobs:
           fs.writeFileSync('/tmp/scrape-results.json', JSON.stringify(results, null, 2));
           "
 
+      - name: Normalize no-price active listings
+        if: always()
+        timeout-minutes: 5
+        run: npx tsx scripts/fix-no-price-active-to-future.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Monitor — detect anomalies and alert
         if: always()
         timeout-minutes: 5
