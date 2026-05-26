@@ -17,7 +17,7 @@ export async function GET() {
           include: {
             builder:  true,
             listings: {
-              where:  { status: "for sale" },
+              where:  { status: "for sale", currentPrice: { not: null } },
               select: { id: true, currentPrice: true },
             },
           },

@@ -164,7 +164,7 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
   if (result.lots && result.lots.length > 0) {
     return result.lots.map(lot => {
       const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
-      const status: string = lot.status === "for sale" && !lot.price && !hasRealAddress ? "future" : lot.status
+      const status: string = lot.status === "for sale" && (!lot.price || !hasRealAddress) ? "future" : lot.status
       return {
         communityName, communityUrl,
         address: lot.address ?? `Lot ${lot.lotNumber}`,

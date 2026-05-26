@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
     // ── Derived subsets ───────────────────────────────────────────────────────
 
     // Only real active listings (NOT future/removed placeholders)
-    const active = listings.filter((l) => l.status === "for sale")
+    const active = listings.filter((l) => l.status === "for sale" && l.currentPrice !== null)
     // Only real sold listings (status === "sold" AND had a soldAt date)
     const sold   = listings.filter((l) => l.status === "sold" && l.soldAt)
 
@@ -226,11 +226,11 @@ export async function GET(req: NextRequest) {
         }
       }
       // Count only real active / sold — skip future/removed
-      if (l.status === "for sale") communityMap[n].activeCnt++
+      if (l.status === "for sale" && l.currentPrice !== null) communityMap[n].activeCnt++
       else if (l.status === "sold") communityMap[n].soldCnt++
 
       if (l.status === "for sale" && l.currentPrice) communityMap[n].prices.push(l.currentPrice)
-      if (l.status === "for sale" && l.pricePerSqft)  communityMap[n].ppsqft.push(l.pricePerSqft)
+      if (l.status === "for sale" && l.currentPrice !== null && l.pricePerSqft)  communityMap[n].ppsqft.push(l.pricePerSqft)
       if (l.sqft) communityMap[n].sqfts.push(l.sqft)
     })
 

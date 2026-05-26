@@ -118,8 +118,15 @@ export async function GET(req: NextRequest) {
 
     if (status !== "all") where.status = status
 
+    // Site-wide rule: a home is only "for sale" when a real price is published.
+    // No-price homes belong in future release, not active inventory.
+    if (status === "for sale") {
+      where.currentPrice = { not: null }
+    }
+
     if (typeof minPrice === "number" || typeof maxPrice === "number") {
       where.currentPrice = {
+        ...(status === "for sale" ? { not: null } : {}),
         ...(typeof minPrice === "number" ? { gte: minPrice } : {}),
         ...(typeof maxPrice === "number" ? { lte: maxPrice } : {}),
       }

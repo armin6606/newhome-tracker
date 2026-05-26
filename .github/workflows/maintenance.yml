@@ -1,0 +1,39 @@
+name: Maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Maintenance task to run"
+        required: true
+        type: choice
+        options:
+          - no-price-active-to-future
+
+jobs:
+  run:
+    name: Run maintenance task
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Move no-price active listings to future
+        if: ${{ inputs.task == 'no-price-active-to-future' }}
+        run: npx tsx scripts/fix-no-price-active-to-future.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
