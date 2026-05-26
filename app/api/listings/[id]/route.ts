@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { BUILDER_SHEET_TABS } from "@/lib/sheet-validator"
 
 export async function GET(
   _req: NextRequest,
@@ -22,7 +23,9 @@ export async function GET(
       },
     })
 
-    if (!listing) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (!listing || !(listing.community.builder.name in BUILDER_SHEET_TABS)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
 
     return NextResponse.json(
       {

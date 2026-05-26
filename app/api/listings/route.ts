@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { BUILDER_SHEET_TABS } from "@/lib/sheet-validator"
 
 // Fields the frontend actually uses — keeps response payload lean
 const LISTING_SELECT = {
@@ -111,6 +112,7 @@ export async function GET(req: NextRequest) {
     // Exclude placeholder lots (null address or avail-N / sold-N / future-N)
     const where: Record<string, unknown> = {
       address: { not: null },
+      community: { builder: { name: { in: Object.keys(BUILDER_SHEET_TABS) } } },
       NOT: [
         { address: { startsWith: "avail-" } },
         { address: { startsWith: "sold-"  } },

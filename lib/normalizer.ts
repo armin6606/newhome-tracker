@@ -19,7 +19,7 @@
  *   Returns null if no match found — caller should reject the ingest.
  */
 
-import { BUILDER_SHEET_TABS, getSheetCommunities, isNoSheetBuilder } from "./sheet-validator"
+import { BUILDER_SHEET_TABS, getSheetCommunities } from "./sheet-validator"
 
 // ── Builder normalization ──────────────────────────────────────────────────────
 
@@ -80,8 +80,6 @@ export async function normalizeCommunityName(
   raw:         string,
   builderName: string,
 ): Promise<string | null> {
-  // Builders with no Google Sheet tab use their own hardcoded community names — bypass matching
-  if (isNoSheetBuilder(builderName)) return raw.trim()
 
   const communities = await getSheetCommunities(builderName)
   if (!communities) return null

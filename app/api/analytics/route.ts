@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { BUILDER_SHEET_TABS } from "@/lib/sheet-validator"
 
 // ── Guards ────────────────────────────────────────────────────────────────────
 
@@ -68,9 +69,14 @@ export async function GET(req: NextRequest) {
     // Merge explicit city filters with county-expanded cities
     const allCities = [...new Set([...cities, ...countyCities])]
 
-    const communityWhere: Record<string, unknown> = {}
+    const allowedBuilders = Object.keys(BUILDER_SHEET_TABS)
+    const communityWhere: Record<string, unknown> = {
+      builder: { name: { in: allowedBuilders } },
+    }
     if (allCities.length > 0)    communityWhere.city    = { in: allCities, mode: "insensitive" }
-    if (builders.length > 0)     communityWhere.builder = { name: { in: builders } }
+    if (builders.length > 0) {
+      communityWhere.builder = { name: { in: builders.filter((b) => allowedBuilders.includes(b)) } }
+    }
     if (communities.length > 0)  communityWhere.name    = { in: communities }
 
     // Exclude placeholder lots — only real addressed listings enter the analytics

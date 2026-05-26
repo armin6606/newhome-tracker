@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { BUILDER_SHEET_TABS } from "@/lib/sheet-validator"
 
 export async function GET() {
   try {
     const activeCommunities = await prisma.community.findMany({
       where: {
         listings: { some: { status: "for sale", currentPrice: { not: null } } },
+        builder: { name: { in: Object.keys(BUILDER_SHEET_TABS) } },
       },
       select: {
         name: true,
