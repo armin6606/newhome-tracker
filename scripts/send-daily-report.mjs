@@ -192,6 +192,16 @@ async function collectData(snapshot) {
   // Current community card counts (from real scraped listings only — no placeholders)
   const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
   const communities = await prisma.community.findMany({
+    where: {
+      OR: [
+        { lastScrapedAt: { not: null } },
+        {
+          listings: {
+            none: { status: { in: ["for sale", "sold"] } },
+          },
+        },
+      ],
+    },
     include: {
       builder:  { select: { name: true } },
       listings: {

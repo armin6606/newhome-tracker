@@ -169,6 +169,11 @@ export async function GET() {
         // Alert flag: counts don't add up to total
         countMismatch: total > 0 && (sold + active + future) !== total,
       }
+    }).filter((c) => {
+      // Hide stale/name-mismatch records that contain active/sold counts but were
+      // never updated by a scraper. Future-only rows may be sheet-planned releases.
+      const isFutureOnly = c.active === 0 && c.sold === 0 && c.future > 0
+      return c.lastScrapedAt !== null || isFutureOnly
     })
 
     return NextResponse.json(result, {

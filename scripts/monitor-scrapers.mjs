@@ -90,11 +90,21 @@ async function main() {
   // ── Check 2 & 3: Active listing drops ─────────────────────────────────────
   // Get current active counts from DB
   const communities = await prisma.community.findMany({
+    where: {
+      OR: [
+        { lastScrapedAt: { not: null } },
+        {
+          listings: {
+            none: { status: { in: ["active", "for sale", "sold"] } },
+          },
+        },
+      ],
+    },
     include: {
       builder: { select: { name: true } },
       _count: {
         select: {
-          listings: { where: { status: { in: ["active", "for sale"] }, address: { not: null } } },
+          listings: { where: { status: { in: ["active", "for sale"] }, address: { not: null }, currentPrice: { not: null } } },
         },
       },
     },
