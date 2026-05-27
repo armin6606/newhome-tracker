@@ -32,6 +32,143 @@ interface AlphaVisionLot {
   listPrice?: number | null
 }
 
+interface PulteQmiHome {
+  lotBlock?: string | number | null
+  price?: number | string | null
+  finalPrice?: number | string | null
+  squareFeet?: number | string | null
+  bedrooms?: number | string | null
+  bathrooms?: number | string | null
+  halfBaths?: number | string | null
+  totalBaths?: number | string | null
+  floors?: number | string | null
+  garages?: number | string | null
+  planName?: string | null
+  dateAvailable?: string | null
+  moveInDate?: string | null
+  inventoryPageURL?: string | null
+  inventoryPageUrl?: string | null
+  address?: { street1?: string | null; street?: string | null } | string | null
+}
+
+interface QmiDetails {
+  lotNumber?: string
+  address?: string
+  price?: number
+  floorPlan?: string
+  beds?: number
+  baths?: number
+  sqft?: number
+  floors?: number
+  garages?: number
+  moveInDate?: string
+  sourceUrl?: string
+}
+
+interface QmiResult {
+  byAddress: Map<string, QmiDetails>
+  byLot: Map<string, QmiDetails>
+  homes: QmiDetails[]
+}
+
+function parseNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value !== "string") return undefined
+  const n = parseFloat(value.replace(/[^0-9.]/g, ""))
+  return Number.isFinite(n) ? n : undefined
+}
+
+function cleanStreet(raw: string | null | undefined): string | undefined {
+  const cleaned = (raw ?? "").replace(/\s+/g, " ").trim()
+  return cleaned || undefined
+}
+
+function normalizeAddressKey(raw: string | null | undefined): string {
+  return (raw ?? "").replace(/,.*$/, "").replace(/\s+/g, " ").trim().toLowerCase()
+}
+
+function normalizeLotKey(raw: string | number | null | undefined): string {
+  return String(raw ?? "").replace(/^0+/, "").trim()
+}
+
+function extractCommunityId(url: string): string | undefined {
+  return url.match(/-(\d{5,})(?:[/?#]|$)/)?.[1]
+}
+
+function absoluteUrl(raw: string | null | undefined, websiteBase: string, fallback: string): string {
+  if (!raw) return fallback
+  return raw.startsWith("http") ? raw : `${websiteBase}${raw.startsWith("/") ? raw : `/${raw}`}`
+}
+
+async function fetchQmiDetails(
+  communityUrl: string,
+  websiteBase: string
+): Promise<QmiResult> {
+  const byAddress = new Map<string, QmiDetails>()
+  const byLot = new Map<string, QmiDetails>()
+  const qmiHomes: QmiDetails[] = []
+  const communityId = extractCommunityId(communityUrl)
+  if (!communityId) return { byAddress, byLot, homes: qmiHomes }
+
+  try {
+    const res = await fetch(`${websiteBase}/api/plan/qmiplans?communityId=${communityId}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+        "Referer": `${websiteBase}/`,
+      },
+    })
+    if (!res.ok) {
+      console.log(`[Pulte] QMI API ${communityId}: HTTP ${res.status}`)
+      return { byAddress, byLot, homes: qmiHomes }
+    }
+
+    const data = await res.json()
+    const plans = Array.isArray(data) ? data : (data?.plans ?? data?.qmiPlans ?? [])
+    const homes: PulteQmiHome[] = []
+    for (const item of plans as PulteQmiHome[]) {
+      const nested = (item as { qmiHomes?: PulteQmiHome[]; homes?: PulteQmiHome[] }).qmiHomes
+        ?? (item as { homes?: PulteQmiHome[] }).homes
+      if (Array.isArray(nested)) homes.push(...nested)
+      else homes.push(item)
+    }
+
+    for (const home of homes) {
+      const addrObj = typeof home.address === "object" && home.address ? home.address : null
+      const street = cleanStreet(
+        typeof home.address === "string" ? home.address : addrObj?.street1 ?? addrObj?.street
+      )
+      const lotNumber = normalizeLotKey(home.lotBlock)
+      const rawBaths = parseNumber(home.totalBaths)
+        ?? ((parseNumber(home.bathrooms) ?? 0) + (parseNumber(home.halfBaths) ? 0.5 : 0))
+      const details: QmiDetails = {
+        lotNumber: lotNumber || undefined,
+        address: street,
+        price: parseNumber(home.finalPrice) ?? parseNumber(home.price),
+        floorPlan: home.planName ?? undefined,
+        beds: parseNumber(home.bedrooms),
+        baths: rawBaths || undefined,
+        sqft: parseNumber(home.squareFeet),
+        floors: parseNumber(home.floors),
+        garages: parseNumber(home.garages),
+        moveInDate: home.dateAvailable ?? home.moveInDate ?? undefined,
+        sourceUrl: absoluteUrl(home.inventoryPageURL ?? home.inventoryPageUrl, websiteBase, communityUrl),
+      }
+
+      const addrKey = normalizeAddressKey(street)
+      if (addrKey) byAddress.set(addrKey, details)
+      if (lotNumber) byLot.set(lotNumber, details)
+      qmiHomes.push(details)
+    }
+
+    console.log(`[Pulte] QMI API ${communityId}: ${homes.length} homes`)
+  } catch (err) {
+    console.warn(`[Pulte] QMI API error for ${communityId}: ${err instanceof Error ? err.message : String(err)}`)
+  }
+
+  return { byAddress, byLot, homes: qmiHomes }
+}
+
 /** Known AlphaVision/Pulte status codes → normalized status */
 function normalizeAlphaStatus(
   status: string | undefined,
@@ -76,10 +213,13 @@ function normalizeSiteplanStatus(status: string): "for sale" | "sold" | "future"
 async function readAlphaVisionIframe(
   page: Page,
   iframeSrc: string,
-  communityName: string
+  communityName: string,
+  communityUrl: string,
+  websiteBase: string
 ): Promise<MapResult> {
   const apiLots: AlphaVisionLot[] = []
   let apiIntercepted = false
+  const qmi = await fetchQmiDetails(communityUrl, websiteBase)
 
   // Open iframe src in the same page (new navigation)
   const iframePage = await page.context().newPage()
@@ -153,16 +293,28 @@ async function readAlphaVisionIframe(
       if (!sp?.MasterSiteplan?.LotDetails?.length) return null
 
       return (sp.MasterSiteplan.LotDetails as any[]).map((lot) => {
-        // Extract address from infoList key-value pairs
+        // Extract lot details from infoList and LotAttributes.
         const addressEntry = (lot.infoList as any[] | undefined)?.find(
           (i) => (i.Key || "").toLowerCase() === "address"
         )
-        const address = addressEntry?.Value?.trim() || undefined
+        const addressAttr = (lot.LotAttributes as any[] | undefined)?.find(
+          (a) => (a.AttributeName || "").toLowerCase() === "address"
+        )
+        const planAttr = (lot.LotAttributes as any[] | undefined)?.find((a) => {
+          const key = (a.AttributeName || "").toLowerCase()
+          return key === "preplotted_plan" || key === "homes" || key === "plan"
+        })
+        const moveInEntry = (lot.infoList as any[] | undefined)?.find(
+          (i) => (i.Key || "").toLowerCase().includes("move in")
+        )
+        const address = (addressEntry?.Value || addressAttr?.Value || "").trim() || undefined
 
         return {
           lotNumber: String(lot.LotNumber ?? lot.lotNumber ?? ""),
           status: String(lot.status ?? ""),
           address,
+          floorPlan: planAttr?.Value?.trim() || undefined,
+          moveInDate: moveInEntry?.Value?.trim() || undefined,
         }
       })
     })
@@ -172,14 +324,25 @@ async function readAlphaVisionIframe(
 
       const lots: MapLot[] = siteplanData
         .filter((l) => l.lotNumber)
-        .map((l) => ({
-          lotNumber: l.lotNumber,
-          status: normalizeSiteplanStatus(l.status),
-          address: l.address,
-          // Price is not in LotDetails — QMI lots are marked active without price.
-          // buildListings in index.ts will preserve "active" when a real address is present.
-          price: undefined,
-        } satisfies MapLot))
+        .map((l) => {
+          const details =
+            qmi.byAddress.get(normalizeAddressKey(l.address)) ??
+            qmi.byLot.get(normalizeLotKey(l.lotNumber))
+          return {
+            lotNumber: details?.lotNumber ?? normalizeLotKey(l.lotNumber) ?? l.lotNumber,
+            status: normalizeSiteplanStatus(l.status),
+            address: details?.address ?? l.address,
+            price: details?.price,
+            floorPlan: details?.floorPlan ?? l.floorPlan,
+            beds: details?.beds,
+            baths: details?.baths,
+            sqft: details?.sqft,
+            floors: details?.floors,
+            garages: details?.garages,
+            moveInDate: details?.moveInDate ?? l.moveInDate,
+            sourceUrl: details?.sourceUrl,
+          } satisfies MapLot
+        })
 
       const sold    = lots.filter((l) => l.status === "sold").length
       const forSale = lots.filter((l) => l.status === "for sale").length
@@ -206,12 +369,22 @@ async function readAlphaVisionIframe(
             ? lot.listPrice
             : null) ??
           undefined
-        const status = normalizeAlphaStatus(lot.status, lot.statusId, price)
+        const details = qmi.byLot.get(normalizeLotKey(lotNum))
+        const status = normalizeAlphaStatus(lot.status, lot.statusId, details?.price ?? price)
 
         return {
-          lotNumber: lotNum,
+          lotNumber: details?.lotNumber ?? lotNum,
           status,
-          price: status === "for sale" ? price : undefined,
+          price: status === "for sale" ? (details?.price ?? price) : undefined,
+          address: details?.address,
+          floorPlan: details?.floorPlan,
+          beds: details?.beds,
+          baths: details?.baths,
+          sqft: details?.sqft,
+          floors: details?.floors,
+          garages: details?.garages,
+          moveInDate: details?.moveInDate,
+          sourceUrl: details?.sourceUrl,
         } satisfies MapLot
       })
 
@@ -335,6 +508,26 @@ export async function readPulteMap(
     if (!iframeSrc) {
       // ── QMI DOM fallback: communities without interactive site plan ──────────
       console.log(`[Pulte] ${communityName}: No AlphaVision iframe — trying QMI DOM scrape`)
+
+      const qmi = await fetchQmiDetails(url, new URL(url).origin)
+      if (qmi.homes.length > 0) {
+        const lots: MapLot[] = qmi.homes.map((home) => ({
+          lotNumber: home.lotNumber ?? normalizeAddressKey(home.address),
+          status: "for sale" as const,
+          price: home.price,
+          address: home.address,
+          floorPlan: home.floorPlan,
+          beds: home.beds,
+          baths: home.baths,
+          sqft: home.sqft,
+          floors: home.floors,
+          garages: home.garages,
+          moveInDate: home.moveInDate,
+          sourceUrl: home.sourceUrl,
+        }))
+        console.log(`[Pulte] ${communityName}: QMI API — ${lots.length} homes`)
+        return { sold: 0, forSale: lots.length, future: 0, total: lots.length, lots, qmiOnly: true }
+      }
 
       // Click "Quick Move-In" filter label if present
       try {
@@ -468,7 +661,7 @@ export async function readPulteMap(
       return { sold: 0, forSale: 0, future: 0, total: 0 }
     }
 
-    return await readAlphaVisionIframe(page, iframeSrc, communityName)
+    return await readAlphaVisionIframe(page, iframeSrc, communityName, url, new URL(url).origin)
   } finally {
     await browser.close()
   }

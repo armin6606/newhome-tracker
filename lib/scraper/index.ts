@@ -148,7 +148,7 @@ function buildListings(
             ? Math.round(lot.price / lot.sqft)
             : undefined,
         status,
-        sourceUrl: communityUrl,
+        sourceUrl: lot.sourceUrl ?? communityUrl,
       } satisfies ScrapedListing
     })
   }

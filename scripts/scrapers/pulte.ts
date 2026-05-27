@@ -183,7 +183,7 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
         beds: lot.beds, baths: lot.baths, sqft: lot.sqft,
         price: status === "for sale" ? lot.price : undefined,
         pricePerSqft: status === "for sale" && lot.price && lot.sqft ? Math.round(lot.price / lot.sqft) : undefined,
-        status, sourceUrl: communityUrl,
+        status, sourceUrl: lot.sourceUrl ?? communityUrl,
       } as ScrapedListing
     })
   }
