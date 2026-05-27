@@ -140,6 +140,25 @@ function parseNum(val: string | undefined): number {
   return isNaN(n) ? 0 : n
 }
 
+function titleCaseSlug(value: string): string {
+  return value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ")
+}
+
+function cityFromLennarUrl(url: string): string | undefined {
+  try {
+    const parts = new URL(url).pathname.split("/").filter(Boolean)
+    const newHomesIndex = parts.indexOf("new-homes")
+    const citySlug = newHomesIndex >= 0 ? parts[newHomesIndex + 3] : undefined
+    return citySlug ? titleCaseSlug(citySlug) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`
   const res = await fetch(url, { cache: "no-store" })
@@ -700,11 +719,12 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
     }
 
+    const city = cityFromLennarUrl(row.url)
     const community = await withReconnect(() =>
       prisma.community.upsert({
         where: { builderId_name: { builderId, name: row.communityName } },
-        update: { url: row.url },
-        create: { builderId, name: row.communityName, city: "Orange County", state: "CA", url: row.url },
+        update: { url: row.url, city, state: "CA" },
+        create: { builderId, name: row.communityName, city: city ?? "Unknown", state: "CA", url: row.url },
       })
     )
 
