@@ -94,10 +94,10 @@ export async function GET() {
       // salesPerMonth: only meaningful if we have at least 7 days of data
       const observedSales = c.listings.filter(
         (l) =>
+          isReal(l) &&
           l.status === "sold" &&
           l.soldAt !== null &&
-          l.soldAt >= trackingStart &&
-          l.address !== null
+          l.soldAt >= trackingStart
       )
       let salesPerMonth = 0
       const trackingAgeMs = Date.now() - trackingStart.getTime()
@@ -130,11 +130,7 @@ export async function GET() {
       // one filter-pass per day (avoids O(communities × days × listings) cost).
       const soldDateMap = new Map<string, number>()
       for (const l of c.listings) {
-        if (l.status !== "sold" || !l.soldAt || !l.address) continue  // only real sold listings
-        // Skip lots that were already sold at first ingestion — soldAt equals firstDetected
-        // because we never observed the active→sold transition. These cause a false spike
-        // on the day tracking started. Only plot sales we actually witnessed.
-        if (Math.abs(l.soldAt.getTime() - l.firstDetected.getTime()) < DAY_MS) continue
+        if (!isReal(l) || l.status !== "sold" || !l.soldAt) continue
         const d     = l.soldAt
         const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`
         soldDateMap.set(label, (soldDateMap.get(label) ?? 0) + 1)

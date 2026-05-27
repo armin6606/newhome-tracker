@@ -178,7 +178,7 @@ async function collectData(snapshot) {
   })
 
   const newlySold = await prisma.listing.findMany({
-    where:   { soldAt: { gte: since }, address: { not: null }, ...PLACEHOLDER_FILTER },
+    where:   { status: "sold", soldAt: { gte: since }, address: { not: null }, ...PLACEHOLDER_FILTER },
     include: { community: { include: { builder: { select: { name: true } } } } },
     orderBy: { soldAt: "desc" },
   })

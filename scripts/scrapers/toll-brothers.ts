@@ -207,8 +207,9 @@ async function detectAndApplyChanges(
       }
 
       const initialStatus = scraped.status ?? "for sale"
-      // Set soldAt at creation for sold lots so it's never null (prevents re-stamping on subsequent runs)
-      const initialSoldAt = initialStatus === "sold" ? new Date() : null
+      // First-seen sold lots are not NewKey-observed sales.
+      // soldAt is set only when an existing active listing later turns sold.
+      const initialSoldAt = null
 
       let listing: { id: number }
       try {
@@ -237,7 +238,7 @@ async function detectAndApplyChanges(
             soldAt: initialSoldAt,
           },
           update: { status: initialStatus },
-          // Note: soldAt is intentionally NOT in update — only set at creation
+          // Note: soldAt is intentionally NOT set for first-seen sold lots.
         })
       } catch (err: unknown) {
         const code = (err as { code?: string }).code
@@ -446,7 +447,7 @@ async function detectAndApplyChanges(
     } else {
       await prisma.listing.update({
         where: { id: listing.id },
-        data: { status: "removed", soldAt: new Date() },
+        data: { status: "removed", soldAt: null },
       })
     }
     stats.removed++

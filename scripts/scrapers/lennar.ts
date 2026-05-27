@@ -594,7 +594,7 @@ async function detectAndApplyChanges(
     } else {
       await prisma.listing.update({
         where: { id: listing.id },
-        data: { status: "removed", soldAt: new Date() },
+        data: { status: "removed", soldAt: null },
       })
     }
     stats.removed++

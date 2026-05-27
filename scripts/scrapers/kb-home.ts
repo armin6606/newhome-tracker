@@ -470,7 +470,7 @@ async function detectAndApplyChanges(
       // Has price but placeholder address → removed (data anomaly, not a real sale)
       await prisma.listing.update({
         where: { id: listing.id },
-        data: { status: "removed", soldAt: new Date() },
+        data: { status: "removed", soldAt: null },
       })
     }
     stats.removed++

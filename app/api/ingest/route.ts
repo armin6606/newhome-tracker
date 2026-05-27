@@ -44,7 +44,7 @@ import { getTable3Plans, lookupPlan, matchPlanBySpecs, normalizePlan } from "@/l
  *  9.  Street suffix stripped
  *  10. Title case applied to address
  *  11. active + no price + real address → forced to future
- *  12. sold + no soldAt → soldAt auto-set to now
+ *  12. soldAt is set only when an existing active listing turns sold
  *
  *  WARNINGS:
  *  13. Floorplan not found in Table 3 → email sent, listing created with nulls
@@ -456,9 +456,10 @@ export async function POST(req: NextRequest) {
       autoFixed.push({ address: address || undefined, lotNumber: l.lotNumber, fix: `Status forced active → future (no price)` })
     }
 
-    const soldAt = v.forcedSoldAt
-      ?? (l.soldAt ? new Date(l.soldAt) : null)
-      ?? (status === "sold" ? new Date() : null)
+    const soldAt =
+      existing?.status === "for sale" && status === "sold"
+        ? new Date()
+        : existing?.soldAt ?? null
 
     const lotNumber = rawLotNumber
 

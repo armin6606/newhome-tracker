@@ -381,7 +381,7 @@ export async function detectAndApplyChanges(
       // Active but no price (edge case) → mark removed
       await prisma.listing.update({
         where: { id: listing.id },
-        data: { status: "removed", soldAt: new Date() },
+        data: { status: "removed", soldAt: null },
       })
     }
     stats.removed++
