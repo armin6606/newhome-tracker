@@ -635,6 +635,75 @@ async function detectAndApplyChanges(
   return stats
 }
 
+async function reconcileAddressLotDuplicates(communityId: number, communityName: string): Promise<number> {
+  const rows = await prisma.listing.findMany({
+    where: { communityId, status: { in: ["for sale", "future"] } },
+    select: {
+      id: true,
+      address: true,
+      lotNumber: true,
+      status: true,
+      currentPrice: true,
+      sourceUrl: true,
+    },
+  })
+
+  const placeholderRows = rows.filter((row) =>
+    row.status === "for sale" &&
+    row.currentPrice != null &&
+    row.lotNumber &&
+    row.address &&
+    new RegExp(`^Lot\\s+${row.lotNumber}$`, "i").test(row.address.trim())
+  )
+
+  const realAddressRows = rows.filter((row) =>
+    row.status === "for sale" &&
+    row.currentPrice != null &&
+    !row.lotNumber &&
+    row.address &&
+    !/^Lot\s+\d+$/i.test(row.address.trim())
+  )
+
+  let merged = 0
+  const usedRealAddressIds = new Set<number>()
+
+  for (const placeholder of placeholderRows) {
+    const realAddress = realAddressRows.find((candidate) =>
+      !usedRealAddressIds.has(candidate.id) &&
+      candidate.status === placeholder.status &&
+      candidate.currentPrice === placeholder.currentPrice
+    )
+    if (!realAddress?.address) continue
+
+    await prisma.$transaction([
+      prisma.listing.update({
+        where: { id: realAddress.id },
+        data: {
+          status: "removed",
+          currentPrice: null,
+          soldAt: null,
+          address: `removed-${realAddress.id}-${realAddress.address}`,
+        },
+      }),
+      prisma.listing.update({
+        where: { id: placeholder.id },
+        data: {
+          address: realAddress.address,
+          sourceUrl: placeholder.sourceUrl ?? realAddress.sourceUrl,
+        },
+      }),
+    ])
+
+    merged++
+    usedRealAddressIds.add(realAddress.id)
+    console.log(
+      `  [Lennar] ${communityName}: merged duplicate ${realAddress.address} into lot ${placeholder.lotNumber}`
+    )
+  }
+
+  return merged
+}
+
 // ── scrapeOneCommunity ────────────────────────────────────────────────────────
 
 async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Promise<{ scraped: number; stats: ChangeDetails; error?: { builder: string; error: string } }> {
@@ -771,6 +840,10 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
 
     const stats = await detectAndApplyChanges(dedupedListings, community.id, BUILDER_NAME)
+    const mergedDuplicates = await reconcileAddressLotDuplicates(community.id, row.communityName)
+    if (mergedDuplicates > 0) {
+      console.log(`  [${BUILDER_NAME}] ${row.communityName}: merged ${mergedDuplicates} address/lot duplicate(s)`)
+    }
     console.log(`  [${BUILDER_NAME}] ${row.communityName}: +${stats.added} new, ${stats.priceChanges} price changes, ${stats.removed} removed, ${stats.unchanged} unchanged`)
 
     // ── Post-run: recalculate counts from DB and sync Community + Table 2 ──────
