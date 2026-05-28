@@ -135,6 +135,33 @@ model NotificationLog {
   @@map("notification_logs")
 }
 
+model PromoSubmission {
+  id              Int       @id @default(autoincrement())
+  status          String    @default("pending") // pending | approved | rejected
+  source          String    @default("email")
+  sourceMessageId String?
+  sourceFrom      String?
+  sourceSubject   String?
+  sourceDate      DateTime?
+  rawSnippet      String?
+  builderName     String?
+  communityName   String?
+  offerText       String
+  offerUrl        String?
+  expiresAt       DateTime?
+  confidence      Float?
+  notes           String?
+  affectedListings Int      @default(0)
+  reviewedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([builderName])
+  @@index([createdAt])
+  @@map("promo_submissions")
+}
+
 model NewsletterSubscriber {
   id          Int      @id @default(autoincrement())
   email       String   @unique
