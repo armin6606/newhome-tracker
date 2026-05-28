@@ -11,7 +11,8 @@
  */
 
 const INGEST_URL    = "https://www.newkey.us/api/ingest"
-const INGEST_SECRET = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
+const INGEST_SECRET = process.env.INGEST_SECRET
+if (!INGEST_SECRET) throw new Error("INGEST_SECRET is required")
 const SHEET_BASE    = "https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c/export?format=csv&gid="
 
 // Add new builder tabs here as they are created

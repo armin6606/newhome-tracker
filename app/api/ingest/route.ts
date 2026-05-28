@@ -61,7 +61,7 @@ const CITY_RE        = /,\s*.+$/
 const FLOORPLAN_RE   = /^(plan\s*\d|lot\s*\d|residence\s*\d|home\s*\d|model\s*\d)/i
 const PRICE_MIN      = 200_000
 const PRICE_MAX      = 15_000_000
-const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? ""
 const ALERT_EMAIL    = process.env.ALERT_EMAIL ?? ""
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -85,6 +85,10 @@ async function sendMissingPlanAlert(
   missing:       string[],
 ): Promise<void> {
   if (!missing.length || !ALERT_EMAIL) return
+  if (!RESEND_API_KEY) {
+    console.warn("[ingest] RESEND_API_KEY is not configured; skipping missing-plan alert")
+    return
+  }
   try {
     const listHtml = missing.map(p => `<li><strong>${p}</strong></li>`).join("")
     await fetch("https://api.resend.com/emails", {

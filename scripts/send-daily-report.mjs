@@ -44,7 +44,7 @@ if (existsSync(envPath)) {
 const { PrismaClient } = require("@prisma/client")
 const prisma = new PrismaClient()
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
+const RESEND_API_KEY = process.env.RESEND_API_KEY || ""
 const FROM           = `New Key <${process.env.RESEND_FROM_EMAIL || "info@newkey.us"}>`
 const TO             = "armin.sabe@gmail.com"
 const SITE_URL       = "https://www.newkey.us"
@@ -632,6 +632,10 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
 // ── Send via Resend ────────────────────────────────────────────────────────────
 
 async function sendEmail(subject, html) {
+  if (!RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is required to send the daily report")
+  }
+
   const res = await fetch("https://api.resend.com/emails", {
     method:  "POST",
     headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },

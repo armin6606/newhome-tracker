@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 
-// Use env var; fallback keeps existing deployments working until Vercel env is updated
-const RESEND_API_KEY = process.env.RESEND_API_KEY ?? "re_26TAjmba_PgWVcabL98Hn5fBKa7Hn9HxM"
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? ""
 const FROM           = "New Key <reports@newkey.us>"
 const TO             = process.env.REPORT_EMAIL ?? ""
 
@@ -342,6 +341,9 @@ export async function GET(req: Request) {
 
       let emailId: string | undefined
       if (TO) {
+        if (!RESEND_API_KEY) {
+          throw new Error("RESEND_API_KEY is required when REPORT_EMAIL is configured")
+        }
         const res = await fetch("https://api.resend.com/emails", {
           method:  "POST",
           headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },

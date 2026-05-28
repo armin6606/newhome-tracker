@@ -30,7 +30,8 @@ const { PrismaClient } = require("@prisma/client")
 const prisma = new PrismaClient()
 
 const INGEST_URL    = "https://www.newkey.us/api/ingest"
-const INGEST_SECRET = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
+const INGEST_SECRET = process.env.INGEST_SECRET
+if (!INGEST_SECRET) throw new Error("INGEST_SECRET is required")
 const BUILDER_NAME  = "Shea Homes"
 const USER_AGENT    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 

@@ -25,7 +25,8 @@ const prisma = new PrismaClient()
 
 const BUILDER_NAME   = "Pulte"
 const INGEST_URL     = "https://www.newkey.us/api/ingest"
-const INGEST_SECRET  = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
+const INGEST_SECRET  = process.env.INGEST_SECRET
+if (!INGEST_SECRET) throw new Error("INGEST_SECRET is required")
 const PULTE_BASE_URL = "https://www.pulte.com"
 
 const COMMUNITIES = [

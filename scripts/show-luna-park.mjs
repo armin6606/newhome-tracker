@@ -1,8 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required')
+}
+
 const supabase = createClient(
-  'https://cecffcuzkyoxqzcewila.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNlY2ZmY3V6a3lveHF6Y2V3aWxhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzY5MDExOCwiZXhwIjoyMDg5MjY2MTE4fQ.FabMr-Ih-jB-7aLYzy4PWZRWOoVwUDP9dLole4l1oFc'
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY
 )
 
 const { data: communities } = await supabase
