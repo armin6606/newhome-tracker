@@ -41,6 +41,7 @@ const BUILDER_TABS = {
   "Del Webb":        "Del Webb Communities",
   "KB Home":         "KB Communities",
   "Melia Homes":     "Melia Communities",
+  "Trumark":         "Trumark",
 }
 
 // ── CSV parser ─────────────────────────────────────────────────────────────────

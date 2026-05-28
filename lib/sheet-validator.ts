@@ -28,6 +28,7 @@ export const BUILDER_SHEET_TABS: Record<string, string> = {
   "KB Home":                "KB Communities",
   "Melia Homes":            "Melia Communities",
   "Shea Homes":             "Shea Communities",
+  "Trumark":                "Trumark",
 }
 
 const cache = new Map<string, { communities: Set<string>; expiresAt: number }>()

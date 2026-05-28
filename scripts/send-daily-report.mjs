@@ -64,6 +64,7 @@ const BUILDER_TABS = {
   "Shea Homes":           "Shea Communities",
   "Brookfield Residential": "Brookfield Communities",
   "TRI Pointe Homes":    "TRI Pointe Communities",
+  "Trumark":             "Trumark",
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -514,6 +515,7 @@ const ALL_BUILDERS = [
   "Shea Homes",
   "Brookfield Residential",
   "TRI Pointe Homes",
+  "Trumark",
 ]
 
 function section0ScraperStatus(scraperResults) {

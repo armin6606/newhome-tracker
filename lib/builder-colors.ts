@@ -2,6 +2,7 @@
 const PINNED: Record<string, string> = {
   "toll brothers": "#C9940A", // gold
   "lennar":        "#1B4FA8", // blue
+  "trumark":       "#0E5A60", // teal
 }
 
 const COLORS = [

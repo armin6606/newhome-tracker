@@ -13,6 +13,9 @@ export interface MapLot {
   sqft?: number
   floors?: number
   garages?: number
+  propertyType?: string
+  hoaFees?: number
+  taxes?: string
   moveInDate?: string
   sourceUrl?: string
 }

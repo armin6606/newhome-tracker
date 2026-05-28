@@ -172,6 +172,10 @@ jobs:
             id: melia-homes
             cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/melia-homes.ts"
             timeout: 30
+          - builder: "Trumark"
+            id: trumark
+            cmd: "node --max-old-space-size=4096 node_modules/.bin/tsx scripts/scrapers/trumark.ts"
+            timeout: 20
           - builder: "Shea Homes"
             id: shea-homes
             cmd: "node scripts/scrape-shea.mjs"

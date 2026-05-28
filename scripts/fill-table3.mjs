@@ -58,6 +58,7 @@ const BUILDER_SHEET_TABS = {
   "KB Home":                "KB Communities",
   "Melia Homes":            "Melia Communities",
   "Shea Homes":             "Shea Communities",
+  "Trumark":                "Trumark",
 }
 
 // ── CSV parser ─────────────────────────────────────────────────────────────
