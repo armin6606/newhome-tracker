@@ -551,8 +551,27 @@ async function detectAndApplyChanges(
       } catch (err: unknown) {
         const code = (err as { code?: string }).code
         if (code === "P2002") {
-          console.warn(`  [detect-changes] P2002 on lot ${updates.lotNumber as string} — clearing lot number and retrying`)
-          await prisma.listing.update({ where: { id: existing.id }, data: { ...updates, lotNumber: null } })
+          const addressOwner = await prisma.listing.findUnique({
+            where: { communityId_address: { communityId, address: scraped.address } },
+            select: { id: true, address: true },
+          })
+          if (addressOwner && addressOwner.id !== existing.id) {
+            console.warn(`  [detect-changes] P2002 on lot ${updates.lotNumber as string} - retiring duplicate address owner and retrying`)
+            await prisma.listing.update({
+              where: { id: addressOwner.id },
+              data: {
+                status: "removed",
+                lotNumber: null,
+                currentPrice: null,
+                soldAt: null,
+                address: `removed-${addressOwner.id}-${addressOwner.address}`,
+              },
+            })
+            await prisma.listing.update({ where: { id: existing.id }, data: updates })
+          } else {
+            console.warn(`  [detect-changes] P2002 on lot ${updates.lotNumber as string} - clearing lot number and retrying`)
+            await prisma.listing.update({ where: { id: existing.id }, data: { ...updates, lotNumber: null } })
+          }
         } else {
           throw err
         }
