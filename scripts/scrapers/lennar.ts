@@ -737,16 +737,17 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
     const dedupedListings = [...seenAddrs.values(), ...seenLots.values()]
 
+    let warningMsg: string | undefined
     if (row.total >= 10) {
       const lowerBound = Math.ceil(row.total * 0.8)
       const upperBound = Math.floor(row.total * 1.2)
       if (dedupedListings.length < lowerBound || dedupedListings.length > upperBound) {
         const msg =
           `${row.communityName}: scraped ${dedupedListings.length} lots, but Table 2 expects ${row.total} ` +
-          `(allowed ${lowerBound}-${upperBound}) — looks incomplete or cross-community, skipping`
+          `(allowed ${lowerBound}-${upperBound}) - updated scraped lots but expected total is mismatched`
         console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
+        warningMsg = msg
         writeDebugJson(row, "table-2-total-guard", { lowerBound, upperBound, mapResult, listings, dedupedListings })
-        return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
       }
     }
 
@@ -766,7 +767,9 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       .catch(e => console.error(`[sheet-writer] ${row.communityName} absolute sync:`, e))
     console.log(`  [${BUILDER_NAME}] ${row.communityName}: DB recalc → sold=${soldCount} forSale=${forSaleCount}`)
 
-    return { scraped: dedupedListings.length, stats }
+    return warningMsg
+      ? { scraped: dedupedListings.length, stats, error: { builder: BUILDER_NAME, error: warningMsg } }
+      : { scraped: dedupedListings.length, stats }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err)
     console.error(`  [${BUILDER_NAME}] Error scraping ${row.communityName}:`, err)
@@ -798,9 +801,15 @@ async function main() {
   let communityCount = 0
 
   try {
-    const communities = await fetchBuilderSheet(SHEET_GID)
+    const only = process.env.LENNAR_ONLY
+      ?.split(",")
+      .map((name) => name.trim().toLowerCase())
+      .filter(Boolean)
+    const communities = (await fetchBuilderSheet(SHEET_GID)).filter((row) =>
+      only?.length ? only.some((name) => row.communityName.toLowerCase().includes(name)) : true
+    )
     communityCount = communities.length
-    console.log(`[${BUILDER_NAME}] ${communityCount} communities in sheet`)
+    console.log(`[${BUILDER_NAME}] ${communityCount} communities selected${only?.length ? ` (${only.join(", ")})` : ""}`)
 
     if (communityCount === 0) {
       console.log(`[${BUILDER_NAME}] No communities found — exiting`)

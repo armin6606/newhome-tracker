@@ -525,10 +525,11 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       }
     }
 
+    let warningMsg: string | undefined
     if (row.total > 0 && mapResult.total !== row.total) {
-      const msg = `${row.communityName}: Scraped ${mapResult.total} lots but Table 2 Total Homes is ${row.total} — skipping DB update`
+      const msg = `${row.communityName}: scraped ${mapResult.total} lots but Table 2 expects ${row.total} - updated scraped lots but expected total is mismatched`
       console.warn(`  [${BUILDER_NAME}] ALERT: ${msg}`)
-      return { scraped: 0, stats: emptyStats, error: { builder: BUILDER_NAME, error: msg } }
+      warningMsg = msg
     }
 
     const listings = buildListings(mapResult, row.communityName, row.url)
@@ -568,7 +569,9 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
 
     const stats = await detectAndApplyChanges(dedupedListings, community.id, BUILDER_NAME)
     console.log(`  [${BUILDER_NAME}] ${row.communityName}: +${stats.added} new, ${stats.priceChanges} price changes, ${stats.removed} removed, ${stats.unchanged} unchanged`)
-    return { scraped: dedupedListings.length, stats }
+    return warningMsg
+      ? { scraped: dedupedListings.length, stats, error: { builder: BUILDER_NAME, error: warningMsg } }
+      : { scraped: dedupedListings.length, stats }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err)
     console.error(`  [${BUILDER_NAME}] Error scraping ${row.communityName}:`, err)
