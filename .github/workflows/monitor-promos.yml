@@ -1,0 +1,40 @@
+name: Monitor Promo Inbox
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    name: Check builder promo emails
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Monitor promo Gmail inbox
+        run: node scripts/monitor-promo-inbox.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PROMO_GMAIL_USER: amy309431@gmail.com
+          PROMO_GMAIL_APP_PASSWORD: ${{ secrets.PROMO_GMAIL_APP_PASSWORD }}
+          PROMO_INBOX_LOOKBACK_DAYS: "14"
+          PROMO_INBOX_MAX_EMAILS: "50"
