@@ -20,14 +20,14 @@ if (DRY_RUN) console.log("=== DRY RUN — no changes will be made ===\n")
 const SHEET_ID = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
 
 const BUILDER_SHEET_TABS = {
-  "Toll Brothers":          "Toll Communities",
-  "Lennar":                 "Lennar Communities",
-  "Pulte":                  "Pulte Communities",
-  "Taylor Morrison":        "Taylor Communities",
-  "Del Webb":               "Del Webb Communities",
-  "KB Home":                "KB Communities",
-  "Melia Homes":            "Melia Communities",
-  "Shea Homes":             "Shea Communities",
+  "Toll Brothers":          "Toll",
+  "Lennar":                 "Lennar",
+  "Pulte":                  "Pulte",
+  "Taylor Morrison":        "Taylor Morrison",
+  "Del Webb":               "Del Webb",
+  "KB Home":                "KB",
+  "Melia Homes":            "Melia",
+  "Shea Homes":             "Shea",
   "Brookfield Residential": "Brookfield Communities",
   "Trumark":                "Trumark",
 }
@@ -61,7 +61,7 @@ async function fetchSheetCommunities(tabName) {
       if (inTable2 && col3) names.add(col3)
     }
     const TOLL_SENTINEL = new Set(["Elm Collection","Rowan Collection","Pinnacle","Skyline","Birch"])
-    if (tabName !== "Toll Communities") {
+    if (tabName !== "Toll" && tabName !== "Toll Communities") {
       for (const n of names) { if (TOLL_SENTINEL.has(n)) return null }
     }
     return names.size > 0 ? names : null

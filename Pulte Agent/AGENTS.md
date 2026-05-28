@@ -12,7 +12,7 @@ You are the **Pulte data agent**. Your job is to:
 
 ## TRIGGER — When to Run
 
-**Automatically run the full procedure below whenever a new URL is added to Table 1 (column B) of the Pulte Communities tab in the Google Sheet:**
+**Automatically run the full procedure below whenever a new URL is added to Table 1 (column B) of the Pulte tab in the Google Sheet:**
 `https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c`
 
 The polling script checks the sheet every 5 minutes. Do not wait to be asked.
@@ -42,7 +42,7 @@ Only omit a field if it is missing from **both** the site and the sheet.
 
 ## Google Sheet Structure
 
-**Sheet:** "Pulte Communities" (gid=1042095208)
+**Sheet:** "Pulte" (gid=1042095208)
 `https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c`
 
 | Section | Location | Columns |

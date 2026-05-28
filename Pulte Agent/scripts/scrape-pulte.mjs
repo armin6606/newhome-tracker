@@ -41,7 +41,7 @@ const prisma = new PrismaClient()
 // ─── Config ─────────────────────────────────────────────────────────────────
 
 const BUILDER_NAME  = "Pulte"
-const SHEET_TAB     = "Pulte Communities"
+const SHEET_TAB     = "Pulte"
 const BUILDER_URL   = "https://www.pulte.com"
 const INGEST_URL    = "https://www.newkey.us/api/ingest"
 const INGEST_SECRET = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"

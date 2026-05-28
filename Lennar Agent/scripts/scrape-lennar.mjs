@@ -443,7 +443,7 @@ async function main() {
       const { toIngest, newCount, soldCount, priceCount, newAddresses, soldAddresses, priceDetails } = diffAndBuild(homesites, dbActive, type)
 
       // ── Reconcile placeholder counts against Sheet Table 2 ────────────
-      const sheetCounts = await fetchTable2Counts("Lennar Communities")
+      const sheetCounts = await fetchTable2Counts("Lennar")
       const commCounts  = sheetCounts[name] || sheetCounts[rawName] || null
       if (commCounts) {
         const { toIngest: phIngest, removeIds } = reconcilePlaceholders(

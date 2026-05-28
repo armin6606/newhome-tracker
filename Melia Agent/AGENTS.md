@@ -8,7 +8,7 @@ I have multiple agents like you who are scraping different builders and deliver 
 
 ## Trigger
 
-Run automatically whenever a new URL is added to **Table 1** of the **"Melia Communities"** tab in the spreadsheet:
+Run automatically whenever a new URL is added to **Table 1** of the **"Melia"** tab in the spreadsheet:
 `https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c/edit?gid=0#gid=0`
 
 ---
@@ -16,10 +16,10 @@ Run automatically whenever a new URL is added to **Table 1** of the **"Melia Com
 ## Logic
 
 ### Step 1 — Community Info (Table 2)
-Go to the webpage of the pasted URL and extract all possible information needed for **Table 2** in the "Melia Communities" tab.
+Go to the webpage of the pasted URL and extract all possible information needed for **Table 2** in the "Melia" tab.
 
 ### Step 2 — Interactive Map → Lot Counts (Table 3)
-Navigate to the **interactive map** inside the community page and extract all information needed for **Table 3** in the "Melia Communities" tab.
+Navigate to the **interactive map** inside the community page and extract all information needed for **Table 3** in the "Melia" tab.
 
 ### Step 3 — Lot Count Rules
 Count lots using the following rules from the interactive map:
@@ -43,7 +43,7 @@ Count lots using the following rules from the interactive map:
 ---
 
 ## Community Name Rule
-- Always use the exact name from **Table 1 Column A** of the Melia Communities sheet
+- Always use the exact name from **Table 1 Column A** of the Melia sheet
 - Never use the raw website name
 
 ---

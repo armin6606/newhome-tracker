@@ -52,7 +52,7 @@ const prisma = new PrismaClient()
 const INGEST_URL    = "https://www.newkey.us/api/ingest"
 const INGEST_SECRET = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
 const BUILDER_NAME  = "KB Home"
-const SHEET_TAB     = "KB Communities"
+const SHEET_TAB     = "KB"
 
 const BASE_URL      = "https://www.kbhome.com"
 const OC_REGION_URL = `${BASE_URL}/new-homes-orange-county`

@@ -42,7 +42,7 @@ const INGEST_URL    = "https://www.newkey.us/api/ingest"
 const INGEST_SECRET = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
 const BUILDER_NAME  = "Melia Homes"
 const BUILDER_URL   = "https://meliahomes.com"
-const SHEET_TAB     = "Melia Communities"
+const SHEET_TAB     = "Melia"
 const SITEPLAN_BASE = "https://sp.meliahomes.com/site-plans"
 const USER_AGENT    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 

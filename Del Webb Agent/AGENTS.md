@@ -16,7 +16,7 @@ You are one of multiple independent builder agents. You operate **independently*
 
 ## Trigger — New URL in Google Sheet
 
-Monitor the **Del Webb Communities** tab of:
+Monitor the **Del Webb** tab of:
 `https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c/edit?gid=0#gid=0`
 
 **Every time a new URL is pasted into Table 1**, run the full workflow below for that community immediately.
@@ -30,7 +30,7 @@ Do all steps in order:
 1. **Scrape** the community page at the pasted URL — extract all data for Table 2
 2. **Open the interactive map** inside the community page — extract lot data for Table 3 using the Map Counting Rules below
 3. **Collect floorplan details** (name, sqft, beds, baths, type, floors, moveInDate, schools) for Table 3
-4. **Update the Google Sheet** (Del Webb Communities tab):
+4. **Update the Google Sheet** (Del Webb tab):
    - Table 1: Community name + URL
    - Table 2: Sold, For-Sale, Future Release, Total counts
    - Table 3: Floorplan details (one row per floorplan)

@@ -19,7 +19,7 @@ from playwright.async_api import async_playwright, Page, BrowserContext
 #  CONFIG
 # ─────────────────────────────────────────────
 SPREADSHEET_ID   = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
-SHEET_NAME       = "Pulte Communities"
+SHEET_NAME       = "Pulte"
 INGEST_URL       = "https://www.newkey.us/api/ingest"
 INGEST_SECRET    = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
 POLL_INTERVAL    = 300          # seconds between sheet checks

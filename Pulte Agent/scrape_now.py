@@ -1,5 +1,5 @@
 """
-One-shot scraper: processes all unprocessed URLs in Pulte Communities sheet right now.
+One-shot scraper: processes all unprocessed URLs in Pulte sheet right now.
 """
 import asyncio, json, re, logging
 from pathlib import Path

@@ -30,7 +30,7 @@ if (existsSync(envPath)) {
 const SHEET_ID    = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
 const SHEETS_BASE = "https://sheets.googleapis.com/v4/spreadsheets"
 const SCOPE       = "https://www.googleapis.com/auth/spreadsheets"
-const TAB         = "Toll Communities"
+const TAB         = "Toll"
 
 async function getToken() {
   const sa  = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON)

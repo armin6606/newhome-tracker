@@ -1,7 +1,7 @@
 /**
  * Shea Homes Orange County Scraper — diff-based
  *
- * 1. Read community list + URLs from Google Sheet Table 1 (Shea Communities tab).
+ * 1. Read community list + URLs from Google Sheet Table 1 (Shea tab).
  * 2. For each community, scrape the available-homes (QMI) page.
  * 3. Query DB for current active listings.
  * 4. Diff: new → ingest, sold → mark sold, price changed → update price.
@@ -36,7 +36,7 @@ const { PrismaClient } = require("../../node_modules/@prisma/client")
 const prisma = new PrismaClient()
 
 const SHEET_ID      = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
-const SHEET_TAB     = "Shea Communities"
+const SHEET_TAB     = "Shea"
 const INGEST_URL    = "https://www.newkey.us/api/ingest"
 const INGEST_SECRET = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
 const BUILDER_NAME  = "Shea Homes"
@@ -85,7 +85,7 @@ async function getCommunitiesFromSheet() {
     communities.push({ name, url: baseUrl, availableHomesUrl, city, state: "CA" })
   }
 
-  if (communities.length === 0) throw new Error("No communities found in Sheet Table 1 for Shea Communities")
+  if (communities.length === 0) throw new Error("No communities found in Sheet Table 1 for Shea")
   console.log(`  Found ${communities.length} community(ies) in Sheet Table 1`)
   return communities
 }

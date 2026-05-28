@@ -8,7 +8,7 @@ I have multiple agents like you who are scraping different builders and deliver 
 
 ## Trigger
 
-Run automatically whenever a new URL is added to **Table 1** of the **"KB Communities"** tab in the spreadsheet:
+Run automatically whenever a new URL is added to **Table 1** of the **"KB"** tab in the spreadsheet:
 `https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c/edit?gid=0#gid=0`
 
 ---
@@ -16,10 +16,10 @@ Run automatically whenever a new URL is added to **Table 1** of the **"KB Commun
 ## Logic
 
 ### Step 1 — Community Info (Table 2)
-Go to the webpage of the pasted URL and extract all possible information needed for **Table 2** in the "KB Communities" tab.
+Go to the webpage of the pasted URL and extract all possible information needed for **Table 2** in the "KB" tab.
 
 ### Step 2 — Interactive Map → Lot Counts (Table 3)
-Navigate to the **interactive map** inside the community page and extract all information needed for **Table 3** in the "KB Communities" tab.
+Navigate to the **interactive map** inside the community page and extract all information needed for **Table 3** in the "KB" tab.
 
 ### Step 3 — Lot Count Rules
 Count lots using the following color logic from the interactive map:
@@ -41,7 +41,7 @@ Count lots using the following color logic from the interactive map:
 - ✅ `108 Palisades` | ❌ `108 Palisades Lane` | ❌ `108 Palisades, Irvine`
 
 ## Community Name Rule
-- Always use the exact name from **Table 1 Column A** of the KB Communities sheet
+- Always use the exact name from **Table 1 Column A** of the KB sheet
 - Never use the raw website name
 
 ---

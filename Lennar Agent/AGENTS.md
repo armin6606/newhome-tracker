@@ -119,7 +119,7 @@ Always send **exactly** the right number of records per status to match Table 2.
 
 ## Trigger — New URL in Google Sheet
 
-Monitor the **Lennar Communities** tab of:
+Monitor the **Lennar** tab of:
 `https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c/edit?gid=0#gid=0`
 
 **Every time a new URL is pasted into Table 1**, run the full workflow below for that community immediately.
@@ -133,7 +133,7 @@ Do all steps in order on every scrape:
 1. **Scrape** the community page at the pasted URL — extract all data for Table 2
 2. **Open the interactive map** and count **Sold** and **For Sale** lots per the Map Counting Rules below — **Total Homes** and **Future Release** are entered manually by the user, leave them blank
 3. **Collect floorplan details** (name, sqft, beds, baths, type, floors, moveInDate, schools) for Table 3
-4. **Update your Google Sheet** (Lennar Communities tab):
+4. **Update your Google Sheet** (Lennar tab):
    - Table 1: Community name + URL
    - Table 2: **Sold** and **For-Sale** counts only — enter in the row matching the community name. Leave **Total Homes** and **Future Release** columns blank (user fills manually)
    - Table 3: Floorplan details (one row per floorplan)

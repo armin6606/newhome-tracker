@@ -20,14 +20,14 @@ const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
  * Builders NOT listed here are blocked from ingest and hidden from the site.
  */
 export const BUILDER_SHEET_TABS: Record<string, string> = {
-  "Toll Brothers":          "Toll Communities",
-  "Lennar":                 "Lennar Communities",
-  "Pulte":                  "Pulte Communities",
-  "Taylor Morrison":        "Taylor Communities",
-  "Del Webb":               "Del Webb Communities",
-  "KB Home":                "KB Communities",
-  "Melia Homes":            "Melia Communities",
-  "Shea Homes":             "Shea Communities",
+  "Toll Brothers":          "Toll",
+  "Lennar":                 "Lennar",
+  "Pulte":                  "Pulte",
+  "Taylor Morrison":        "Taylor Morrison",
+  "Del Webb":               "Del Webb",
+  "KB Home":                "KB",
+  "Melia Homes":            "Melia",
+  "Shea Homes":             "Shea",
   "Trumark":                "Trumark",
 }
 
@@ -72,7 +72,7 @@ async function fetchTable2Communities(tabName: string): Promise<Set<string> | nu
     // Sanity check: if we got Toll Brothers communities back (default tab fallback),
     // treat the requested tab as non-existent.
     const TOLL_SENTINEL = new Set(["Elm Collection", "Rowan Collection", "Pinnacle", "Skyline", "Birch"])
-    if (tabName !== "Toll Communities") {
+    if (tabName !== "Toll" && tabName !== "Toll Communities") {
       for (const name of names) {
         if (TOLL_SENTINEL.has(name)) return null // got default tab, not requested tab
       }

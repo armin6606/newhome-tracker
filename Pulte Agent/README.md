@@ -1,7 +1,7 @@
 # Pulte Agent — Setup & Usage
 
 ## What it does
-Polls the "Pulte Communities" tab in the Google Sheet every 5 minutes.
+Polls the "Pulte" tab in the Google Sheet every 5 minutes.
 When a new URL is added to **Table 1**, it:
 1. Scrapes the Pulte community page (overview + floor plans + homesite map)
 2. Writes lot counts to **Table 2** (cols D–H, same row as the URL)

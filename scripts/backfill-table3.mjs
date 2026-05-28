@@ -36,13 +36,13 @@ const ALERT_EMAIL    = "armin.sabe@gmail.com"
 
 // Builder → sheet tab name (must match sheet-validator.ts)
 const BUILDER_TABS = {
-  "Toll Brothers":   "Toll Communities",
-  "Lennar":          "Lennar Communities",
-  "Pulte":           "Pulte Communities",
-  "Taylor Morrison": "Taylor Communities",
-  "Del Webb":        "Del Webb Communities",
-  "KB Home":         "KB Communities",
-  "Melia Homes":     "Melia Communities",
+  "Toll Brothers":   "Toll",
+  "Lennar":          "Lennar",
+  "Pulte":           "Pulte",
+  "Taylor Morrison": "Taylor Morrison",
+  "Del Webb":        "Del Webb",
+  "KB Home":         "KB",
+  "Melia Homes":     "Melia",
   "Trumark":         "Trumark",
 }
 
