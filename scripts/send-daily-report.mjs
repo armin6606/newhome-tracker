@@ -187,6 +187,10 @@ async function collectData(snapshot) {
     orderBy: { detectedAt: "desc" },
   })
 
+  const pendingPromoCount = await prisma.promoSubmission.count({
+    where: { status: "pending" },
+  })
+
   // Current community card counts (from real scraped listings only — no placeholders)
   const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
   const communities = await prisma.community.findMany({
@@ -227,7 +231,7 @@ async function collectData(snapshot) {
     table2Now[builderName] = await fetchTable2(tabName)
   }
 
-  return { since, forSaleNow, newListings, newlySold, priceChanges, communityCardsNow, table2Now }
+  return { since, forSaleNow, newListings, newlySold, priceChanges, pendingPromoCount, communityCardsNow, table2Now }
 }
 
 // ── Group by builder ───────────────────────────────────────────────────────────
@@ -567,8 +571,22 @@ function section0ScraperStatus(scraperResults) {
 
 // ── Build full HTML email ──────────────────────────────────────────────────────
 
+function sectionPendingPromos(pendingPromoCount) {
+  const count = pendingPromoCount ?? 0
+  const color = count > 0 ? "#d97706" : "#16a34a"
+  const label = count === 1 ? "promo is" : "promos are"
+
+  return card(`
+    ${sectionHeader("Pending Promo Review")}
+    <p style="margin:0;font-size:13px;color:#374151;line-height:1.5">
+      <strong style="color:${color}">${count}</strong> pending ${label} waiting for review.
+      <a href="${SITE_URL}/admin/promos" style="color:#2563eb;font-weight:600;text-decoration:none">Open promo approval queue â†’</a>
+    </p>
+  `)
+}
+
 function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
-  const { communityCardsNow, table2Now } = data
+  const { communityCardsNow, table2Now, pendingPromoCount } = data
   const dateStr = new Date().toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
   })
@@ -577,6 +595,7 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
     : "unavailable"
 
   const s0 = section0ScraperStatus(scraperResults)
+  const sPromos = sectionPendingPromos(pendingPromoCount)
   const s5 = section5Other(snapshot, communityCardsNow, table2Now)
 
   return `<!DOCTYPE html>
@@ -596,6 +615,7 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
     <!-- Body -->
     <div style="background:#f3f4f6;padding:16px 0">
       ${s0}
+      ${sPromos}
       ${s5}
     </div>
 
