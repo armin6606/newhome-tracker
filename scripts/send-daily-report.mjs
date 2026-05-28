@@ -3,11 +3,8 @@
  * Runs after the 1 AM scrapers — sends "New Key Daily Report" to armin.sabe@gmail.com
  *
  * Sections:
- *   1. For-Sale Homes     : 11 PM count vs post-scrape count
- *   2. Scraper Activity   : New / Sold / Price Changes per builder
- *   3. Community Cards    : Placeholder counts before vs after (changed cards only)
- *   4. Sheet Table 2      : Count changes per community (before vs after)
- *   5. Other Changes      : New communities, scraper errors
+ *   1. Scraper Status     : Pass/fail/timeout per builder
+ *   2. Other Changes      : New communities, removed communities, Table 2 changes
  *
  * Depends on logs/nightly-snapshot.json written by snapshot-11pm.mjs at 11 PM.
  *
@@ -54,14 +51,14 @@ const SITE_URL       = "https://www.newkey.us"
 
 const SHEET_ID    = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
 const BUILDER_TABS = {
-  "Toll Brothers":        "Toll Communities",
-  "Lennar":               "Lennar Communities",
-  "Pulte":                "Pulte Communities",
-  "Taylor Morrison":      "Taylor Communities",
-  "Del Webb":             "Del Webb Communities",
-  "KB Home":              "KB Communities",
-  "Melia Homes":          "Melia Communities",
-  "Shea Homes":           "Shea Communities",
+  "Toll Brothers":        "Toll",
+  "Lennar":               "Lennar",
+  "Pulte":                "Pulte",
+  "Taylor Morrison":      "Taylor Morrison",
+  "Del Webb":             "Del Webb",
+  "KB Home":              "KB",
+  "Melia Homes":          "Melia",
+  "Shea Homes":           "Shea",
   "Brookfield Residential": "Brookfield Communities",
   "TRI Pointe Homes":    "TRI Pointe Communities",
   "Trumark":             "Trumark",
@@ -571,7 +568,7 @@ function section0ScraperStatus(scraperResults) {
 // ── Build full HTML email ──────────────────────────────────────────────────────
 
 function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
-  const { forSaleNow, newListings, newlySold, priceChanges, communityCardsNow, table2Now } = data
+  const { communityCardsNow, table2Now } = data
   const dateStr = new Date().toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
   })
@@ -580,8 +577,6 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
     : "unavailable"
 
   const s0 = section0ScraperStatus(scraperResults)
-  const s1 = section1ForSale(snapshot, forSaleNow)
-  const s2 = section2ScraperActivity(newListings, newlySold, priceChanges)
   const s5 = section5Other(snapshot, communityCardsNow, table2Now)
 
   return `<!DOCTYPE html>
@@ -601,8 +596,6 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
     <!-- Body -->
     <div style="background:#f3f4f6;padding:16px 0">
       ${s0}
-      ${s1}
-      ${s2}
       ${s5}
     </div>
 
