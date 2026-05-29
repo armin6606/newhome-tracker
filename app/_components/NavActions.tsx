@@ -3,13 +3,15 @@
 import Link from "next/link"
 import { useUser } from "@/lib/hooks/useUser"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, LogIn, LogOut } from "lucide-react"
 
 export function NavActions() {
   const { user, loading } = useUser()
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient()
+  const loginHref = `/auth/login?next=${encodeURIComponent(pathname)}`
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -44,7 +46,7 @@ export function NavActions() {
 
   return (
     <Link
-      href="/auth/login"
+      href={loginHref}
       className="flex items-center gap-1.5 text-sm bg-amber-400 hover:bg-amber-500 text-white px-3.5 py-1.5 rounded-lg transition-colors"
     >
       <LogIn className="h-4 w-4" />

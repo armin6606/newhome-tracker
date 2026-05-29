@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useAuth } from "./useAuth"
 
 /**
@@ -12,6 +13,8 @@ import { useAuth } from "./useAuth"
  */
 export function ContentGate({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuth()
+  const pathname = usePathname()
+  const loginHref = `/auth/login?next=${encodeURIComponent(pathname)}`
 
   // While loading auth state, render children normally to avoid layout shift
   if (isAuthenticated === null || isAuthenticated === true) {
@@ -44,14 +47,14 @@ export function ContentGate({ children }: { children: React.ReactNode }) {
             Sign Up for Free to Unlock All Features.
           </h2>
           <Link
-            href="/auth/login"
+            href={loginHref}
             className="inline-block w-full max-w-xs py-3 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold rounded-lg transition-all text-sm"
           >
             Sign Up Free
           </Link>
           <p className="mt-4 text-xs text-stone-400">
             Already have an account?{" "}
-            <Link href="/auth/login" className="text-blue-600 hover:underline">
+            <Link href={loginHref} className="text-blue-600 hover:underline">
               Sign in
             </Link>
           </p>

@@ -21,7 +21,7 @@ export function FollowButton({ communityId, initialFollowing = false }: Props) {
     e.stopPropagation()
 
     if (!user) {
-      router.push("/auth/login")
+      router.push(`/auth/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
       return
     }
 

@@ -1,29 +1,36 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 function LoginForm() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const errorParam = searchParams.get("error")
-
   const [tab, setTab] = useState<"login" | "signup">("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [agreeToTerms, setAgreeToTerms] = useState(false)
-  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(
-    errorParam ? { type: "error", text: errorParam } : null
-  )
+  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null)
+  const [nextPath, setNextPath] = useState("/dashboard")
 
   const supabase = createClient()
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const errorParam = searchParams.get("error")
+    const nextParam = searchParams.get("next")
+    if (errorParam) setMessage({ type: "error", text: errorParam })
+    if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")) {
+      setNextPath(nextParam)
+    }
+  }, [])
+
   const callbackUrl = () => {
     const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname)
     const siteUrl = isLocal ? window.location.origin : "https://newkey.us"
-    return `${siteUrl}/auth/callback`
+    return `${siteUrl}/auth/callback?next=${encodeURIComponent(nextPath)}`
   }
 
   async function handleGoogleSignIn() {
@@ -43,7 +50,7 @@ function LoginForm() {
     if (error) {
       setMessage({ type: "error", text: error.message })
     } else {
-      router.push("/dashboard")
+      router.push(nextPath)
       router.refresh()
     }
     setLoading(false)
@@ -228,9 +235,7 @@ export default function LoginPage() {
               <img src="/logo.png" alt="NewKey.us" className="h-28 w-auto mx-auto" style={{ mixBlendMode: "multiply" }} />
             </Link>
           </div>
-          <Suspense fallback={<div className="h-64 bg-white rounded-2xl border border-gray-200 animate-pulse" />}>
-            <LoginForm />
-          </Suspense>
+          <LoginForm />
         </div>
       </div>
     </div>

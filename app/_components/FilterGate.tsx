@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useAuth } from "./useAuth"
 
 /**
@@ -12,7 +13,9 @@ import { useAuth } from "./useAuth"
  */
 export function FilterGate({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuth()
+  const pathname = usePathname()
   const [showModal, setShowModal] = useState(false)
+  const loginHref = `/auth/login?next=${encodeURIComponent(pathname)}`
 
   const handleInteraction = useCallback(
     (e: React.MouseEvent | React.FocusEvent) => {
@@ -68,14 +71,14 @@ export function FilterGate({ children }: { children: React.ReactNode }) {
               </h2>
             </div>
             <Link
-              href="/auth/login"
+              href={loginHref}
               className="inline-block w-full py-3 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold rounded-lg transition-all text-sm"
             >
               Sign Up Free
             </Link>
             <p className="mt-3 text-xs text-stone-400">
               Already have an account?{" "}
-              <Link href="/auth/login" className="text-blue-600 hover:underline">
+              <Link href={loginHref} className="text-blue-600 hover:underline">
                 Sign in
               </Link>
             </p>
