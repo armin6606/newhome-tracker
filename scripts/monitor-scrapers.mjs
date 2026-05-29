@@ -85,7 +85,11 @@ async function main() {
         })
       }
     }
-    if (data.status === "success" && Number(data.communities ?? 0) === 0) {
+    if (
+      data.status === "success" &&
+      Object.prototype.hasOwnProperty.call(data, "communities") &&
+      Number(data.communities) === 0
+    ) {
       issues.push({
         severity: "high",
         builder,
