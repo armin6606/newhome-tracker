@@ -20,12 +20,17 @@ function LoginForm() {
   )
 
   const supabase = createClient()
+  const callbackUrl = () => {
+    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    const siteUrl = isLocal ? window.location.origin : "https://newkey.us"
+    return `${siteUrl}/auth/callback`
+  }
 
   async function handleGoogleSignIn() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl(),
       },
     })
   }
@@ -52,7 +57,7 @@ function LoginForm() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl(),
       },
     })
     if (error) {
