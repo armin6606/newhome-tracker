@@ -30,29 +30,38 @@ export default function PromoApprovalsPage() {
   const [status, setStatus] = useState("pending")
   const [promos, setPromos] = useState<Promo[]>([])
   const [loading, setLoading] = useState(false)
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [message, setMessage] = useState("")
 
   useEffect(() => {
-    setToken(localStorage.getItem("newkey-admin-token") ?? "")
+    const savedToken = localStorage.getItem("newkey-admin-token") ?? ""
+    setToken(savedToken)
+    if (savedToken) void loadPromos(status, savedToken)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function loadPromos(nextStatus = status) {
-    if (!token) {
+  async function loadPromos(nextStatus = status, tokenOverride = token) {
+    const activeToken = tokenOverride.trim()
+    if (!activeToken) {
+      setHasLoaded(false)
+      setPromos([])
       setMessage("Enter the admin approval token first.")
       return
     }
-    localStorage.setItem("newkey-admin-token", token)
+    localStorage.setItem("newkey-admin-token", activeToken)
     setLoading(true)
     setMessage("")
     const res = await fetch(`/api/admin/promos?status=${nextStatus}`, {
-      headers: { "x-admin-token": token },
+      headers: { "x-admin-token": activeToken },
     })
     const json = await res.json()
     setLoading(false)
     if (!res.ok) {
+      setHasLoaded(false)
       setMessage(json.error ?? "Could not load promos.")
       return
     }
+    setHasLoaded(true)
     setPromos(json.promos ?? [])
   }
 
@@ -238,7 +247,11 @@ export default function PromoApprovalsPage() {
 
         {!loading && promos.length === 0 && (
           <div className="rounded-lg border border-stone-200 bg-white p-10 text-center text-sm text-stone-500">
-            No promos in this queue.
+            {hasLoaded
+              ? "No promos in this queue."
+              : token
+              ? "Click Load to fetch the approval queue."
+              : "Enter the admin token to load the approval queue."}
           </div>
         )}
       </div>
