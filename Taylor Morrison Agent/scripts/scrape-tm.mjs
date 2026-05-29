@@ -52,7 +52,8 @@ const BUILDER_NAME   = "Taylor Morrison"
 const SHEET_TAB      = "Taylor Morrison"
 const BUILDER_URL    = "https://www.taylormorrison.com"
 const INGEST_URL     = "https://www.newkey.us/api/ingest"
-const INGEST_SECRET  = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
+const INGEST_SECRET  = process.env.INGEST_SECRET
+if (!INGEST_SECRET) throw new Error("INGEST_SECRET is required")
 const FIREBASE_BASE  = "https://firebasestorage.googleapis.com/v0/b/taylor-morrison-vu.appspot.com/o"
 
 const USER_AGENT =

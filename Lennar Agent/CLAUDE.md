@@ -17,7 +17,7 @@ Run the full procedure automatically when a new URL appears in Table 1 of the Le
 ## Ingest Endpoint
 ```
 POST https://www.newkey.us/api/ingest
-Header: x-ingest-secret: xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0
+Header: x-ingest-secret: <INGEST_SECRET from environment>
 Builder name: "Lennar" (exact, every time)
 ```
 

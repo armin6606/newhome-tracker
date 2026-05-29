@@ -44,6 +44,19 @@ const BUILDER_TABS = {
   "Trumark":         "Trumark",
 }
 
+const SUPPORTED_BUILDERS = new Set(Object.keys(BUILDER_TABS))
+const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
+
+function isRealListing(l) {
+  return l.address !== null && !PLACEHOLDER_LOT_RE.test(l.lotNumber || "")
+}
+
+function isVisibleCommunityCard(card) {
+  if (!SUPPORTED_BUILDERS.has(card.builder)) return false
+  const isFutureOnly = card.active === 0 && card.sold === 0 && card.future > 0
+  return card.lastScrapedAt !== null || isFutureOnly
+}
+
 // ── CSV parser ─────────────────────────────────────────────────────────────────
 
 function parseCSV(text) {
@@ -100,27 +113,30 @@ async function main() {
   })
   console.log(`  For-sale listings: ${forSaleCount}`)
 
-  // 2. Community card counts from placeholders (address IS NULL)
+  // 2. Community card counts using the same public-site visibility logic.
   const communities = await prisma.community.findMany({
+    where: { builder: { name: { in: [...SUPPORTED_BUILDERS] } } },
     include: {
       builder: { select: { name: true } },
       listings: {
-        where:  { address: null, status: { not: "removed" } },
-        select: { status: true },
+        where:  { address: { not: null }, status: { not: "removed" } },
+        select: { address: true, lotNumber: true, status: true, currentPrice: true },
       },
     },
   })
 
   const communityCards = {}
   for (const c of communities) {
-    const ph = c.listings
-    communityCards[c.name] = {
+    const real = c.listings.filter(isRealListing)
+    const card = {
       builder: c.builder.name,
-      active:  ph.filter(l => l.status === "for sale").length,
-      sold:    ph.filter(l => l.status === "sold").length,
-      future:  ph.filter(l => l.status === "future").length,
-      total:   ph.length,
+      lastScrapedAt: c.lastScrapedAt ?? null,
+      active:  real.filter(l => l.status === "for sale" && l.currentPrice !== null).length,
+      sold:    real.filter(l => l.status === "sold").length,
+      future:  real.filter(l => l.status === "future").length,
+      total:   real.length,
     }
+    if (isVisibleCommunityCard(card)) communityCards[c.name] = card
   }
   console.log(`  Community cards captured: ${Object.keys(communityCards).length}`)
 

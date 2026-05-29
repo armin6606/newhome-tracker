@@ -16,7 +16,7 @@ Also run at **1:00 AM daily** via Windows Task Scheduler to check for sold/new-f
 ## Ingest Endpoint
 
 **URL:** `POST https://www.newkey.us/api/ingest`
-**Header:** `x-ingest-secret: xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0`
+**Header:** `x-ingest-secret: <INGEST_SECRET from environment>`
 **Content-Type:** `application/json`
 
 ---

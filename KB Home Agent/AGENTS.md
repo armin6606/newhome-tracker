@@ -66,4 +66,4 @@ Never rely on exact string matching from the website/API to identify an existing
 ## Output
 Post results to New Key via:
 - **Ingest endpoint:** `POST https://www.newkey.us/api/ingest`
-- **Header:** `x-ingest-secret: xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0`
+- **Header:** `x-ingest-secret: <INGEST_SECRET from environment>`

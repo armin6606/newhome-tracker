@@ -9,7 +9,7 @@ You operate **independently** from all other builder agents. Do not mix data fro
 ## Ingest Endpoint
 
 **URL:** `POST https://www.newkey.us/api/ingest`
-**Header:** `x-ingest-secret: xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0`
+**Header:** `x-ingest-secret: <INGEST_SECRET from environment>`
 **Content-Type:** `application/json`
 
 ---

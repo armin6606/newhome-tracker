@@ -85,6 +85,13 @@ async function main() {
         })
       }
     }
+    if (data.status === "success" && Number(data.communities ?? 0) === 0) {
+      issues.push({
+        severity: "high",
+        builder,
+        message: "Scraper reported success but processed 0 communities",
+      })
+    }
   }
 
   // ── Check 2 & 3: Active listing drops ─────────────────────────────────────
@@ -95,7 +102,7 @@ async function main() {
         { lastScrapedAt: { not: null } },
         {
           listings: {
-            none: { status: { in: ["active", "for sale", "sold"] } },
+            none: { status: { in: ["for sale", "sold"] } },
           },
         },
       ],
@@ -104,7 +111,7 @@ async function main() {
       builder: { select: { name: true } },
       _count: {
         select: {
-          listings: { where: { status: { in: ["active", "for sale"] }, address: { not: null }, currentPrice: { not: null } } },
+          listings: { where: { status: "for sale", address: { not: null }, currentPrice: { not: null } } },
         },
       },
     },

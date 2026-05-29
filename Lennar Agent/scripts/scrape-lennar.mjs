@@ -39,7 +39,8 @@ const prisma = new PrismaClient()
 
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c/export?format=csv&gid=1235396983"
 const INGEST_URL    = "https://www.newkey.us/api/ingest"
-const INGEST_SECRET = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
+const INGEST_SECRET = process.env.INGEST_SECRET
+if (!INGEST_SECRET) throw new Error("INGEST_SECRET is required")
 const LENNAR_BASE   = "https://www.lennar.com"
 
 const SUFFIX_RE = /\b(street|st|avenue|ave|boulevard|blvd|drive|dr|road|rd|lane|ln|way|wy|court|ct|place|pl|circle|cir|loop|lp|run|path|pass|trail|trl|terrace|ter|parkway|pkwy|alley|aly|row|walk)\b\.?$/i

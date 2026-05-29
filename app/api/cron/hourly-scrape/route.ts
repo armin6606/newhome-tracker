@@ -92,7 +92,7 @@ async function getPreviousSnapshot(date: string, hour: number): Promise<SnapList
     where: { datePdt: prevDate, hourPdt: prevHour },
     orderBy: { capturedAt: "desc" },
   })
-  return row ? (row.data as SnapListing[]) : null
+  return row ? (row.data as unknown as SnapListing[]) : null
 }
 
 async function getTodaySnapshots(date: string): Promise<{ hourPdt: number; data: SnapListing[] }[]> {
@@ -100,7 +100,7 @@ async function getTodaySnapshots(date: string): Promise<{ hourPdt: number; data:
     where: { datePdt: date },
     orderBy: { hourPdt: "asc" },
   })
-  return rows.map(r => ({ hourPdt: r.hourPdt, data: r.data as SnapListing[] }))
+  return rows.map(r => ({ hourPdt: r.hourPdt, data: r.data as unknown as SnapListing[] }))
 }
 
 // ── diff ────────────────────────────────────────────────────────────────────

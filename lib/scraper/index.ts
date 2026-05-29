@@ -119,7 +119,7 @@ async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
  * Otherwise generate placeholder lots from the aggregate counts.
  * Enforces: no price → status "future", never "for sale".
  */
-function buildListings(
+export function buildListings(
   result: MapResult,
   communityName: string,
   communityUrl: string
@@ -539,9 +539,12 @@ export async function runScraper(): Promise<ChangeDetails> {
   try {
     const outcomes: Record<string, {
       status: string; communities: number; errorCount: number; errors: string[]
+      startedAt?: string
+      finishedAt?: string
       newListings: { address: string | null; lotNumber: string | null; community: string; price: number | null }[]
       priceChanges: { address: string | null; lotNumber: string | null; community: string; oldPrice: number; newPrice: number }[]
       soldListings: { address: string | null; lotNumber: string | null; community: string }[]
+      reactivated: { address: string | null; lotNumber: string | null; community: string }[]
     }> = {}
     for (const r of builderResults) {
       outcomes[r.builderName] = {

@@ -44,8 +44,8 @@ const BUILDER_NAME  = "Pulte"
 const SHEET_TAB     = "Pulte"
 const BUILDER_URL   = "https://www.pulte.com"
 const INGEST_URL    = "https://www.newkey.us/api/ingest"
-const INGEST_SECRET = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
-
+const INGEST_SECRET = process.env.INGEST_SECRET
+if (!INGEST_SECRET) throw new Error("INGEST_SECRET is required")
 // To add a new community: paste the URL, find OLAId from page HTML (OLAId= pattern),
 // find communityId from page HTML or URL slug number
 const COMMUNITIES = [

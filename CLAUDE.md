@@ -120,7 +120,7 @@ Format: `avail-N` (active), `sold-N` (sold), `future-N` (future). Address = null
 ## 📋 INGEST PAYLOAD — EXACT SCHEMA
 
 **Endpoint:** `POST https://www.newkey.us/api/ingest`
-**Header:** `x-ingest-secret: xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0`
+**Header:** `x-ingest-secret: <INGEST_SECRET from environment>`
 **Content-Type:** `application/json`
 
 ```json

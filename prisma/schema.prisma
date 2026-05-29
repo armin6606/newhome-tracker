@@ -35,6 +35,8 @@ model Community {
   follows       CommunityFollow[]
 
   @@unique([builderId, name])
+  @@index([builderId])
+  @@index([lastScrapedAt])
 }
 
 model Listing {
@@ -68,6 +70,13 @@ model Listing {
 
   @@unique([communityId, address])
   @@unique([communityId, lotNumber])
+  @@index([communityId])
+  @@index([status])
+  @@index([currentPrice])
+  @@index([firstDetected])
+  @@index([soldAt])
+  @@index([status, currentPrice])
+  @@index([communityId, status])
 }
 
 model PriceHistory {
@@ -78,6 +87,9 @@ model PriceHistory {
   oldPrice   Int?
   changeType String
   detectedAt DateTime @default(now())
+
+  @@index([listingId])
+  @@index([detectedAt])
 }
 
 model UserFavorite {
@@ -127,12 +139,25 @@ model NotificationLog {
   type        String   // "new_listing" | "price_drop" | "sold" | etc.
   listingId   Int?
   communityId Int?
+  emailSentTo String?
   payload     Json?
   sentAt      DateTime @default(now())
 
   @@index([userId])
   @@index([sentAt])
   @@map("notification_logs")
+}
+
+model SchoolRating {
+  id       Int      @id @default(autoincrement())
+  name     String   @unique
+  state    String   @default("CA")
+  rating   Int?
+  gsUrl    String?
+  cachedAt DateTime @default(now())
+
+  @@index([state])
+  @@map("school_ratings")
 }
 
 model PromoSubmission {

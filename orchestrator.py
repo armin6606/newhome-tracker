@@ -143,7 +143,7 @@ PROJECT_CONTEXT = """
 - DB schema: Builder → Community → Listing → PriceHistory
 - Listing unique key: [communityId, address]
 - Status values: active, sold, future, removed
-- Ingest endpoint: POST https://www.newkey.us/api/ingest (Header: x-ingest-secret: xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0)
+- Ingest endpoint: POST https://www.newkey.us/api/ingest (Header: x-ingest-secret: <INGEST_SECRET from environment>)
 - Google Sheet: https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c
 - Fetch tab CSV: https://docs.google.com/spreadsheets/d/1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c/gviz/tq?tqx=out:csv&sheet=TAB_NAME
 """.strip()

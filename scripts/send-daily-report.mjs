@@ -64,6 +64,19 @@ const BUILDER_TABS = {
   "Trumark":             "Trumark",
 }
 
+const SUPPORTED_BUILDERS = new Set(Object.keys(BUILDER_TABS))
+const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
+
+function isRealListing(l) {
+  return l.address !== null && !PLACEHOLDER_LOT_RE.test(l.lotNumber || "")
+}
+
+function isVisibleCommunityCard(card) {
+  if (!SUPPORTED_BUILDERS.has(card.builder)) return false
+  const isFutureOnly = card.active === 0 && card.sold === 0 && card.future > 0
+  return card.lastScrapedAt !== null || isFutureOnly
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function fmt(n) {
@@ -192,37 +205,31 @@ async function collectData(snapshot) {
   })
 
   // Current community card counts (from real scraped listings only — no placeholders)
-  const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
   const communities = await prisma.community.findMany({
     where: {
-      OR: [
-        { lastScrapedAt: { not: null } },
-        {
-          listings: {
-            none: { status: { in: ["for sale", "sold"] } },
-          },
-        },
-      ],
+      builder: { name: { in: [...SUPPORTED_BUILDERS] } },
     },
     include: {
       builder:  { select: { name: true } },
       listings: {
         where:  { address: { not: null }, status: { not: "removed" } },
-        select: { status: true, lotNumber: true, currentPrice: true },
+        select: { address: true, status: true, lotNumber: true, currentPrice: true },
       },
     },
   })
 
   const communityCardsNow = {}
   for (const c of communities) {
-    const real = c.listings.filter(l => !PLACEHOLDER_LOT_RE.test(l.lotNumber || ""))
-    communityCardsNow[c.name] = {
+    const real = c.listings.filter(isRealListing)
+    const card = {
       builder: c.builder.name,
+      lastScrapedAt: c.lastScrapedAt ?? null,
       active:  real.filter(l => l.status === "for sale" && l.currentPrice !== null).length,
       sold:    real.filter(l => l.status === "sold").length,
       future:  real.filter(l => l.status === "future").length,
       total:   real.length,
     }
+    if (isVisibleCommunityCard(card)) communityCardsNow[c.name] = card
   }
 
   // Current Sheet Table 2
@@ -455,10 +462,13 @@ function section3CommunityCards(snapshot, communityCardsNow) {
 
 function section5Other(snapshot, communityCardsNow, table2Now) {
   // New communities that appear in DB now but weren't in snapshot
-  const before     = Object.keys(snapshot?.communityCards || {})
   const now        = Object.keys(communityCardsNow)
-  const newComms   = now.filter(n => !before.includes(n))
-  const goneComms  = before.filter(n => !now.includes(n))
+  const visibleBefore = Object.fromEntries(
+    Object.entries(snapshot?.communityCards || {}).filter(([, card]) => isVisibleCommunityCard(card))
+  )
+  const beforeVisibleNames = Object.keys(visibleBefore)
+  const newComms   = now.filter(n => !beforeVisibleNames.includes(n))
+  const goneComms  = beforeVisibleNames.filter(n => !now.includes(n))
 
   // Total site-wide counts now
   const totalActive = Object.values(communityCardsNow).reduce((s, c) => s + c.active, 0)
@@ -471,7 +481,7 @@ function section5Other(snapshot, communityCardsNow, table2Now) {
       <ul style="margin:6px 0 0;padding-left:18px">${newComms.map(n => `<li style="font-size:13px;color:#374151">${n}</li>`).join("")}</ul></div>`
   }
   if (goneComms.length > 0) {
-    extras += `<div style="margin-top:12px"><strong style="font-size:13px;color:#dc2626">Communities Removed from Site (${goneComms.length})</strong>
+    extras += `<div style="margin-top:12px"><strong style="font-size:13px;color:#dc2626">Communities No Longer Visible on Site (${goneComms.length})</strong>
       <ul style="margin:6px 0 0;padding-left:18px">${goneComms.map(n => `<li style="font-size:13px;color:#374151">${n}</li>`).join("")}</ul></div>`
   }
   if (!extras) extras = `<p style="color:#9ca3af;font-size:13px;margin:12px 0 0">No other changes detected.</p>`

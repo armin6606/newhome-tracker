@@ -19,7 +19,7 @@ Do not wait to be asked. As soon as a new row appears in Table 1, execute all st
 ## Ingest Endpoint
 
 **URL:** `POST https://www.newkey.us/api/ingest`
-**Header:** `x-ingest-secret: xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0`
+**Header:** `x-ingest-secret: <INGEST_SECRET from environment>`
 **Content-Type:** `application/json`
 
 ---
