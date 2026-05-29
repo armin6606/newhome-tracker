@@ -10,24 +10,25 @@ const PROMO_PASSWORD = process.env.PROMO_GMAIL_APP_PASSWORD || ""
 const LOOKBACK_DAYS = Number(process.env.PROMO_INBOX_LOOKBACK_DAYS || 14)
 const MAX_EMAILS = Number(process.env.PROMO_INBOX_MAX_EMAILS || 50)
 
-const PROMO_KEYWORDS = [
-  "special offer",
-  "limited time",
-  "incentive",
-  "promotion",
-  "closing cost",
-  "rate buydown",
-  "buydown",
-  "interest rate",
-  "mortgage rate",
-  "design credit",
-  "upgrade credit",
-  "flex cash",
-  "savings",
-  "save up to",
-  "bonus",
-  "credit",
-  "below-market",
+const BOILERPLATE_PATTERNS = [
+  /prices?\s+may\s+not\s+include/i,
+  /prices?.*promotions?.*incentives?.*subject\s+to\s+change/i,
+  /features?.*options?.*amenities?.*floor\s+plans?.*subject\s+to\s+change/i,
+  /square\s+footage.*estimated/i,
+  /copyright\s+©?\s*\d{4}/i,
+  /all\s+rights\s+reserved/i,
+  /privacy\s+policy/i,
+  /terms\s+of\s+use/i,
+  /unsubscribe/i,
+]
+
+const STRONG_PROMO_PATTERNS = [
+  /\$\s?\d[\d,]*(?:\.\d{2})?\s*(?:off|credit|bonus|savings?|toward|incentive|closing)/i,
+  /\d+(?:\.\d+)?\s?%\s*(?:apr|rate|interest|financing|mortgage|buydown)/i,
+  /(?:save|savings)\s+(?:up\s+to\s+)?(?:\$|\d)/i,
+  /(?:closing\s+cost|design|upgrade|flex\s+cash|rate\s+buy[-\s]?down|buydown)\s+(?:credit|assistance|savings?|offer|incentive)/i,
+  /(?:special|limited[-\s]?time)\s+(?:financing|rate|offer|incentive|promotion|savings)/i,
+  /(?:below[-\s]?market|reduced)\s+(?:interest\s+)?rate/i,
 ]
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -94,8 +95,15 @@ function compact(value, max = 4000) {
 }
 
 function containsPromo(text) {
-  const lower = text.toLowerCase()
-  return PROMO_KEYWORDS.some((keyword) => lower.includes(keyword))
+  return hasStrongPromoSignal(text)
+}
+
+function isBoilerplate(text) {
+  return BOILERPLATE_PATTERNS.some((pattern) => pattern.test(text))
+}
+
+function hasStrongPromoSignal(text) {
+  return STRONG_PROMO_PATTERNS.some((pattern) => pattern.test(text))
 }
 
 function extractOfferText(text) {
@@ -104,11 +112,11 @@ function extractOfferText(text) {
     .map((line) => compact(line, 500))
     .filter((line) => line.length >= 12 && line.length <= 500)
 
-  const hits = lines.filter((line) => containsPromo(line))
+  const hits = lines.filter((line) => hasStrongPromoSignal(line) && !isBoilerplate(line))
   const unique = [...new Set(hits)]
   if (unique.length > 0) return unique.slice(0, 4).join(" | ")
 
-  return compact(text, 700)
+  return ""
 }
 
 function extractFirstUrl(text) {
@@ -265,6 +273,16 @@ async function createPendingPromo(raw, catalog) {
 
   const offerText = extractOfferText(body)
   if (!offerText) return { created: false, reason: "empty offer" }
+
+  const duplicate = await prisma.promoSubmission.findFirst({
+    where: {
+      status: "pending",
+      builderName: builder?.name ?? community?.builderName ?? null,
+      communityName: community?.name ?? null,
+      offerText,
+    },
+  })
+  if (duplicate) return { created: false, reason: "duplicate offer" }
 
   const confidence =
     (builder ? 0.45 : 0) +

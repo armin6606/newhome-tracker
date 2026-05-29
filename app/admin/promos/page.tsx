@@ -219,9 +219,10 @@ export default function PromoApprovalsPage() {
             </label>
 
             {promo.rawSnippet && (
-              <p className="mt-3 rounded-md bg-stone-50 p-3 text-xs leading-relaxed text-stone-500">
-                {promo.rawSnippet}
-              </p>
+              <details className="mt-3 rounded-md bg-stone-50 p-3 text-xs leading-relaxed text-stone-500">
+                <summary className="cursor-pointer font-semibold text-stone-600">View original email text</summary>
+                <p className="mt-2 whitespace-pre-wrap">{promo.rawSnippet}</p>
+              </details>
             )}
 
             <div className="mt-4 flex flex-wrap justify-end gap-2">

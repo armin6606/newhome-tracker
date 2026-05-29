@@ -10,6 +10,7 @@ on:
         options:
           - no-price-active-to-future
           - merge-duplicate-communities
+          - reject-false-promos
 
 jobs:
   run:
@@ -42,5 +43,11 @@ jobs:
       - name: Merge duplicate communities
         if: ${{ inputs.task == 'merge-duplicate-communities' }}
         run: npx tsx scripts/merge-duplicate-communities.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Reject false promo submissions
+        if: ${{ inputs.task == 'reject-false-promos' }}
+        run: npx tsx scripts/reject-false-promo-submissions.mjs
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
