@@ -6,6 +6,7 @@ writes data back to sheet (Tables 2 & 3), and POSTs to New Key ingest endpoint.
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 from pathlib import Path
@@ -21,7 +22,9 @@ from playwright.async_api import async_playwright, Page, BrowserContext
 SPREADSHEET_ID   = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
 SHEET_NAME       = "Pulte"
 INGEST_URL       = "https://www.newkey.us/api/ingest"
-INGEST_SECRET    = "xxSaog6apBaSMEFOb7OE9gPPgszA8zz_wpW8nR-1Og0"
+INGEST_SECRET    = os.environ.get("INGEST_SECRET")
+if not INGEST_SECRET:
+    raise RuntimeError("INGEST_SECRET is required")
 POLL_INTERVAL    = 300          # seconds between sheet checks
 STATE_FILE       = Path(__file__).parent / "processed_urls.json"
 CREDS_FILE       = Path(__file__).parent / "service_account.json"
