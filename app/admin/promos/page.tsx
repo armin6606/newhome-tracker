@@ -62,7 +62,7 @@ export default function PromoApprovalsPage() {
         localStorage.removeItem("newkey-admin-token")
         setToken("")
         setPromos([])
-        setMessage("Admin token is expired or incorrect. Paste the current CRON_SECRET, then click Load.")
+        setMessage("Admin token is expired or incorrect. Paste the current promo admin password, then click Load.")
         return
       }
       setMessage(json.error ?? "Could not load promos.")
