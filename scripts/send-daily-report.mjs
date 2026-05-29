@@ -121,6 +121,73 @@ function getMidnightPacific() {
   return new Date(Date.UTC(y, m - 1, d, 8, 0, 0))
 }
 
+const REPORT_BOUNDARY_HOUR = 1
+const REPORT_BOUNDARY_MINUTE = 17
+
+function pacificParts(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.map((p) => [p.type, p.value]))
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+  }
+}
+
+function pacificWallTimeToUtc(year, month, day, hour, minute) {
+  for (const offsetHours of [7, 8]) {
+    const candidate = new Date(Date.UTC(year, month - 1, day, hour + offsetHours, minute, 0))
+    const p = pacificParts(candidate)
+    if (p.year === year && p.month === month && p.day === day && p.hour === hour && p.minute === minute) {
+      return candidate
+    }
+  }
+  throw new Error(`Could not resolve Pacific wall time ${year}-${month}-${day} ${hour}:${minute}`)
+}
+
+function addPacificDays(year, month, day, days) {
+  const utcNoon = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0))
+  return pacificParts(utcNoon)
+}
+
+function getPacificScrapeWindow(now = new Date()) {
+  const p = pacificParts(now)
+  let endParts = p
+  let end = pacificWallTimeToUtc(p.year, p.month, p.day, REPORT_BOUNDARY_HOUR, REPORT_BOUNDARY_MINUTE)
+
+  if (now < end) {
+    endParts = addPacificDays(p.year, p.month, p.day, -1)
+    end = pacificWallTimeToUtc(endParts.year, endParts.month, endParts.day, REPORT_BOUNDARY_HOUR, REPORT_BOUNDARY_MINUTE)
+  }
+
+  const startParts = addPacificDays(endParts.year, endParts.month, endParts.day, -1)
+  const start = pacificWallTimeToUtc(startParts.year, startParts.month, startParts.day, REPORT_BOUNDARY_HOUR, REPORT_BOUNDARY_MINUTE)
+
+  return { start, end }
+}
+
+function formatPacificDateTime(date) {
+  return date.toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  })
+}
+
 // ── CSV parser ──────────────────────────────────────────────────────────────────
 
 function parseCSV(text) {
@@ -164,7 +231,7 @@ async function fetchTable2(tabName) {
 // ── Data collection ────────────────────────────────────────────────────────────
 
 async function collectData(snapshot) {
-  const since = getMidnightPacific()
+  const { start: since, end: until } = getPacificScrapeWindow()
 
   // Post-scrape for-sale count (real listings)
   const forSaleNow = await prisma.listing.count({
@@ -183,19 +250,19 @@ async function collectData(snapshot) {
   }
 
   const newListings = await prisma.listing.findMany({
-    where:   { firstDetected: { gte: since }, address: { not: null }, ...PLACEHOLDER_FILTER },
+    where:   { firstDetected: { gte: since, lt: until }, address: { not: null }, ...PLACEHOLDER_FILTER },
     include: { community: { include: { builder: { select: { name: true } } } } },
     orderBy: { firstDetected: "desc" },
   })
 
   const newlySold = await prisma.listing.findMany({
-    where:   { status: "sold", soldAt: { gte: since }, address: { not: null }, ...PLACEHOLDER_FILTER },
+    where:   { status: "sold", soldAt: { gte: since, lt: until }, address: { not: null }, ...PLACEHOLDER_FILTER },
     include: { community: { include: { builder: { select: { name: true } } } } },
     orderBy: { soldAt: "desc" },
   })
 
   const priceChanges = await prisma.priceHistory.findMany({
-    where:   { detectedAt: { gte: since } },
+    where:   { detectedAt: { gte: since, lt: until } },
     include: { listing: { include: { community: { include: { builder: { select: { name: true } } } } } } },
     orderBy: { detectedAt: "desc" },
   })
@@ -238,7 +305,7 @@ async function collectData(snapshot) {
     table2Now[builderName] = await fetchTable2(tabName)
   }
 
-  return { since, forSaleNow, newListings, newlySold, priceChanges, pendingPromoCount, communityCardsNow, table2Now }
+  return { since, until, forSaleNow, newListings, newlySold, priceChanges, pendingPromoCount, communityCardsNow, table2Now }
 }
 
 // ── Group by builder ───────────────────────────────────────────────────────────
@@ -503,8 +570,8 @@ function fmtTime(iso) {
   if (!iso) return "—"
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "numeric", minute: "2-digit", second: "2-digit",
-    hour12: true, timeZone: "America/Los_Angeles",
-  }) + " PDT"
+    hour12: true, timeZone: "America/Los_Angeles", timeZoneName: "short",
+  })
 }
 
 function fmtDuration(startIso, endIso) {
@@ -575,7 +642,7 @@ function section0ScraperStatus(scraperResults) {
 
   return card(`
     ${sectionHeader(header)}
-    ${table(["Builder", "Status", "Started / Duration (PDT)"], rows, "No results.")}
+    ${table(["Builder", "Status", "Started / Duration (Pacific)"], rows, "No results.")}
   `)
 }
 
@@ -596,13 +663,15 @@ function sectionPendingPromos(pendingPromoCount) {
 }
 
 function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
-  const { communityCardsNow, table2Now, pendingPromoCount } = data
+  const { communityCardsNow, table2Now, pendingPromoCount, since, until } = data
   const dateStr = new Date().toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
+    timeZone: "America/Los_Angeles",
   })
   const snapshotTime = snapshot
-    ? new Date(snapshot.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short" })
+    ? formatPacificDateTime(new Date(snapshot.timestamp))
     : "unavailable"
+  const windowLabel = `${formatPacificDateTime(since)} to ${formatPacificDateTime(until)}`
 
   const s0 = section0ScraperStatus(scraperResults)
   const sPromos = sectionPendingPromos(pendingPromoCount)
@@ -618,7 +687,8 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
     <div style="background:#1e3a5f;border-radius:10px 10px 0 0;padding:20px 24px">
       <div style="color:white;font-size:20px;font-weight:700">New Key Daily Report</div>
       <div style="color:#93c5fd;font-size:13px;margin-top:4px">${dateStr}</div>
-      <div style="color:#64748b;font-size:11px;margin-top:2px">11 PM snapshot: ${snapshotTime}</div>
+      <div style="color:#cbd5e1;font-size:11px;margin-top:2px">Report window: ${windowLabel}</div>
+      <div style="color:#64748b;font-size:11px;margin-top:2px">Pre-scrape snapshot: ${snapshotTime}</div>
       ${workflowRunUrl ? `<div style="margin-top:6px"><a href="${workflowRunUrl}" style="color:#93c5fd;font-size:11px;text-decoration:underline">View GitHub Actions Run →</a></div>` : ""}
     </div>
 
@@ -706,13 +776,14 @@ async function main() {
   console.log("\n  Collecting post-scrape data…")
   const data = await collectData(snapshot)
 
-  const { forSaleNow, newListings, newlySold, priceChanges } = data
-  console.log(`  For sale now  : ${forSaleNow} (was ${snapshot?.forSaleCount ?? "N/A"} at 11 PM)`)
+  const { since, until, forSaleNow, newListings, newlySold, priceChanges } = data
+  console.log(`  Report window : ${formatPacificDateTime(since)} to ${formatPacificDateTime(until)}`)
+  console.log(`  For sale now  : ${forSaleNow} (was ${snapshot?.forSaleCount ?? "N/A"} at pre-scrape snapshot)`)
   console.log(`  New listings  : ${newListings.length}`)
   console.log(`  Newly sold    : ${newlySold.length}`)
   console.log(`  Price changes : ${priceChanges.length}`)
 
-  const dateStr    = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+  const dateStr    = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" })
   const issueCount = (failCount || 0) + (timeoutCount || 0)
   const subject    = issueCount > 0
     ? `⚠️ New Key Daily Report — ${dateStr} (${issueCount} scraper issue${issueCount > 1 ? "s" : ""})`

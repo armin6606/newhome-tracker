@@ -2,9 +2,9 @@ name: Daily Scrape
 
 on:
   schedule:
-    - cron: '43 7 * * *'   # 12:43 AM Pacific during daylight saving time
-    - cron: '59 8 * * *'   # 1:59 AM Pacific watchdog during daylight saving time
-    - cron: '3 10 * * *'   # 3:03 AM Pacific watchdog during daylight saving time
+    - cron: '17 8 * * *'   # 1:17 AM Pacific during daylight saving time
+    - cron: '17 9 * * *'   # 1:17 AM Pacific during standard time
+    - cron: '3 10 * * *'   # watchdog after the 1:17 AM Pacific run
   workflow_dispatch:        # Manual trigger from GitHub Actions UI
 
 permissions:
@@ -28,7 +28,9 @@ jobs:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           REPOSITORY: ${{ github.repository }}
           WORKFLOW_FILE: daily-scrape.yml
-          PRIMARY_SCHEDULE: "43 7 * * *"
+          DST_PRIMARY_SCHEDULE: "17 8 * * *"
+          STANDARD_PRIMARY_SCHEDULE: "17 9 * * *"
+          WATCHDOG_SCHEDULE: "3 10 * * *"
         run: |
           node <<'NODE'
           const fs = require("fs")
@@ -46,9 +48,28 @@ jobs:
               return
             }
 
-            if (eventSchedule === process.env.PRIMARY_SCHEDULE) {
+            const pacificTime = (iso) => new Intl.DateTimeFormat("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              minute: "2-digit",
+              hourCycle: "h23",
+            }).format(new Date(iso))
+
+            const nowPacificTime = pacificTime(new Date().toISOString())
+            const isPrimarySchedule = [
+              process.env.DST_PRIMARY_SCHEDULE,
+              process.env.STANDARD_PRIMARY_SCHEDULE,
+            ].includes(eventSchedule)
+
+            if (isPrimarySchedule && nowPacificTime.startsWith("01:")) {
               write("should_run", "true")
-              write("reason", "primary schedule")
+              write("reason", "primary 1:17 AM Pacific schedule")
+              return
+            }
+
+            if (isPrimarySchedule) {
+              write("should_run", "false")
+              write("reason", `skipped alternate 1:17 cron; current Pacific time is ${nowPacificTime}`)
               return
             }
 

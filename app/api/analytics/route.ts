@@ -22,12 +22,33 @@ function safeMax(arr: number[]): number | null {
   return arr.reduce((m, v) => (v > m ? v : m), arr[0])
 }
 
+function pacificParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.map((p) => [p.type, p.value]))
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+  }
+}
+
+function pacificMonthKey(date: Date): string {
+  const p = pacificParts(date)
+  return `${p.year}-${String(p.month).padStart(2, "0")}`
+}
+
 function getWeekStart(date: Date): string {
-  const d   = new Date(date)
-  const day = d.getUTCDay()
-  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
-  d.setUTCDate(diff)
-  return d.toISOString().slice(0, 10)
+  const p = pacificParts(date)
+  const localDate = new Date(Date.UTC(p.year, p.month - 1, p.day))
+  const day = localDate.getUTCDay()
+  const diff = localDate.getUTCDate() - day + (day === 0 ? -6 : 1)
+  localDate.setUTCDate(diff)
+  return localDate.toISOString().slice(0, 10)
 }
 
 /** Sanitise one string filter value — trim + length cap */
@@ -162,7 +183,7 @@ export async function GET(req: NextRequest) {
     active
       .filter((l) => l.currentPrice && l.firstDetected >= twelveMonthsAgo)
       .forEach((l) => {
-        const key = l.firstDetected.toISOString().slice(0, 7)
+        const key = pacificMonthKey(l.firstDetected)
         if (!priceByMonth[key]) priceByMonth[key] = { total: 0, count: 0 }
         priceByMonth[key].total += l.currentPrice!
         priceByMonth[key].count++
@@ -177,7 +198,7 @@ export async function GET(req: NextRequest) {
     sold
       .filter((l) => l.soldAt! >= twelveMonthsAgo)
       .forEach((l) => {
-        const key = l.soldAt!.toISOString().slice(0, 7)
+        const key = pacificMonthKey(l.soldAt!)
         soldByMonth[key] = (soldByMonth[key] || 0) + 1
       })
 

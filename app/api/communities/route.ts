@@ -15,6 +15,16 @@ const LISTING_SELECT = {
 const CHART_START_MS = new Date("2026-03-25T00:00:00Z").getTime()
 const DAY_MS = 24 * 60 * 60 * 1000
 
+function pacificDayLabel(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.map((p) => [p.type, p.value]))
+  return `${values.month}/${values.day}`
+}
+
 export async function GET() {
   try {
     const communities = await prisma.community.findMany({
@@ -71,15 +81,14 @@ export async function GET() {
       const soldDateMap = new Map<string, number>()
       for (const l of c.listings) {
         if (!isRealListing(l) || l.status !== "sold" || !l.soldAt) continue
-        const d = l.soldAt
-        const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`
+        const label = pacificDayLabel(l.soldAt)
         soldDateMap.set(label, (soldDateMap.get(label) ?? 0) + 1)
       }
 
       const salesByWeek: { week: string; sold: number }[] = []
       for (let dStart = CHART_START_MS; dStart <= Date.now(); dStart += DAY_MS) {
         const d = new Date(dStart)
-        const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`
+        const label = pacificDayLabel(d)
         salesByWeek.push({ week: label, sold: soldDateMap.get(label) ?? 0 })
       }
 
