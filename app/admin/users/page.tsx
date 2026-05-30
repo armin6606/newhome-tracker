@@ -268,7 +268,7 @@ export default function AdminUsersPage() {
               />
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[900px] border-collapse text-left text-sm">
                 <thead className="bg-stone-50 text-xs uppercase text-stone-500">
                   <tr>
                     <th className="px-4 py-3">Person</th>
@@ -278,7 +278,6 @@ export default function AdminUsersPage() {
                     <th className="px-4 py-3">Confirmed</th>
                     <th className="px-4 py-3">Saved</th>
                     <th className="px-4 py-3">Follows</th>
-                    <th className="px-4 py-3">Info</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -299,9 +298,6 @@ export default function AdminUsersPage() {
                       <td className="px-4 py-3 text-stone-700">{formatDateTime(user.emailConfirmedAt)}</td>
                       <td className="px-4 py-3 text-stone-700">{user.favorites}</td>
                       <td className="px-4 py-3 text-stone-700">{user.follows}</td>
-                      <td className="max-w-md px-4 py-3 text-xs leading-relaxed text-stone-500">
-                        {infoPreview(user.rawInfo)}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
