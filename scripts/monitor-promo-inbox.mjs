@@ -9,6 +9,8 @@ const PROMO_USER = process.env.PROMO_GMAIL_USER || "amy309431@gmail.com"
 const PROMO_PASSWORD = process.env.PROMO_GMAIL_APP_PASSWORD || ""
 const LOOKBACK_DAYS = Number(process.env.PROMO_INBOX_LOOKBACK_DAYS || 14)
 const MAX_EMAILS = Number(process.env.PROMO_INBOX_MAX_EMAILS || 50)
+const MAX_ATTEMPTS = Number(process.env.PROMO_INBOX_MAX_ATTEMPTS || 3)
+const RETRY_DELAYS_MS = [10_000, 30_000]
 
 const BOILERPLATE_PATTERNS = [
   /prices?\s+may\s+not\s+include/i,
@@ -206,11 +208,13 @@ class ImapClient {
   }
 
   async login() {
-    await this.command(`LOGIN "${this.user.replace(/"/g, '\\"')}" "${this.password.replace(/"/g, '\\"')}"`)
+    const res = await this.command(`LOGIN "${this.user.replace(/"/g, '\\"')}" "${this.password.replace(/"/g, '\\"')}"`)
+    if (!/\r\nA\d+ OK/i.test(res)) throw new Error("IMAP login rejected")
   }
 
   async selectInbox() {
-    await this.command("SELECT INBOX")
+    const res = await this.command("SELECT INBOX")
+    if (!/\r\nA\d+ OK/i.test(res)) throw new Error("IMAP inbox select failed")
   }
 
   async searchSince(date) {
@@ -251,6 +255,10 @@ async function loadCatalog() {
     builder.communities.map((community) => ({ ...community, builderName: builder.name }))
   )
   return { builders, communities }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function createPendingPromo(raw, catalog) {
@@ -319,39 +327,56 @@ async function main() {
 
   const catalog = await loadCatalog()
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
-  const client = new ImapClient({
-    host: IMAP_HOST,
-    port: IMAP_PORT,
-    user: PROMO_USER,
-    password: PROMO_PASSWORD,
-  })
-
   let created = 0
   let skipped = 0
+  let lastError = null
 
-  try {
-    await client.connect()
-    await client.login()
-    await client.selectInbox()
-    const uids = (await client.searchSince(since)).slice(-MAX_EMAILS)
-    console.log(`Promo inbox: checking ${uids.length} email(s) since ${imapDate(since)}.`)
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const client = new ImapClient({
+      host: IMAP_HOST,
+      port: IMAP_PORT,
+      user: PROMO_USER,
+      password: PROMO_PASSWORD,
+    })
 
-    for (const uid of uids) {
-      const raw = await client.fetchRaw(uid)
-      const result = await createPendingPromo(raw, catalog)
-      if (result.created) {
-        created++
-        console.log(`  Created pending promo #${result.promo.id}: ${result.promo.builderName ?? "Unknown builder"}`)
-      } else {
-        skipped++
+    try {
+      if (attempt > 1) console.log(`Promo inbox: retry attempt ${attempt}/${MAX_ATTEMPTS}.`)
+      await client.connect()
+      await client.login()
+      await client.selectInbox()
+      const uids = (await client.searchSince(since)).slice(-MAX_EMAILS)
+      console.log(`Promo inbox: checking ${uids.length} email(s) since ${imapDate(since)}.`)
+
+      for (const uid of uids) {
+        const raw = await client.fetchRaw(uid)
+        const result = await createPendingPromo(raw, catalog)
+        if (result.created) {
+          created++
+          console.log(`  Created pending promo #${result.promo.id}: ${result.promo.builderName ?? "Unknown builder"}`)
+        } else {
+          skipped++
+        }
+      }
+
+      await client.logout()
+      console.log(`Promo inbox monitor done. Created ${created}, skipped ${skipped}.`)
+      await prisma.$disconnect()
+      return
+    } catch (err) {
+      lastError = err
+      console.warn(`Promo inbox attempt ${attempt}/${MAX_ATTEMPTS} failed: ${err.message}`)
+      try { await client.logout() } catch {}
+
+      if (attempt < MAX_ATTEMPTS) {
+        const delay = RETRY_DELAYS_MS[Math.min(attempt - 1, RETRY_DELAYS_MS.length - 1)]
+        console.log(`Promo inbox: waiting ${Math.round(delay / 1000)}s before retry.`)
+        await sleep(delay)
       }
     }
-  } finally {
-    await client.logout()
-    await prisma.$disconnect()
   }
 
-  console.log(`Promo inbox monitor done. Created ${created}, skipped ${skipped}.`)
+  console.error(`Promo inbox monitor skipped after ${MAX_ATTEMPTS} failed attempt(s): ${lastError?.message ?? lastError}`)
+  await prisma.$disconnect()
 }
 
 main().catch(async (err) => {
