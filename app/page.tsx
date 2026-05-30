@@ -397,6 +397,9 @@ export default function HomePage() {
           <p className="text-stone-300 text-sm max-w-xl">
             Real-time inventory, price history, and sales velocity for new construction communities.
           </p>
+          <p className="mt-1.5 text-amber-300 text-xs font-medium max-w-xl">
+            Information may not be 100% accurate and must be verified with the builder.
+          </p>
           {!loading && (
             <div className="mt-5 flex flex-wrap gap-6">
               {[
