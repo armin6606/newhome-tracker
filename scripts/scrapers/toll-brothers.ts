@@ -65,6 +65,21 @@ function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
 }
 
+function normalizeCommunityUrl(url: string | null): string {
+  if (!url) return ""
+  try {
+    const parsed = new URL(url)
+    parsed.hash = ""
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "").toLowerCase()
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (/^(utm_|gclid|gbraid|gad_|fbclid)/i.test(key)) parsed.searchParams.delete(key)
+    }
+    return `${parsed.hostname.toLowerCase()}${parsed.pathname}${parsed.search ? `?${parsed.searchParams.toString()}` : ""}`
+  } catch {
+    return url.trim().toLowerCase().replace(/[?#].*$/, "").replace(/\/+$/, "")
+  }
+}
+
 function normalizeTaxes(taxes: number | string | undefined | null): string | undefined {
   return taxes == null ? undefined : String(taxes)
 }
@@ -86,6 +101,18 @@ async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
     }
     throw err
   }
+}
+
+async function findCommunityByUrl(builderId: number, url: string) {
+  const normalizedUrl = normalizeCommunityUrl(url)
+  if (!normalizedUrl) return null
+
+  const communities = await prisma.community.findMany({
+    where: { builderId, url: { not: null } },
+    select: { id: true, name: true, url: true },
+  })
+
+  return communities.find((community) => normalizeCommunityUrl(community.url) === normalizedUrl) ?? null
 }
 
 // ── Sheet reader ──────────────────────────────────────────────────────────────
@@ -490,10 +517,17 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     })
 
     // ── Sold-out community: mark all active/future lots sold, no error ───────────
+    const existingCommunityByUrl = await withReconnect(() => findCommunityByUrl(builderId, row.url))
+    const targetCommunityName = existingCommunityByUrl?.name ?? row.communityName
+
+    if (existingCommunityByUrl && existingCommunityByUrl.name !== row.communityName) {
+      console.log(`  [${BUILDER_NAME}] ${row.communityName}: using existing community "${existingCommunityByUrl.name}" for same URL`)
+    }
+
     if (mapResult.soldOut) {
       console.log(`  [${BUILDER_NAME}] ${row.communityName}: SOLD OUT — marking all active/future lots as sold`)
       const existingCommunity = await prisma.community.findFirst({
-        where: { builderId, name: row.communityName },
+        where: { builderId, name: targetCommunityName },
       })
       if (existingCommunity) {
         const updated = await prisma.listing.updateMany({
@@ -514,7 +548,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
 
     const firstAttemptTotal = (mapResult.lots?.length ?? 0) + mapResult.sold + mapResult.forSale + mapResult.future + mapResult.total
     if (firstAttemptTotal === 0) {
-      const dbCount = await prisma.listing.count({ where: { community: { builderId, name: row.communityName }, status: { not: "removed" } } })
+      const dbCount = await prisma.listing.count({ where: { community: { builderId, name: targetCommunityName }, status: { not: "removed" } } })
       if (dbCount > 3) {
         console.warn(`  [${BUILDER_NAME}] ${row.communityName}: Got 0 lots but DB has ${dbCount}, retrying in 60s...`)
         await new Promise(r => setTimeout(r, 60_000))
@@ -532,8 +566,8 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       warningMsg = msg
     }
 
-    const listings = buildListings(mapResult, row.communityName, row.url)
-    const existingCount = await prisma.listing.count({ where: { community: { builderId, name: row.communityName }, status: { not: "removed" } } })
+    const listings = buildListings(mapResult, targetCommunityName, row.url)
+    const existingCount = await prisma.listing.count({ where: { community: { builderId, name: targetCommunityName }, status: { not: "removed" } } })
 
     if (listings.length === 0) {
       if (existingCount > 3) {
@@ -551,11 +585,16 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
 
     const community = await withReconnect(() =>
-      prisma.community.upsert({
-        where: { builderId_name: { builderId, name: row.communityName } },
-        update: { url: row.url },
-        create: { builderId, name: row.communityName, city: "Orange County", state: "CA", url: row.url },
-      })
+      existingCommunityByUrl
+        ? prisma.community.update({
+            where: { id: existingCommunityByUrl.id },
+            data: { url: row.url },
+          })
+        : prisma.community.upsert({
+            where: { builderId_name: { builderId, name: row.communityName } },
+            update: { url: row.url },
+            create: { builderId, name: row.communityName, city: "Orange County", state: "CA", url: row.url },
+          })
     )
 
     const seenAddrs = new Map<string, ScrapedListing>()
