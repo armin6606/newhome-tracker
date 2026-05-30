@@ -16,6 +16,7 @@
 import { writeFileSync } from "fs"
 import { prisma } from "@/lib/db"
 import { detectAndApplyChanges, type ChangeDetails } from "./detect-changes"
+import { findExistingCommunityForScrape, upsertCommunityForScrape } from "./community-resolver"
 import { fetchBuilderSheet } from "./sheet-reader"
 import type { SheetCommunityRow } from "./sheet-reader"
 import type { ScrapedListing } from "./toll-brothers"
@@ -279,11 +280,19 @@ async function scrapeOneCommunity(
       return builder.readMap(row.url, row.communityName)
     })
 
+    const existingCommunity = await withReconnect(() =>
+      findExistingCommunityForScrape(prisma, builderId, row.communityName, row.url)
+    )
+    const targetCommunityName = existingCommunity?.name ?? row.communityName
+    if (existingCommunity && existingCommunity.name !== row.communityName) {
+      console.log(`  [${builder.name}] ${row.communityName}: using existing community "${existingCommunity.name}" for same ${existingCommunity.matchedBy}`)
+    }
+
     // If first attempt returned 0 lots but DB has data, retry once after 60s
     const firstAttemptTotal = (mapResult.lots?.length ?? 0) + mapResult.sold + mapResult.forSale + mapResult.future + mapResult.total
     if (firstAttemptTotal === 0) {
       const dbCount = await prisma.listing.count({
-        where: { community: { builderId, name: row.communityName }, status: { not: "removed" } }
+        where: { community: { builderId, name: targetCommunityName }, status: { not: "removed" } }
       })
       if (dbCount > 3) {
         console.warn(`  [${builder.name}] ${row.communityName}: Got 0 lots but DB has ${dbCount}, retrying in 60s...`)
@@ -296,12 +305,12 @@ async function scrapeOneCommunity(
     }
 
     // Build ScrapedListing[] from the map result
-    const listings = buildListings(mapResult, row.communityName, row.url)
+    const listings = buildListings(mapResult, targetCommunityName, row.url)
 
     // Zero-result guard: if scraper returned nothing, check against DB
     const existingCount = await prisma.listing.count({
       where: {
-        community: { builderId, name: row.communityName },
+        community: { builderId, name: targetCommunityName },
         status: { not: "removed" },
       },
     })
@@ -325,19 +334,7 @@ async function scrapeOneCommunity(
 
     // Upsert community
     const community = await withReconnect(() =>
-      prisma.community.upsert({
-        where: {
-          builderId_name: { builderId, name: row.communityName },
-        },
-        update: { url: row.url },
-        create: {
-          builderId,
-          name: row.communityName,
-          city: "Orange County",
-          state: "CA",
-          url: row.url,
-        },
-      })
+      upsertCommunityForScrape(prisma, builderId, row.communityName, row.url, { city: "Orange County", state: "CA" })
     )
 
     // Deduplicate by address then by lotNumber — prevents P2002 when scraper

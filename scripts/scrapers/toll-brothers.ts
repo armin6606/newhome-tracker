@@ -9,6 +9,7 @@ import { writeFileSync, readFileSync, existsSync } from "fs"
 import { notifyPriceChange, notifyNewListings } from "../../lib/scraper/notifications"
 import { updateTable2 } from "../../lib/sheet-writer"
 import { readTollBrothersMap } from "../../lib/scraper/map-readers/toll-brothers-map"
+import { findExistingCommunityForScrape, upsertCommunityForScrape } from "../../lib/scraper/community-resolver"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
 const prisma = new PrismaClient()
@@ -65,21 +66,6 @@ function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
 }
 
-function normalizeCommunityUrl(url: string | null): string {
-  if (!url) return ""
-  try {
-    const parsed = new URL(url)
-    parsed.hash = ""
-    parsed.pathname = parsed.pathname.replace(/\/+$/, "").toLowerCase()
-    for (const key of [...parsed.searchParams.keys()]) {
-      if (/^(utm_|gclid|gbraid|gad_|fbclid)/i.test(key)) parsed.searchParams.delete(key)
-    }
-    return `${parsed.hostname.toLowerCase()}${parsed.pathname}${parsed.search ? `?${parsed.searchParams.toString()}` : ""}`
-  } catch {
-    return url.trim().toLowerCase().replace(/[?#].*$/, "").replace(/\/+$/, "")
-  }
-}
-
 function normalizeTaxes(taxes: number | string | undefined | null): string | undefined {
   return taxes == null ? undefined : String(taxes)
 }
@@ -101,18 +87,6 @@ async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
     }
     throw err
   }
-}
-
-async function findCommunityByUrl(builderId: number, url: string) {
-  const normalizedUrl = normalizeCommunityUrl(url)
-  if (!normalizedUrl) return null
-
-  const communities = await prisma.community.findMany({
-    where: { builderId, url: { not: null } },
-    select: { id: true, name: true, url: true },
-  })
-
-  return communities.find((community) => normalizeCommunityUrl(community.url) === normalizedUrl) ?? null
 }
 
 // ── Sheet reader ──────────────────────────────────────────────────────────────
@@ -517,11 +491,11 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     })
 
     // ── Sold-out community: mark all active/future lots sold, no error ───────────
-    const existingCommunityByUrl = await withReconnect(() => findCommunityByUrl(builderId, row.url))
-    const targetCommunityName = existingCommunityByUrl?.name ?? row.communityName
+    const existingCommunity = await withReconnect(() => findExistingCommunityForScrape(prisma, builderId, row.communityName, row.url))
+    const targetCommunityName = existingCommunity?.name ?? row.communityName
 
-    if (existingCommunityByUrl && existingCommunityByUrl.name !== row.communityName) {
-      console.log(`  [${BUILDER_NAME}] ${row.communityName}: using existing community "${existingCommunityByUrl.name}" for same URL`)
+    if (existingCommunity && existingCommunity.name !== row.communityName) {
+      console.log(`  [${BUILDER_NAME}] ${row.communityName}: using existing community "${existingCommunity.name}" for same ${existingCommunity.matchedBy}`)
     }
 
     if (mapResult.soldOut) {
@@ -585,16 +559,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
 
     const community = await withReconnect(() =>
-      existingCommunityByUrl
-        ? prisma.community.update({
-            where: { id: existingCommunityByUrl.id },
-            data: { url: row.url },
-          })
-        : prisma.community.upsert({
-            where: { builderId_name: { builderId, name: row.communityName } },
-            update: { url: row.url },
-            create: { builderId, name: row.communityName, city: "Orange County", state: "CA", url: row.url },
-          })
+      upsertCommunityForScrape(prisma, builderId, row.communityName, row.url, { city: "Orange County", state: "CA" })
     )
 
     const seenAddrs = new Map<string, ScrapedListing>()

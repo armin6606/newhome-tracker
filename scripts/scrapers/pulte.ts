@@ -9,6 +9,7 @@ import { writeFileSync, readFileSync, existsSync } from "fs"
 import { notifyPriceChange, notifyNewListings } from "../../lib/scraper/notifications"
 import { updateTable2 } from "../../lib/sheet-writer"
 import { readPulteMap } from "../../lib/scraper/map-readers/pulte-map"
+import { findExistingCommunityForScrape, upsertCommunityForScrape } from "../../lib/scraper/community-resolver"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
 const prisma = new PrismaClient()
@@ -585,9 +586,15 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       return readPulteMap(row.url, row.communityName)
     })
 
+    const existingCommunity = await withReconnect(() => findExistingCommunityForScrape(prisma, builderId, row.communityName, row.url))
+    const targetCommunityName = existingCommunity?.name ?? row.communityName
+    if (existingCommunity && existingCommunity.name !== row.communityName) {
+      console.log(`  [${BUILDER_NAME}] ${row.communityName}: using existing community "${existingCommunity.name}" for same ${existingCommunity.matchedBy}`)
+    }
+
     const firstAttemptTotal = (mapResult.lots?.length ?? 0) + mapResult.sold + mapResult.forSale + mapResult.future + mapResult.total
     if (firstAttemptTotal === 0) {
-      const dbCount = await prisma.listing.count({ where: { community: { builderId, name: row.communityName }, status: { not: "removed" } } })
+      const dbCount = await prisma.listing.count({ where: { community: { builderId, name: targetCommunityName }, status: { not: "removed" } } })
       if (dbCount > 3) {
         console.warn(`  [${BUILDER_NAME}] ${row.communityName}: Got 0 lots but DB has ${dbCount}, retrying in 60s...`)
         await new Promise(r => setTimeout(r, 60_000))
@@ -595,8 +602,8 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       }
     }
 
-    const listings = buildListings(mapResult, row.communityName, row.url)
-    const existingCount = await prisma.listing.count({ where: { community: { builderId, name: row.communityName }, status: { not: "removed" } } })
+    const listings = buildListings(mapResult, targetCommunityName, row.url)
+    const existingCount = await prisma.listing.count({ where: { community: { builderId, name: targetCommunityName }, status: { not: "removed" } } })
 
     if (listings.length === 0) {
       if (existingCount > 3) {
@@ -618,7 +625,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     // Guard: if DB has active for-sale listings but scraper returned ZERO for-sale lots,
     // the AlphaVision API likely failed to return QMI homes — skip to avoid false sold marks.
     const dbForSaleCount = await prisma.listing.count({
-      where: { community: { builderId, name: row.communityName }, status: "for sale" }
+      where: { community: { builderId, name: targetCommunityName }, status: "for sale" }
     })
     const scrapedForSaleCount = listings.filter(l => l.status === "for sale").length
     if (dbForSaleCount > 2 && scrapedForSaleCount === 0) {
@@ -628,11 +635,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
 
     const community = await withReconnect(() =>
-      prisma.community.upsert({
-        where: { builderId_name: { builderId, name: row.communityName } },
-        update: { url: row.url },
-        create: { builderId, name: row.communityName, city: "Orange County", state: "CA", url: row.url },
-      })
+      upsertCommunityForScrape(prisma, builderId, row.communityName, row.url, { city: "Orange County", state: "CA" })
     )
 
     const seenAddrs = new Map<string, ScrapedListing>()

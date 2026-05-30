@@ -10,6 +10,7 @@ import path from "path"
 import { notifyPriceChange, notifyNewListings } from "../../lib/scraper/notifications"
 import { updateTable2, setTable2Absolute } from "../../lib/sheet-writer"
 import { readLennarMap } from "../../lib/scraper/map-readers/lennar-map"
+import { findExistingCommunityForScrape, upsertCommunityForScrape } from "../../lib/scraper/community-resolver"
 import type { LennarCache } from "../../lib/scraper/lennar"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
@@ -777,9 +778,15 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       return readLennarMap(row.url, row.communityName, skipDetailUrls, staticCache, debugOptions)
     })
 
+    const existingCommunity = await withReconnect(() => findExistingCommunityForScrape(prisma, builderId, row.communityName, row.url))
+    const targetCommunityName = existingCommunity?.name ?? row.communityName
+    if (existingCommunity && existingCommunity.name !== row.communityName) {
+      console.log(`  [${BUILDER_NAME}] ${row.communityName}: using existing community "${existingCommunity.name}" for same ${existingCommunity.matchedBy}`)
+    }
+
     const firstAttemptTotal = (mapResult.lots?.length ?? 0) + mapResult.sold + mapResult.forSale + mapResult.future + mapResult.total
     if (firstAttemptTotal === 0) {
-      const dbCount = await prisma.listing.count({ where: { community: { builderId, name: row.communityName }, status: { not: "removed" } } })
+      const dbCount = await prisma.listing.count({ where: { community: { builderId, name: targetCommunityName }, status: { not: "removed" } } })
       if (dbCount > 3) {
         console.warn(`  [${BUILDER_NAME}] ${row.communityName}: Got 0 lots but DB has ${dbCount}, retrying in 60s...`)
         await new Promise(r => setTimeout(r, 60_000))
@@ -787,8 +794,8 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
       }
     }
 
-    const listings = buildListings(mapResult, row.communityName, row.url)
-    const existingCount = await prisma.listing.count({ where: { community: { builderId, name: row.communityName }, status: { not: "removed" } } })
+    const listings = buildListings(mapResult, targetCommunityName, row.url)
+    const existingCount = await prisma.listing.count({ where: { community: { builderId, name: targetCommunityName }, status: { not: "removed" } } })
 
     if (listings.length === 0) {
       if (existingCount > 3) {
@@ -809,11 +816,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
 
     const city = cityFromLennarUrl(row.url)
     const community = await withReconnect(() =>
-      prisma.community.upsert({
-        where: { builderId_name: { builderId, name: row.communityName } },
-        update: { url: row.url, city, state: "CA" },
-        create: { builderId, name: row.communityName, city: city ?? "Unknown", state: "CA", url: row.url },
-      })
+      upsertCommunityForScrape(prisma, builderId, row.communityName, row.url, { city: city ?? "Unknown", state: "CA" })
     )
 
     const seenAddrs = new Map<string, ScrapedListing>()

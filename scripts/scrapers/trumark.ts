@@ -9,6 +9,7 @@ import { existsSync, readFileSync, writeFileSync } from "fs"
 import { detectAndApplyChanges, type ChangeDetails } from "../../lib/scraper/detect-changes"
 import type { ScrapedListing } from "../../lib/scraper/toll-brothers"
 import { readTrumarkMap, trumarkCityFromUrl } from "../../lib/scraper/map-readers/trumark-map"
+import { findExistingCommunityForScrape, upsertCommunityForScrape } from "../../lib/scraper/community-resolver"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
 const prisma = new PrismaClient()
@@ -154,9 +155,15 @@ async function scrapeOneCommunity(
       return readTrumarkMap(row.url, row.communityName)
     })
 
+    const existingCommunity = await withReconnect(() => findExistingCommunityForScrape(prisma, builderId, row.communityName, row.url))
+    const targetCommunityName = existingCommunity?.name ?? row.communityName
+    if (existingCommunity && existingCommunity.name !== row.communityName) {
+      console.log(`  [${BUILDER_NAME}] ${row.communityName}: using existing community "${existingCommunity.name}" for same ${existingCommunity.matchedBy}`)
+    }
+
     if ((mapResult.lots?.length ?? 0) === 0) {
       const dbCount = await prisma.listing.count({
-        where: { community: { builderId, name: row.communityName }, status: { not: "removed" } },
+        where: { community: { builderId, name: targetCommunityName }, status: { not: "removed" } },
       })
       if (dbCount > 0) {
         const msg = `${row.communityName}: zero available homes returned but DB has ${dbCount}; skipping to avoid false sold marks`
@@ -165,14 +172,10 @@ async function scrapeOneCommunity(
       }
     }
 
-    const listings = buildListings(mapResult, row.communityName, row.url)
+    const listings = buildListings(mapResult, targetCommunityName, row.url)
     const city = listings[0]?.city ?? trumarkCityFromUrl(row.url)
     const community = await withReconnect(() =>
-      prisma.community.upsert({
-        where: { builderId_name: { builderId, name: row.communityName } },
-        update: { url: row.url, city },
-        create: { builderId, name: row.communityName, city, state: "CA", url: row.url },
-      })
+      upsertCommunityForScrape(prisma, builderId, row.communityName, row.url, { city, state: "CA" })
     )
 
     const deduped = Array.from(
