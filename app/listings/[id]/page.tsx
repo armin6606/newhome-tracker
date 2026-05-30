@@ -284,15 +284,15 @@ export default function ListingDetailPage() {
         <Link href="/" className="text-blue-600 hover:underline text-sm">← Back to listings</Link>
       </div>
 
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-6 items-stretch lg:items-start">
         {/* ── Main content ── */}
         <div className="flex-1 min-w-0 space-y-5">
 
           {/* Header card */}
           <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm">
-            <div className="flex items-start justify-between flex-wrap gap-4 mb-5">
-              <div>
-                <h1 className="text-2xl font-bold text-stone-900">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-stone-900 break-words">
                   {/^Lot\s+\d+$/i.test((listing.address ?? "").trim()) ? "—" : listing.address}
                 </h1>
                 <p className="text-stone-500 mt-0.5 text-sm">
@@ -301,10 +301,10 @@ export default function ListingDetailPage() {
                   {" "}· {listing.community.city}, {listing.community.state}
                 </p>
               </div>
-              <div className="text-right flex items-start gap-2">
+              <div className="text-left sm:text-right flex items-start gap-2">
                 <HeartButton listingId={listing.id} initialFavorited={favorited} />
                 <div>
-                  <div className="text-3xl font-bold text-stone-900">{formatPrice(listing.currentPrice)}</div>
+                  <div className="text-3xl font-bold text-stone-900 whitespace-nowrap">{formatPrice(listing.currentPrice)}</div>
                   {totalPriceChange !== 0 && (
                     <div className={`text-sm font-medium mt-0.5 ${totalPriceChange < 0 ? "text-emerald-600" : "text-red-600"}`}>
                       {totalPriceChange > 0 ? "+" : ""}{formatPrice(totalPriceChange)} total change
@@ -315,7 +315,7 @@ export default function ListingDetailPage() {
             </div>
 
             {/* Key stats grid */}
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 pt-4 border-t border-stone-100">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5 pt-4 border-t border-stone-100">
               {[
                 { label: "Bedrooms",    value: listing.beds ?? "—" },
                 { label: "Bathrooms",   value: listing.baths ?? "—" },
@@ -339,9 +339,9 @@ export default function ListingDetailPage() {
                 { label: "Status",      value: listing.status === "for sale" ? "For Sale" : listing.status === "sold" ? "Sold" : listing.status === "future" ? "Future Release" : listing.status === "removed" ? "Sold/Removed" : "—" },
                 { label: "Days Listed", value: `${daysListed}d` },
               ].map(({ label, value }) => (
-                <div key={label} className="flex flex-col">
+                <div key={label} className="flex flex-col min-w-0">
                   <span className="text-xs text-stone-400 font-medium">{label}</span>
-                  <span className="text-sm font-semibold text-stone-900 mt-0.5">{value}</span>
+                  <span className="text-sm font-semibold text-stone-900 mt-0.5 break-words">{value}</span>
                 </div>
               ))}
             </div>
@@ -447,7 +447,7 @@ export default function ListingDetailPage() {
         </div>{/* end main */}
 
         {/* ── Right sidebar: ads ── */}
-        <div className="w-56 flex-none space-y-4 sticky top-20">
+        <div className="w-full lg:w-56 flex-none space-y-4 lg:sticky lg:top-20">
           <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest text-center">Featured Professionals</p>
           <RealtorAd />
           <LoanOfficerAd />

@@ -599,7 +599,36 @@ export default function AnalyticsPage() {
               <h2 className="font-semibold text-stone-900 text-base">Community Summary</h2>
               <p className="text-xs text-stone-400 mt-0.5">{data.communitySummary.length} communities — prices reflect active listings only</p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="md:hidden divide-y divide-stone-100">
+              {data.communitySummary.map((c) => (
+                <div key={c.name} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-stone-900 leading-tight break-words">{shortName(c.name)}</p>
+                      <p className={builderColor(c.builderName)}>{c.builderName}</p>
+                    </div>
+                    <div className="flex flex-none gap-1.5">
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">{c.active} active</span>
+                      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-500">{c.sold} sold</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                    {[
+                      ["Avg Price", c.avgPrice ? formatPrice(c.avgPrice) : "-"],
+                      ["Price Range", c.minPrice && c.maxPrice ? `${formatPrice(c.minPrice)} - ${formatPrice(c.maxPrice)}` : "-"],
+                      ["Avg $/Sqft", c.avgPpsqft ? `$${c.avgPpsqft.toLocaleString()}` : "-"],
+                      ["Avg Sqft", c.avgSqft ? c.avgSqft.toLocaleString() : "-"],
+                    ].map(([label, value]) => (
+                      <div key={label} className="min-w-0">
+                        <p className="text-[11px] font-medium text-stone-400">{label}</p>
+                        <p className="mt-0.5 font-semibold text-stone-700 break-words">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-stone-50 border-b border-stone-200">
