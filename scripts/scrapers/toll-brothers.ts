@@ -93,7 +93,7 @@ async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
 
 const SHEET_ID = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
 
-interface SheetCommunityRow { communityName: string; url: string; sold: number; forSale: number; future: number; total: number }
+interface SheetCommunityRow { communityName: string; url: string; city?: string; sold: number; forSale: number; future: number; total: number }
 
 function parseCsvLine(line: string): string[] {
   const cols: string[] = []; let current = ""; let inQuotes = false
@@ -118,13 +118,29 @@ async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
   const text = await res.text()
   const lines = text.split(/\r?\n/).filter(l => l.trim())
   const dataRows = lines.slice(2)
+  const parsedRows = dataRows.map(parseCsvLine)
+  const cityByCommunity = new Map<string, string>()
+  let inTable3 = false
+
+  for (const cols of parsedRows) {
+    if (cols[0]?.trim() === "Table 3") {
+      inTable3 = true
+      continue
+    }
+    if (!inTable3 || cols[0]?.trim() === "Community") continue
+
+    const communityName = cols[0]?.trim()
+    const city = cols[1]?.trim()
+    if (communityName && city) cityByCommunity.set(communityName, city)
+  }
+
   const results: SheetCommunityRow[] = []
-  for (const line of dataRows) {
-    const cols = parseCsvLine(line)
+  for (const cols of parsedRows) {
     const communityName = cols[3]?.trim() || cols[0]?.trim() || ""
     const url = cols[1]?.trim() || ""
     if (!communityName || !url || !url.startsWith("http")) continue
-    results.push({ communityName, url, sold: parseNum(cols[4]), forSale: parseNum(cols[5]), future: parseNum(cols[6]), total: parseNum(cols[7]) })
+    const city = cityByCommunity.get(communityName) ?? cityByCommunity.get(cols[0]?.trim() || "")
+    results.push({ communityName, url, city, sold: parseNum(cols[4]), forSale: parseNum(cols[5]), future: parseNum(cols[6]), total: parseNum(cols[7]) })
   }
   return results
 }
@@ -141,6 +157,10 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
         address: lot.address ?? `Lot ${lot.lotNumber}`,
         lotNumber: lot.lotNumber, floorPlan: lot.floorPlan,
         beds: lot.beds, baths: lot.baths, sqft: lot.sqft,
+        floors: lot.floors, garages: lot.garages,
+        propertyType: lot.propertyType,
+        hoaFees: lot.hoaFees, taxes: lot.taxes,
+        moveInDate: lot.moveInDate,
         price: status === "for sale" ? lot.price : undefined,
         pricePerSqft: status === "for sale" && lot.price && lot.sqft ? Math.round(lot.price / lot.sqft) : undefined,
         status, sourceUrl: communityUrl,
@@ -559,7 +579,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     }
 
     const community = await withReconnect(() =>
-      upsertCommunityForScrape(prisma, builderId, row.communityName, row.url, { city: "Orange County", state: "CA" })
+      upsertCommunityForScrape(prisma, builderId, row.communityName, row.url, { city: mapResult.city ?? row.city ?? "Orange County", state: "CA" })
     )
 
     const seenAddrs = new Map<string, ScrapedListing>()

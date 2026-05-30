@@ -143,6 +143,11 @@ export function buildListings(
         beds: lot.beds,
         baths: lot.baths,
         sqft: lot.sqft,
+        floors: lot.floors,
+        garages: lot.garages,
+        propertyType: lot.propertyType,
+        hoaFees: lot.hoaFees,
+        moveInDate: lot.moveInDate,
         price: status === "for sale" ? lot.price : undefined,
         pricePerSqft:
           status === "for sale" && lot.price && lot.sqft
@@ -334,7 +339,7 @@ async function scrapeOneCommunity(
 
     // Upsert community
     const community = await withReconnect(() =>
-      upsertCommunityForScrape(prisma, builderId, row.communityName, row.url, { city: "Orange County", state: "CA" })
+      upsertCommunityForScrape(prisma, builderId, row.communityName, row.url, { city: mapResult.city ?? row.city ?? "Orange County", state: "CA" })
     )
 
     // Deduplicate by address then by lotNumber — prevents P2002 when scraper

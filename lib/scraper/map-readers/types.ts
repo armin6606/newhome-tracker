@@ -25,6 +25,7 @@ export interface MapResult {
   forSale: number
   future: number
   total: number
+  city?: string
   lots?: MapLot[]
   /** Community is completely sold out — all remaining active/future lots should be marked sold */
   soldOut?: boolean

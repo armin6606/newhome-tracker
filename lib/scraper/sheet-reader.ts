@@ -20,6 +20,7 @@ const SHEET_ID = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
 export interface SheetCommunityRow {
   communityName: string
   url: string
+  city?: string
   sold: number
   forSale: number
   future: number
@@ -67,10 +68,24 @@ export async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[
   // Row 0 = "Table 1" header label, Row 1 = column headers, Row 2+ = data
   // Skip first 2 rows
   const dataRows = lines.slice(2)
+  const parsedRows = dataRows.map(parseCsvLine)
+
+  const cityByCommunity = new Map<string, string>()
+  let inTable3 = false
+  for (const cols of parsedRows) {
+    if (cols[0]?.trim() === "Table 3") {
+      inTable3 = true
+      continue
+    }
+    if (!inTable3 || cols[0]?.trim() === "Community") continue
+
+    const communityName = cols[0]?.trim()
+    const city = cols[1]?.trim()
+    if (communityName && city) cityByCommunity.set(communityName, city)
+  }
 
   const results: SheetCommunityRow[] = []
-  for (const line of dataRows) {
-    const cols = parseCsvLine(line)
+  for (const cols of parsedRows) {
     const communityName = cols[0]?.trim() || ""
     const url = cols[1]?.trim() || ""
     // Skip rows without a name or a valid URL (filters out Table 2/3 rows where col B is a city name)
@@ -82,8 +97,10 @@ export async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[
     const forSale = parseNum(cols[5])
     const future = parseNum(cols[6])
     const total = parseNum(cols[7])
+    const table2Name = cols[3]?.trim() || ""
+    const city = cityByCommunity.get(table2Name) ?? cityByCommunity.get(communityName)
 
-    results.push({ communityName, url, sold, forSale, future, total })
+    results.push({ communityName, url, city, sold, forSale, future, total })
   }
 
   return results
