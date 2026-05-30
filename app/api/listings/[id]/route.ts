@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { normalizeFloorPlanName } from "@/lib/plan-name"
 import { BUILDER_SHEET_TABS } from "@/lib/sheet-validator"
 
 export async function GET(
@@ -30,6 +31,7 @@ export async function GET(
     return NextResponse.json(
       {
         ...listing,
+        floorPlan: normalizeFloorPlanName(listing.floorPlan, listing.community.name),
         pricePerSqft:
           listing.currentPrice && listing.sqft
             ? Math.round(listing.currentPrice / listing.sqft)

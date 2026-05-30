@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/db"
+import { normalizeFloorPlanName } from "@/lib/plan-name"
 import { NextResponse } from "next/server"
 
 const MAX_DASHBOARD_FAVORITES = 200
@@ -36,7 +37,7 @@ export async function GET() {
         address:      l.address,
         community:    l.community.name,
         builder:      l.community.builder.name,
-        floorPlan:    l.floorPlan,
+        floorPlan:    normalizeFloorPlanName(l.floorPlan, l.community.name),
         beds:         l.beds,
         baths:        l.baths,
         sqft:         l.sqft,

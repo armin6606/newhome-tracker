@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db"
 import type { ScrapedListing } from "./toll-brothers"
 import { notifyPriceChange, notifyNewListings } from "./notifications"
 import { updateTable2 } from "@/lib/sheet-writer"
+import { normalizeFloorPlanName } from "@/lib/plan-name"
 
 // Matches placeholder lot numbers created by the ingest route (avail-N, sold-N, future-N)
 const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
@@ -108,6 +109,7 @@ export async function detectAndApplyChanges(
 
   // Process each scraped listing
   for (const scraped of scrapedListings) {
+    const normalizedFloorPlan = normalizeFloorPlanName(scraped.floorPlan, communityName)
     const key = normalizeAddress(scraped.address)
     // Primary lookup by address; fallback to lotNumber if address changed
     const existing = existingByAddress.get(key)
@@ -133,7 +135,7 @@ export async function detectAndApplyChanges(
             communityId,
             address: scraped.address,
             lotNumber: scraped.lotNumber,
-            floorPlan: scraped.floorPlan,
+            floorPlan: normalizedFloorPlan,
             sqft: scraped.sqft,
             beds: scraped.beds,
             baths: scraped.baths,
@@ -163,7 +165,7 @@ export async function detectAndApplyChanges(
               communityId,
               address: scraped.address,
               lotNumber: null,
-              floorPlan: scraped.floorPlan,
+              floorPlan: normalizedFloorPlan,
               sqft: scraped.sqft,
               beds: scraped.beds,
               baths: scraped.baths,
@@ -250,7 +252,7 @@ export async function detectAndApplyChanges(
       const updates: Record<string, unknown> = {
         status: scraped.status ?? existing.status,   // persist status transitions (future→active etc.)
         lotNumber: lotNumberConflicts ? existing.lotNumber : newLotNumber,
-        floorPlan: scraped.floorPlan ?? existing.floorPlan,
+        floorPlan: normalizedFloorPlan ?? existing.floorPlan,
         sqft: scraped.sqft ?? existing.sqft,
         beds: scraped.beds ?? existing.beds,
         baths: scraped.baths ?? existing.baths,

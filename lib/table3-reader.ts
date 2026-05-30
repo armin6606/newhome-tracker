@@ -24,6 +24,7 @@
  *  col 11+ : School names (ignored — not stored in Listing model)
  */
 
+import { normalizeFloorPlanName } from "./plan-name"
 import { BUILDER_SHEET_TABS } from "./sheet-validator"
 
 const SHEET_ID     = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
@@ -67,32 +68,12 @@ function planKey(community: string, floorplan: string): string {
  *
  * Exported so the ingest route can clean every incoming floorPlan before storage.
  */
-// Exterior style suffixes that are NOT part of the base floorplan name.
 // Stripped from the end of plan names so "Melina Prairie" → "Melina", etc.
-const EXTERIOR_SUFFIX_RE = /\s+(Mid-Century Modern|Modern Farmhouse|California Modern|Modern Hacienda|Coastal Contemporary|Contemporary Craftsman|Prairie|Transitional|Contemporary|Coastal|Modern|Farmhouse|Craftsman|Tuscan|Italianate|Spanish|Hacienda)$/i
 
 export function normalizePlan(communityName: string, planName: string): string | null {
-  if (!planName) return null
-  let s = planName.trim()
-  s = s.replace(/^Plan\s+/i, "")
+  return normalizeFloorPlanName(planName, communityName)
   // Strip community name with spaces (e.g. "Ridge View " → stripped)
-  const escaped = communityName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  s = s.replace(new RegExp(`^${escaped}\\s+`, "i"), "")
-  // Strip community name with spaces collapsed (e.g. "Ridgeview " for "Ridge View")
-  const collapsed = communityName.replace(/\s+/g, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  if (collapsed) s = s.replace(new RegExp(`^${collapsed}\\s+`, "i"), "").trim()
-  // Strip first word of community name (e.g. "Ridge " for "Ridge View")
-  const firstWord = (communityName.split(/\s+/)[0] ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  if (firstWord) s = s.replace(new RegExp(`^${firstWord}\\s+`, "i"), "").trim()
-  const m = s.match(/^(\d+)([A-Za-z]*)/)
-  if (!m) {
     // Non-digit plan: strip exterior style suffixes (e.g. "Melina Prairie" → "Melina")
-    let base = s.trim()
-    let prev = ""
-    while (prev !== base) { prev = base; base = base.replace(EXTERIOR_SUFFIX_RE, "").trim() }
-    return base || planName.trim()
-  }
-  return m[1] + (/x/i.test(m[2]) ? "X" : "")
 }
 
 function parseNum(v: string | undefined): number | null {

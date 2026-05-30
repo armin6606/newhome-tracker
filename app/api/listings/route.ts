@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { normalizeFloorPlanName } from "@/lib/plan-name"
 import { visibleListingCommunityWhere } from "@/lib/site-visibility"
 
 // Fields the frontend actually uses — keeps response payload lean
@@ -161,8 +162,13 @@ export async function GET(req: NextRequest) {
     const hasMore = skip + listings.length < total
 
     // pricePerSqft is already stored in DB — no need to recompute here
+    const normalizedListings = listings.map((listing) => ({
+      ...listing,
+      floorPlan: normalizeFloorPlanName(listing.floorPlan, listing.community.name),
+    }))
+
     return NextResponse.json(
-      { listings, total, hasMore, page: page ?? 1, pageSize },
+      { listings: normalizedListings, total, hasMore, page: page ?? 1, pageSize },
       {
         headers: {
           // 30-second CDN cache; stale responses served for up to 60 s while

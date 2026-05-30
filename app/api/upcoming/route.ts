@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { normalizeFloorPlanName } from "@/lib/plan-name"
 import { BUILDER_SHEET_TABS } from "@/lib/sheet-validator"
 
 /**
@@ -99,7 +100,7 @@ async function fetchTable4(builderName: string, tabName: string): Promise<Upcomi
       if (!col0)        continue  // blank row
       if (col0 === "Community") continue  // column header row
 
-      const floorplan = row[2]?.trim() ?? ""
+      const floorplan = normalizeFloorPlanName(row[2]?.trim(), col0) ?? ""
       if (!floorplan)  continue
 
       const schools = [row[11]?.trim(), row[12]?.trim(), row[13]?.trim()]
