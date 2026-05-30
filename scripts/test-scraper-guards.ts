@@ -25,6 +25,7 @@ assert.equal(listings[2].status, "sold")
 assert.equal(isRealListing({ address: "123 Irvine", lotNumber: "101" }), true)
 assert.equal(isRealListing({ address: "future-1", lotNumber: "future-1" }), false)
 assert.equal(isRealListing({ address: null, lotNumber: "avail-1" }), false)
+assert.equal(isRealListing({ address: "Lot 43", lotNumber: "43" }), false)
 
 assert.equal(
   isVisibleCommunity({

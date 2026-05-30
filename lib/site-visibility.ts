@@ -1,13 +1,18 @@
 import { BUILDER_SHEET_TABS } from "@/lib/sheet-validator"
 
 export const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
+export const LOT_ONLY_ADDRESS_RE = /^lot\s+\d+$/i
 
 export function isSupportedBuilder(builderName: string): boolean {
   return Boolean(BUILDER_SHEET_TABS[builderName])
 }
 
 export function isRealListing(l: { address: string | null; lotNumber?: string | null }): boolean {
-  return l.address !== null && !(l.lotNumber && PLACEHOLDER_LOT_RE.test(l.lotNumber))
+  return (
+    l.address !== null &&
+    !LOT_ONLY_ADDRESS_RE.test(l.address.trim()) &&
+    !(l.lotNumber && PLACEHOLDER_LOT_RE.test(l.lotNumber))
+  )
 }
 
 export function isVisibleCommunity(c: {
