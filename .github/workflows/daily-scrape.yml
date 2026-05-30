@@ -48,20 +48,29 @@ jobs:
               return
             }
 
-            const pacificTime = (iso) => new Intl.DateTimeFormat("en-US", {
-              timeZone: "America/Los_Angeles",
-              hour: "2-digit",
-              minute: "2-digit",
-              hourCycle: "h23",
-            }).format(new Date(iso))
+            const pacificHourForUtcSchedule = (schedule) => {
+              const [minute, hour] = schedule.split(" ")
+              const now = new Date()
+              const scheduledUtc = new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate(),
+                Number(hour),
+                Number(minute),
+              ))
+              return new Intl.DateTimeFormat("en-US", {
+                timeZone: "America/Los_Angeles",
+                hour: "2-digit",
+                hourCycle: "h23",
+              }).format(scheduledUtc)
+            }
 
-            const nowPacificTime = pacificTime(new Date().toISOString())
             const isPrimarySchedule = [
               process.env.DST_PRIMARY_SCHEDULE,
               process.env.STANDARD_PRIMARY_SCHEDULE,
             ].includes(eventSchedule)
 
-            if (isPrimarySchedule && nowPacificTime.startsWith("01:")) {
+            if (isPrimarySchedule && pacificHourForUtcSchedule(eventSchedule) === "01") {
               write("should_run", "true")
               write("reason", "primary 1:17 AM Pacific schedule")
               return
@@ -69,7 +78,7 @@ jobs:
 
             if (isPrimarySchedule) {
               write("should_run", "false")
-              write("reason", `skipped alternate 1:17 cron; current Pacific time is ${nowPacificTime}`)
+              write("reason", "skipped alternate 1:17 cron for the current Pacific offset")
               return
             }
 
@@ -106,7 +115,16 @@ jobs:
               if (run.id === currentRunId) return false
               if (pacificDate(run.created_at) !== todayPacific) return false
               if (!["schedule", "workflow_dispatch"].includes(run.event)) return false
-              return run.conclusion === "success" || activeStatuses.includes(run.status)
+              if (activeStatuses.includes(run.status)) return true
+
+              const createdAt = new Date(run.created_at).getTime()
+              const updatedAt = new Date(run.updated_at).getTime()
+              const durationSeconds = Number.isFinite(createdAt) && Number.isFinite(updatedAt)
+                ? (updatedAt - createdAt) / 1000
+                : 0
+
+              // Gate-only skipped runs complete in a few seconds and never send reports.
+              return run.conclusion === "success" && durationSeconds >= 15 * 60
             })
 
             if (priorRun) {
