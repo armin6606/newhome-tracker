@@ -61,14 +61,21 @@ type ApiResponse = {
 function formatDateTime(value: string | null) {
   if (!value) return "-"
   return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
   })
 }
 
 function formatDateLabel(value: string) {
   const date = new Date(`${value}T00:00:00`)
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  return date.toLocaleDateString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+  })
 }
 
 function formatTooltipLabel(value: unknown) {
