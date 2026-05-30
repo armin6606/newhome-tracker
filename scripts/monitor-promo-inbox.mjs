@@ -10,6 +10,8 @@ const PROMO_PASSWORD = process.env.PROMO_GMAIL_APP_PASSWORD || ""
 const LOOKBACK_DAYS = Number(process.env.PROMO_INBOX_LOOKBACK_DAYS || 14)
 const MAX_EMAILS = Number(process.env.PROMO_INBOX_MAX_EMAILS || 50)
 const MAX_ATTEMPTS = Number(process.env.PROMO_INBOX_MAX_ATTEMPTS || 3)
+const SOCKET_TIMEOUT_MS = Number(process.env.PROMO_INBOX_SOCKET_TIMEOUT_MS || 20_000)
+const COMMAND_TIMEOUT_MS = Number(process.env.PROMO_INBOX_COMMAND_TIMEOUT_MS || 30_000)
 const RETRY_DELAYS_MS = [10_000, 30_000]
 
 const BOILERPLATE_PATTERNS = [
@@ -169,17 +171,34 @@ class ImapClient {
 
   connect() {
     return new Promise((resolve, reject) => {
+      let settled = false
+      const fail = (err) => {
+        if (settled) return
+        settled = true
+        this.socket?.destroy()
+        reject(err)
+      }
+
       this.socket = tls.connect(this.port, this.host, { servername: this.host }, () => resolve())
+      this.socket.setTimeout(SOCKET_TIMEOUT_MS, () => {
+        fail(new Error(`IMAP socket timeout after ${Math.round(SOCKET_TIMEOUT_MS / 1000)}s`))
+      })
       this.socket.setEncoding("utf8")
       this.socket.on("data", (chunk) => { this.buffer += chunk })
-      this.socket.on("error", reject)
+      this.socket.on("error", fail)
+      this.socket.on("connect", () => { settled = true })
     }).then(() => this.waitForGreeting())
   }
 
   waitForGreeting() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      const started = Date.now()
       const tick = () => {
         if (this.buffer.includes("\r\n")) return resolve()
+        if (Date.now() - started > SOCKET_TIMEOUT_MS) {
+          this.socket?.destroy()
+          return reject(new Error("IMAP greeting timeout"))
+        }
         setTimeout(tick, 25)
       }
       tick()
@@ -200,7 +219,10 @@ class ImapClient {
         if (new RegExp(`\\r\\n${tag} (OK|NO|BAD)`, "i").test(this.buffer)) {
           return resolve(this.buffer)
         }
-        if (Date.now() - started > 60000) return reject(new Error(`IMAP timeout on ${command}`))
+        if (Date.now() - started > COMMAND_TIMEOUT_MS) {
+          this.socket?.destroy()
+          return reject(new Error(`IMAP timeout on ${command}`))
+        }
         setTimeout(tick, 50)
       }
       tick()
