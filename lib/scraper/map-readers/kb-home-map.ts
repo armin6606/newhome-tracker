@@ -248,14 +248,16 @@ export async function readKBHomeMap(
 
     // ── Step 4: enrich with floor plan data from Firebase ────────────────────
     const lots: MapLot[] = rawLots.map(raw => {
+      const payloadLot = payloadLots.get(raw.lotNumber)
+      const address = raw.address ?? payloadLot?.address
       const fp =
         fpByLot.get(raw.lotNumber) ??
-        (raw.address ? fpByAddr.get(normalizeAddr(raw.address)) : undefined)
+        (address ? fpByAddr.get(normalizeAddr(address)) : undefined)
 
       return {
         lotNumber: raw.lotNumber,
         status:    raw.status,
-        address:   raw.address,
+        address,
         price:     raw.price,
         floorPlan: fp?.floorPlan,
         sqft:      fp?.sqft,
