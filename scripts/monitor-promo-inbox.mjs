@@ -12,6 +12,7 @@ const MAX_EMAILS = Number(process.env.PROMO_INBOX_MAX_EMAILS || 50)
 const MAX_ATTEMPTS = Number(process.env.PROMO_INBOX_MAX_ATTEMPTS || 3)
 const SOCKET_TIMEOUT_MS = Number(process.env.PROMO_INBOX_SOCKET_TIMEOUT_MS || 20_000)
 const COMMAND_TIMEOUT_MS = Number(process.env.PROMO_INBOX_COMMAND_TIMEOUT_MS || 30_000)
+const RUN_TIMEOUT_MS = Number(process.env.PROMO_INBOX_RUN_TIMEOUT_MS || 4 * 60_000)
 const RETRY_DELAYS_MS = [10_000, 30_000]
 
 const BOILERPLATE_PATTERNS = [
@@ -342,8 +343,15 @@ async function createPendingPromo(raw, catalog) {
 }
 
 async function main() {
+  const watchdog = setTimeout(async () => {
+    console.error(`Promo inbox monitor skipped after ${Math.round(RUN_TIMEOUT_MS / 1000)}s run timeout.`)
+    await prisma.$disconnect().catch(() => {})
+    process.exit(0)
+  }, RUN_TIMEOUT_MS)
+
   if (!PROMO_PASSWORD) {
     console.log("PROMO_GMAIL_APP_PASSWORD is not configured; promo inbox monitor skipped.")
+    clearTimeout(watchdog)
     return
   }
 
@@ -382,6 +390,7 @@ async function main() {
 
       await client.logout()
       console.log(`Promo inbox monitor done. Created ${created}, skipped ${skipped}.`)
+      clearTimeout(watchdog)
       await prisma.$disconnect()
       return
     } catch (err) {
@@ -398,6 +407,7 @@ async function main() {
   }
 
   console.error(`Promo inbox monitor skipped after ${MAX_ATTEMPTS} failed attempt(s): ${lastError?.message ?? lastError}`)
+  clearTimeout(watchdog)
   await prisma.$disconnect()
 }
 
