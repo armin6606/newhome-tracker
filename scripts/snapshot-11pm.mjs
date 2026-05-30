@@ -57,6 +57,10 @@ function isVisibleCommunityCard(card) {
   return card.lastScrapedAt !== null || isFutureOnly
 }
 
+function communitySnapshotKey(builderName, communityName) {
+  return `${builderName}::${communityName}`
+}
+
 // ── CSV parser ─────────────────────────────────────────────────────────────────
 
 function parseCSV(text) {
@@ -136,7 +140,7 @@ async function main() {
       future:  real.filter(l => l.status === "future").length,
       total:   real.length,
     }
-    if (isVisibleCommunityCard(card)) communityCards[c.name] = card
+    if (isVisibleCommunityCard(card)) communityCards[communitySnapshotKey(c.builder.name, c.name)] = card
   }
   console.log(`  Community cards captured: ${Object.keys(communityCards).length}`)
 

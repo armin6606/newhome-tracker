@@ -67,6 +67,25 @@ function loadSnapshot() {
   return null
 }
 
+function communitySnapshotKey(builderName, communityName) {
+  return `${builderName}::${communityName}`
+}
+
+function getSnapshotCommunityCard(snapshot, comm) {
+  const cards = snapshot?.communityCards
+  if (!cards) return null
+
+  const exact = cards[communitySnapshotKey(comm.builder.name, comm.name)]
+  if (exact) return exact
+
+  // Backward compatibility for snapshots created before builder-qualified keys.
+  // Only trust a name-only entry when it belongs to the same builder.
+  const legacy = cards[comm.name]
+  if (legacy && (!legacy.builder || legacy.builder === comm.builder.name)) return legacy
+
+  return null
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -123,7 +142,7 @@ async function main() {
 
   if (snapshot?.communityCards) {
     for (const comm of communities) {
-      const before = snapshot.communityCards[comm.name]
+      const before = getSnapshotCommunityCard(snapshot, comm)
       if (!before) continue
 
       const activeBefore = before.active ?? 0
