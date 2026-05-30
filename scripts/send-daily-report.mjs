@@ -374,6 +374,21 @@ function section1ForSale(snapshot, forSaleNow) {
 
 // ── Section 2: Scraper Activity per Builder ────────────────────────────────────
 
+function sectionNewlySold(newlySold) {
+  const rows = newlySold.map(l => [
+    l.community.builder.name,
+    lotAddr(l),
+    l.community.name,
+    l.currentPrice ? fmt(l.currentPrice) : "&mdash;",
+    l.soldAt ? formatPacificDateTime(l.soldAt) : "&mdash;",
+  ])
+
+  return card(`
+    ${sectionHeader("Newly Sold Homes")}
+    ${table(["Builder","Address","Community","Last Price","Detected"], rows, "No newly sold homes detected in this report window.")}
+  `)
+}
+
 function section2ScraperActivity(newListings, newlySold, priceChanges) {
   const builders = ALL_BUILDERS
 
@@ -663,7 +678,7 @@ function sectionPendingPromos(pendingPromoCount) {
 }
 
 function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
-  const { communityCardsNow, table2Now, pendingPromoCount, since, until } = data
+  const { communityCardsNow, table2Now, pendingPromoCount, newlySold, since, until } = data
   const dateStr = new Date().toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
     timeZone: "America/Los_Angeles",
@@ -674,6 +689,7 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
   const windowLabel = `${formatPacificDateTime(since)} to ${formatPacificDateTime(until)}`
 
   const s0 = section0ScraperStatus(scraperResults)
+  const sSold = sectionNewlySold(newlySold)
   const sPromos = sectionPendingPromos(pendingPromoCount)
   const s5 = section5Other(snapshot, communityCardsNow, table2Now)
 
@@ -695,6 +711,7 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
     <!-- Body -->
     <div style="background:#f3f4f6;padding:16px 0">
       ${s0}
+      ${sSold}
       ${sPromos}
       ${s5}
     </div>
