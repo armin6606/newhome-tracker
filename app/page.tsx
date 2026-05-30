@@ -350,7 +350,6 @@ export default function HomePage() {
   const ppsqValues = activeListings.map((l) => l.pricePerSqft).filter((p): p is number => p != null)
   const avgPpsq = ppsqValues.length ? Math.round(ppsqValues.reduce((a, b) => a + b, 0) / ppsqValues.length) : null
   const communities = new Set(activeListings.map((l) => l.community.name)).size
-  const readyCount = activeListings.filter((l) => isReady(l.moveInDate)).length
 
   function handleSort(field: string) {
     if (sortBy === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"))
@@ -405,7 +404,6 @@ export default function HomePage() {
                 { label: "Median Price", value: medianPrice ? formatPrice(medianPrice) : "—" },
                 { label: "Avg $/Sqft", value: avgPpsq ? `$${avgPpsq}` : "—" },
                 { label: "Communities", value: communities.toString() },
-                { label: "Move-In Ready", value: readyCount.toString() },
                 { label: "30-Yr Rate", value: interestRate ? `${interestRate.toFixed(2)}%` : "—" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex flex-col">
