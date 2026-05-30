@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { verifyAdminToken } from "@/lib/admin-auth"
-import { getGoogleAnalyticsTraffic } from "@/lib/google-analytics"
 import { getSupabaseAdmin } from "@/lib/supabase/service"
+import { getFirstPartyTraffic } from "@/lib/site-traffic"
 
 type AdminUserRow = {
   id: string
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.userFavorite.groupBy({ by: ["userId"], _count: { userId: true } }),
       prisma.communityFollow.groupBy({ by: ["userId"], _count: { userId: true } }),
-      getGoogleAnalyticsTraffic(30),
+      getFirstPartyTraffic(30),
     ])
 
     const favoritesByUser = new Map(favoriteCounts.map((row) => [row.userId, row._count.userId]))

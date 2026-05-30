@@ -148,6 +148,19 @@ model NotificationLog {
   @@map("notification_logs")
 }
 
+model SiteVisit {
+  id        Int      @id @default(autoincrement())
+  sessionId String?
+  path      String
+  referrer  String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([sessionId])
+  @@map("site_visits")
+}
+
 model SchoolRating {
   id       Int      @id @default(autoincrement())
   name     String   @unique

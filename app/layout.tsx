@@ -6,6 +6,7 @@ import { NavActions } from "@/app/_components/NavActions"
 import { NavLinks } from "@/app/_components/NavLinks"
 import { GoogleAnalytics } from "@next/third-parties/google"
 import { MobileNav } from "@/app/_components/MobileNav"
+import { TrafficTracker } from "@/app/_components/TrafficTracker"
 
 const nunito = Nunito({ variable: "--font-nunito", subsets: ["latin"], weight: ["400", "600", "700", "800"] })
 
@@ -129,6 +130,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </main>
+        <TrafficTracker />
         <footer className="bg-white border-t border-gray-200 mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
