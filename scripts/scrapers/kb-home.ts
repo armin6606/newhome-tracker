@@ -60,9 +60,14 @@ interface ChangeDetails {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
+const LOT_ONLY_ADDRESS_RE = /^lot\s+\d+$/i
 
 function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
+}
+
+function isRealStreetAddress(address: string | null | undefined): address is string {
+  return Boolean(address && !LOT_ONLY_ADDRESS_RE.test(address.trim()) && !/^(avail|sold|future)-/i.test(address.trim()))
 }
 
 function normalizeTaxes(taxes: number | string | undefined | null): string | undefined {
@@ -337,6 +342,7 @@ async function detectAndApplyChanges(
       }
 
       const updates: Record<string, unknown> = {
+        ...(isRealStreetAddress(scraped.address) ? { address: scraped.address } : {}),
         status: scraped.status ?? existing.status,
         lotNumber: lotNumberConflicts ? existing.lotNumber : newLotNumber,
         floorPlan: scraped.floorPlan ?? existing.floorPlan,
