@@ -1,35 +1,11 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { formatPrice, cleanCommunityName } from "@/lib/utils"
 import { ContentGate } from "@/app/_components/ContentGate"
-
-type CommunityEntry = {
-  id: number
-  name: string
-  city: string
-  state: string
-  url: string
-  activeCount: number
-  minPrice: number | null
-  maxPrice: number | null
-}
 
 type GroupedOffer = {
   offerText: string
   builder: string
-  communities: CommunityEntry[]
-}
-
-function builderColor(name: string): string {
-  if (name.toLowerCase().includes("lennar")) return "text-[#1B4FA8]"
-  if (name.toLowerCase().includes("toll")) return "text-[#C9940A]"
-  if (name.toLowerCase().includes("kb")) return "text-red-600"
-  if (name.toLowerCase().includes("tri pointe")) return "text-emerald-700"
-  if (name.toLowerCase().includes("shea")) return "text-sky-600"
-  if (name.toLowerCase().includes("pulte") || name.toLowerCase().includes("del webb")) return "text-violet-600"
-  if (name.toLowerCase().includes("taylor")) return "text-orange-600"
-  return "text-stone-600"
 }
 
 function builderBadgeColor(name: string): string {
@@ -48,7 +24,6 @@ export default function IncentivesPage() {
   const [loading, setLoading] = useState(true)
   const [citySearch, setCitySearch] = useState("")
   const [builderSearch, setBuilderSearch] = useState("")
-  const [expandedOffers, setExpandedOffers] = useState<Set<number>>(new Set())
 
   const fetchIncentives = useCallback(async () => {
     setLoading(true)
@@ -60,26 +35,13 @@ export default function IncentivesPage() {
     // API now returns { ok, count, hasMore, grouped } — extract the array
     const data = Array.isArray(json) ? json : (json.grouped ?? [])
     setOffers(data)
-    // Collapsed by default
-    setExpandedOffers(new Set())
     setLoading(false)
   }, [citySearch, builderSearch])
 
   useEffect(() => { fetchIncentives() }, [fetchIncentives])
 
-  function toggleExpand(idx: number) {
-    setExpandedOffers(prev => {
-      const next = new Set(prev)
-      if (next.has(idx)) next.delete(idx)
-      else next.add(idx)
-      return next
-    })
-  }
-
   const inputCls = "border border-stone-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-  const totalCommunities = offers.reduce((s, o) => s + o.communities.length, 0)
   const uniqueBuilders = new Set(offers.map((o) => o.builder)).size
-  const totalListings = offers.reduce((s, o) => s + o.communities.reduce((cs, c) => cs + c.activeCount, 0), 0)
 
   return (
     <div>
@@ -103,16 +65,8 @@ export default function IncentivesPage() {
                 <span className="text-stone-400 text-xs mt-0.5">Unique Offers</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-amber-400 font-bold text-lg leading-none">{totalCommunities}</span>
-                <span className="text-stone-400 text-xs mt-0.5">Eligible Communities</span>
-              </div>
-              <div className="flex flex-col">
                 <span className="text-amber-400 font-bold text-lg leading-none">{uniqueBuilders}</span>
                 <span className="text-stone-400 text-xs mt-0.5">Builders</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-amber-400 font-bold text-lg leading-none">{totalListings}</span>
-                <span className="text-stone-400 text-xs mt-0.5">Active Listings</span>
               </div>
             </div>
           )}
@@ -141,7 +95,7 @@ export default function IncentivesPage() {
             </button>
           </div>
           <div className="ml-auto self-end text-sm text-stone-400 whitespace-nowrap pb-0.5">
-            {loading ? "Loading..." : `${offers.length} offer${offers.length !== 1 ? "s" : ""} across ${totalCommunities} communities`}
+            {loading ? "Loading..." : `${offers.length} offer${offers.length !== 1 ? "s" : ""}`}
           </div>
         </div>
       </div>
@@ -159,62 +113,19 @@ export default function IncentivesPage() {
         <div className="space-y-4">
           {offers.map((offer, idx) => (
             <div key={idx} className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-              {/* Offer header */}
-              <button
-                onClick={() => toggleExpand(idx)}
-                className="w-full px-5 py-4 flex items-start gap-4 hover:bg-stone-50/50 transition-colors text-left"
-              >
+              <div className="w-full px-5 py-4 flex items-start gap-4 text-left">
                 <span className="mt-1 flex-none w-2.5 h-2.5 rounded-full bg-amber-400" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs border font-semibold ${builderBadgeColor(offer.builder)}`}>
                       {offer.builder}
                     </span>
-                    <span className="text-xs text-stone-400">
-                      {offer.communities.length} communit{offer.communities.length === 1 ? "y" : "ies"}
-                    </span>
                   </div>
                   <p className="text-stone-800 leading-snug text-sm whitespace-pre-line">
                     {offer.offerText}
                   </p>
                 </div>
-                <span className="mt-1 text-stone-400 text-sm flex-none">
-                  {expandedOffers.has(idx) ? "▾" : "▸"}
-                </span>
-              </button>
-
-              {/* Eligible communities */}
-              {expandedOffers.has(idx) && (
-                <div className="border-t border-stone-100">
-                  <div className="px-5 py-2 bg-stone-50/50">
-                    <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">
-                      Eligible Communities
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 divide-x divide-stone-100">
-                    {offer.communities.map((c, i) => (
-                      <div key={c.id}
-                        className={`px-4 py-2.5 flex items-center gap-3 hover:bg-amber-50/30 transition-colors ${Math.floor(i / 2) % 2 === 0 ? "bg-white" : "bg-stone-50/60"}`}>
-                        <div className="flex-1 min-w-0">
-                          <a href={c.url} target="_blank" rel="noopener noreferrer"
-                            className={`font-semibold hover:underline text-sm ${builderColor(offer.builder)}`}>
-                            {cleanCommunityName(c.name)}
-                          </a>
-                          <span className="text-xs text-stone-400 ml-2">{c.city}</span>
-                          <span className="text-xs text-stone-400 ml-1.5">{c.activeCount} listing{c.activeCount !== 1 ? "s" : ""}</span>
-                        </div>
-                        <span className="text-sm text-stone-700 font-medium whitespace-nowrap">
-                          {c.minPrice && c.maxPrice ? (
-                            c.minPrice === c.maxPrice
-                              ? formatPrice(c.minPrice)
-                              : `${formatPrice(c.minPrice)} – ${formatPrice(c.maxPrice)}`
-                          ) : "—"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           ))}
         </div>

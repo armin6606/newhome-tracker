@@ -30,9 +30,9 @@ function Convert-Conclusion {
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "New Key Scrapers Run"
-$form.Size = New-Object System.Drawing.Size(760, 560)
+$form.Size = New-Object System.Drawing.Size(912, 560)
 $form.StartPosition = "CenterScreen"
-$form.MinimumSize = New-Object System.Drawing.Size(680, 480)
+$form.MinimumSize = New-Object System.Drawing.Size(816, 480)
 
 $title = New-Object System.Windows.Forms.Label
 $title.Text = "New Key Scrapers Run"
@@ -45,20 +45,20 @@ $status = New-Object System.Windows.Forms.Label
 $status.Text = "Starting..."
 $status.Font = New-Object System.Drawing.Font("Segoe UI", 10)
 $status.AutoSize = $false
-$status.Size = New-Object System.Drawing.Size(700, 26)
+$status.Size = New-Object System.Drawing.Size(840, 26)
 $status.Location = New-Object System.Drawing.Point(22, 56)
 $form.Controls.Add($status)
 
 $progress = New-Object System.Windows.Forms.ProgressBar
 $progress.Location = New-Object System.Drawing.Point(22, 88)
-$progress.Size = New-Object System.Drawing.Size(700, 18)
+$progress.Size = New-Object System.Drawing.Size(840, 18)
 $progress.Style = "Marquee"
 $progress.MarqueeAnimationSpeed = 35
 $form.Controls.Add($progress)
 
 $log = New-Object System.Windows.Forms.TextBox
 $log.Location = New-Object System.Drawing.Point(22, 122)
-$log.Size = New-Object System.Drawing.Size(700, 335)
+$log.Size = New-Object System.Drawing.Size(840, 335)
 $log.Multiline = $true
 $log.ReadOnly = $true
 $log.ScrollBars = "Vertical"
@@ -69,7 +69,7 @@ $form.Controls.Add($log)
 $closeButton = New-Object System.Windows.Forms.Button
 $closeButton.Text = "Close"
 $closeButton.Size = New-Object System.Drawing.Size(92, 32)
-$closeButton.Location = New-Object System.Drawing.Point(630, 472)
+$closeButton.Location = New-Object System.Drawing.Point(770, 472)
 $closeButton.Anchor = "Bottom,Right"
 $closeButton.Enabled = $false
 $closeButton.Add_Click({ $form.Close() })
