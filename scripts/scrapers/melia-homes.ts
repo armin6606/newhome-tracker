@@ -10,6 +10,7 @@ import { notifyPriceChange, notifyNewListings } from "../../lib/scraper/notifica
 import { updateTable2 } from "../../lib/sheet-writer"
 import { readMeliaMap } from "../../lib/scraper/map-readers/melia-map"
 import { findExistingCommunityForScrape, upsertCommunityForScrape } from "../../lib/scraper/community-resolver"
+import { normalizeListingLotKey, normalizeLotNumber } from "../../lib/lot-number"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
 const prisma = new PrismaClient()
@@ -60,9 +61,14 @@ interface ChangeDetails {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
+const PLACEHOLDER_ADDRESS_RE = /^(?:lot|homesite|home\s*site|home-site|hs|site)\s*#?\s*[-:]?\s*[a-z0-9-]+$/i
 
 function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
+}
+
+function isPlaceholderAddress(address: string | null | undefined): boolean {
+  return !address || PLACEHOLDER_ADDRESS_RE.test(address.trim())
 }
 
 function randomDelayMs(min: number, max: number): Promise<void> {
@@ -129,7 +135,7 @@ async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
 function buildListings(result: MapResult, communityName: string, communityUrl: string): ScrapedListing[] {
   if (result.lots && result.lots.length > 0) {
     return result.lots.map(lot => {
-      const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
+      const hasRealAddress = lot.address && !/^(lot|homesite|home\s*site|home-site|hs|site|avail|sold|future)\s*#?\s*[-:\d]/i.test(lot.address)
       const status: string = lot.status === "for sale" && (!lot.price || !hasRealAddress) ? "future" : lot.status
       return {
         communityName, communityUrl,
@@ -160,7 +166,9 @@ async function detectAndApplyChanges(
 
   const existingByAddress = new Map(existing.map((l) => [normalizeAddress(l.address), l]))
   const existingByLotNumber = new Map(
-    existing.filter((l) => l.lotNumber).map((l) => [l.lotNumber!, l])
+    existing
+      .map((l) => [normalizeListingLotKey(l.lotNumber, l.address), l] as const)
+      .filter((entry): entry is [string, typeof existing[number]] => entry[0] !== null)
   )
 
   const removedListings = await prisma.listing.findMany({
@@ -168,7 +176,9 @@ async function detectAndApplyChanges(
     select: { id: true, lotNumber: true },
   })
   const removedByLotNumber = new Map(
-    removedListings.filter((l) => l.lotNumber).map((l) => [l.lotNumber!, l.id])
+    removedListings
+      .map((l) => [normalizeLotNumber(l.lotNumber), l.id] as const)
+      .filter((entry): entry is [string, number] => entry[0] !== null)
   )
   const scrapedAddresses = new Set(scrapedListings.map((l) => normalizeAddress(l.address)))
 
@@ -185,19 +195,21 @@ async function detectAndApplyChanges(
     newIncentives: [],
   }
   const newListingIds: number[] = []
+  const processedExistingIds = new Set<number>()
   let soldDelta = 0
 
   for (const scraped of scrapedListings) {
     const key = normalizeAddress(scraped.address)
+    const scrapedLotKey = normalizeListingLotKey(scraped.lotNumber, scraped.address)
     const existing = existingByAddress.get(key)
-      ?? (scraped.lotNumber ? existingByLotNumber.get(scraped.lotNumber) : undefined)
+      ?? (scrapedLotKey ? existingByLotNumber.get(scrapedLotKey) : undefined)
 
     if (!existing) {
-      if (scraped.lotNumber) {
-        const removedOwnerId = removedByLotNumber.get(scraped.lotNumber)
+      if (scrapedLotKey) {
+        const removedOwnerId = removedByLotNumber.get(scrapedLotKey)
         if (removedOwnerId !== undefined) {
           await prisma.listing.update({ where: { id: removedOwnerId }, data: { lotNumber: null } })
-          removedByLotNumber.delete(scraped.lotNumber)
+          removedByLotNumber.delete(scrapedLotKey)
         }
       }
 
@@ -305,22 +317,26 @@ async function detectAndApplyChanges(
         }
       }
     } else {
+      processedExistingIds.add(existing.id)
+
       const newLotNumber = scraped.lotNumber ?? existing.lotNumber
-      const lotNumberOwner = newLotNumber ? existingByLotNumber.get(newLotNumber) : undefined
+      const newLotKey = normalizeLotNumber(newLotNumber)
+      const existingLotKey = normalizeLotNumber(existing.lotNumber)
+      const lotNumberOwner = newLotKey ? existingByLotNumber.get(newLotKey) : undefined
       const lotNumberConflicts =
-        newLotNumber !== existing.lotNumber &&
+        newLotKey !== existingLotKey &&
         lotNumberOwner !== undefined &&
         lotNumberOwner.id !== existing.id
 
       if (
-        newLotNumber &&
-        newLotNumber !== existing.lotNumber &&
+        newLotKey &&
+        newLotKey !== existingLotKey &&
         !lotNumberConflicts
       ) {
-        const removedOwnerId = removedByLotNumber.get(newLotNumber)
+        const removedOwnerId = removedByLotNumber.get(newLotKey)
         if (removedOwnerId !== undefined) {
           await prisma.listing.update({ where: { id: removedOwnerId }, data: { lotNumber: null } })
-          removedByLotNumber.delete(newLotNumber)
+          removedByLotNumber.delete(newLotKey)
         }
       }
 
@@ -341,6 +357,15 @@ async function detectAndApplyChanges(
         schools: scraped.schools ?? existing.schools,
         incentives: scraped.incentives ?? existing.incentives,
         sourceUrl: scraped.sourceUrl ?? existing.sourceUrl,
+      }
+
+      const addressOwner = existingByAddress.get(key)
+      const addressConflicts =
+        key !== normalizeAddress(existing.address) &&
+        addressOwner !== undefined &&
+        addressOwner.id !== existing.id
+      if (!addressConflicts && !isPlaceholderAddress(scraped.address)) {
+        updates.address = scraped.address
       }
 
       if (scraped.incentives && scraped.incentives !== existing.incentives) {
@@ -460,6 +485,7 @@ async function detectAndApplyChanges(
 
   for (const [key, listing] of existingByAddress.entries()) {
     if (scrapedAddresses.has(key)) continue
+    if (processedExistingIds.has(listing.id)) continue
     if (listing.status !== "for sale") continue
 
     if (listing.currentPrice != null) {
@@ -550,7 +576,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     for (const l of listings) {
       const normAddr = (l.address ?? "").toLowerCase().trim()
       if (normAddr && !/^(avail|sold|future)-/.test(normAddr)) seenAddrs.set(normAddr, l)
-      else if (l.lotNumber) seenLots.set(l.lotNumber, l)
+      else if (l.lotNumber) seenLots.set(normalizeLotNumber(l.lotNumber) ?? l.lotNumber, l)
     }
     const dedupedListings = [...seenAddrs.values(), ...seenLots.values()]
 

@@ -10,6 +10,7 @@ import { notifyPriceChange, notifyNewListings } from "../../lib/scraper/notifica
 import { updateTable2 } from "../../lib/sheet-writer"
 import { readKBHomeMap } from "../../lib/scraper/map-readers/kb-home-map"
 import { findExistingCommunityForScrape, upsertCommunityForScrape } from "../../lib/scraper/community-resolver"
+import { normalizeListingLotKey, normalizeLotNumber } from "../../lib/lot-number"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
 const prisma = new PrismaClient()
@@ -60,7 +61,7 @@ interface ChangeDetails {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
-const LOT_ONLY_ADDRESS_RE = /^lot\s+\d+$/i
+const LOT_ONLY_ADDRESS_RE = /^(?:lot|homesite|home\s*site|home-site|hs|site)\s*#?\s*[-:]?\s*[a-z0-9-]+$/i
 
 function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
@@ -151,7 +152,7 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
 
   return result.lots.map(lot => {
     // Only active lots with a real address qualify as "for sale"
-    const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
+    const hasRealAddress = lot.address && !/^(lot|homesite|home\s*site|home-site|hs|site|avail|sold|future)\s*#?\s*[-:\d]/i.test(lot.address)
     const status: string = lot.status === "for sale" && (!lot.price || !hasRealAddress) ? "future" : lot.status
     return {
       communityName, communityUrl,
@@ -184,7 +185,9 @@ async function detectAndApplyChanges(
 
   const existingByAddress = new Map(existing.map((l) => [normalizeAddress(l.address), l]))
   const existingByLotNumber = new Map(
-    existing.filter((l) => l.lotNumber).map((l) => [l.lotNumber!, l])
+    existing
+      .map((l) => [normalizeListingLotKey(l.lotNumber, l.address), l] as const)
+      .filter((entry): entry is [string, typeof existing[number]] => entry[0] !== null)
   )
 
   const removedListings = await prisma.listing.findMany({
@@ -192,10 +195,12 @@ async function detectAndApplyChanges(
     select: { id: true, lotNumber: true },
   })
   const removedByLotNumber = new Map(
-    removedListings.filter((l) => l.lotNumber).map((l) => [l.lotNumber!, l.id])
+    removedListings
+      .map((l) => [normalizeLotNumber(l.lotNumber), l.id] as const)
+      .filter((entry): entry is [string, number] => entry[0] !== null)
   )
   const scrapedAddresses = new Set(scrapedListings.map((l) => normalizeAddress(l.address)))
-  const scrapedLotNumbers = new Set(scrapedListings.map((l) => l.lotNumber).filter(Boolean))
+  const scrapedLotNumbers = new Set(scrapedListings.map((l) => normalizeListingLotKey(l.lotNumber, l.address)).filter(Boolean))
   const matchedExistingIds = new Set<number>()
 
   const stats: ChangeDetails = {
@@ -215,16 +220,17 @@ async function detectAndApplyChanges(
 
   for (const scraped of scrapedListings) {
     const key = normalizeAddress(scraped.address)
+    const scrapedLotKey = normalizeListingLotKey(scraped.lotNumber, scraped.address)
     const existing = existingByAddress.get(key)
-      ?? (scraped.lotNumber ? existingByLotNumber.get(scraped.lotNumber) : undefined)
+      ?? (scrapedLotKey ? existingByLotNumber.get(scrapedLotKey) : undefined)
     if (existing) matchedExistingIds.add(existing.id)
 
     if (!existing) {
-      if (scraped.lotNumber) {
-        const removedOwnerId = removedByLotNumber.get(scraped.lotNumber)
+      if (scrapedLotKey) {
+        const removedOwnerId = removedByLotNumber.get(scrapedLotKey)
         if (removedOwnerId !== undefined) {
           await prisma.listing.update({ where: { id: removedOwnerId }, data: { lotNumber: null } })
-          removedByLotNumber.delete(scraped.lotNumber)
+          removedByLotNumber.delete(scrapedLotKey)
         }
       }
 
@@ -323,21 +329,23 @@ async function detectAndApplyChanges(
       }
     } else {
       const newLotNumber = scraped.lotNumber ?? existing.lotNumber
-      const lotNumberOwner = newLotNumber ? existingByLotNumber.get(newLotNumber) : undefined
+      const newLotKey = normalizeLotNumber(newLotNumber)
+      const existingLotKey = normalizeLotNumber(existing.lotNumber)
+      const lotNumberOwner = newLotKey ? existingByLotNumber.get(newLotKey) : undefined
       const lotNumberConflicts =
-        newLotNumber !== existing.lotNumber &&
+        newLotKey !== existingLotKey &&
         lotNumberOwner !== undefined &&
         lotNumberOwner.id !== existing.id
 
       if (
-        newLotNumber &&
-        newLotNumber !== existing.lotNumber &&
+        newLotKey &&
+        newLotKey !== existingLotKey &&
         !lotNumberConflicts
       ) {
-        const removedOwnerId = removedByLotNumber.get(newLotNumber)
+        const removedOwnerId = removedByLotNumber.get(newLotKey)
         if (removedOwnerId !== undefined) {
           await prisma.listing.update({ where: { id: removedOwnerId }, data: { lotNumber: null } })
-          removedByLotNumber.delete(newLotNumber)
+          removedByLotNumber.delete(newLotKey)
         }
       }
 
@@ -451,7 +459,7 @@ async function detectAndApplyChanges(
   for (const [key, listing] of existingByAddress.entries()) {
     if (scrapedAddresses.has(key)) continue
     if (matchedExistingIds.has(listing.id)) continue
-    if (listing.lotNumber && scrapedLotNumbers.has(listing.lotNumber)) continue
+    if (normalizeLotNumber(listing.lotNumber) && scrapedLotNumbers.has(normalizeLotNumber(listing.lotNumber))) continue
     if (listing.status !== "for sale") continue
 
     // A lot is only marked SOLD if it has BOTH a real price AND a real address.
@@ -556,7 +564,7 @@ async function scrapeOneCommunity(builderId: number, row: SheetCommunityRow): Pr
     for (const l of listings) {
       const normAddr = (l.address ?? "").toLowerCase().trim()
       if (normAddr && !/^(avail|sold|future)-/.test(normAddr)) seenAddrs.set(normAddr, l)
-      else if (l.lotNumber) seenLots.set(l.lotNumber, l)
+      else if (l.lotNumber) seenLots.set(normalizeLotNumber(l.lotNumber) ?? l.lotNumber, l)
     }
     const dedupedListings = [...seenAddrs.values(), ...seenLots.values()]
 

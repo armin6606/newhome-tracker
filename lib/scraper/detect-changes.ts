@@ -3,10 +3,11 @@ import type { ScrapedListing } from "./toll-brothers"
 import { notifyPriceChange, notifyNewListings } from "./notifications"
 import { updateTable2 } from "@/lib/sheet-writer"
 import { normalizeFloorPlanName } from "@/lib/plan-name"
+import { normalizeListingLotKey, normalizeLotNumber } from "@/lib/lot-number"
 
 // Matches placeholder lot numbers created by the ingest route (avail-N, sold-N, future-N)
 const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
-const PLACEHOLDER_ADDRESS_RE = /^(lot|home site)\s+\d+$/i
+const PLACEHOLDER_ADDRESS_RE = /^(?:lot|homesite|home\s*site|home-site|hs|site)\s*#?\s*[-:]?\s*[a-z0-9-]+$/i
 
 export interface NewListingDetail {
   address: string | null
@@ -75,7 +76,9 @@ export async function detectAndApplyChanges(
   // Secondary lookup by lotNumber — catches cases where address changed between scrapes
   // (e.g. Lennar lot stored as "Lot 10041" then later gets a real street address)
   const existingByLotNumber = new Map(
-    existing.filter((l) => l.lotNumber).map((l) => [l.lotNumber!, l])
+    existing
+      .map((l) => [normalizeListingLotKey(l.lotNumber, l.address), l] as const)
+      .filter((entry): entry is [string, typeof existing[number]] => entry[0] !== null)
   )
 
   // Removed listings also hold their lotNumber in the unique index.
@@ -86,7 +89,9 @@ export async function detectAndApplyChanges(
     select: { id: true, lotNumber: true },
   })
   const removedByLotNumber = new Map(
-    removedListings.filter((l) => l.lotNumber).map((l) => [l.lotNumber!, l.id])
+    removedListings
+      .map((l) => [normalizeLotNumber(l.lotNumber), l.id] as const)
+      .filter((entry): entry is [string, number] => entry[0] !== null)
   )
   const scrapedAddresses = new Set(scrapedListings.map((l) => normalizeAddress(l.address)))
 
@@ -113,18 +118,19 @@ export async function detectAndApplyChanges(
   for (const scraped of scrapedListings) {
     const normalizedFloorPlan = normalizeFloorPlanName(scraped.floorPlan, communityName)
     const key = normalizeAddress(scraped.address)
+    const scrapedLotKey = normalizeListingLotKey(scraped.lotNumber, scraped.address)
     // Primary lookup by address; fallback to lotNumber if address changed
     const existing = existingByAddress.get(key)
-      ?? (scraped.lotNumber ? existingByLotNumber.get(scraped.lotNumber) : undefined)
+      ?? (scrapedLotKey ? existingByLotNumber.get(scrapedLotKey) : undefined)
 
     if (!existing) {
       // If a *removed* listing is holding this lotNumber, clear it first so the
       // INSERT doesn't hit the unique constraint on (communityId, lotNumber).
-      if (scraped.lotNumber) {
-        const removedOwnerId = removedByLotNumber.get(scraped.lotNumber)
+      if (scrapedLotKey) {
+        const removedOwnerId = removedByLotNumber.get(scrapedLotKey)
         if (removedOwnerId !== undefined) {
           await prisma.listing.update({ where: { id: removedOwnerId }, data: { lotNumber: null } })
-          removedByLotNumber.delete(scraped.lotNumber)
+          removedByLotNumber.delete(scrapedLotKey)
         }
       }
 
@@ -233,22 +239,24 @@ export async function detectAndApplyChanges(
       // This can happen when two scrape entries swap lot numbers between runs — one listing is
       // found by address, but the scraped.lotNumber is already owned by a *different* DB row.
       const newLotNumber = scraped.lotNumber ?? existing.lotNumber
-      const lotNumberOwner = newLotNumber ? existingByLotNumber.get(newLotNumber) : undefined
+      const newLotKey = normalizeLotNumber(newLotNumber)
+      const existingLotKey = normalizeLotNumber(existing.lotNumber)
+      const lotNumberOwner = newLotKey ? existingByLotNumber.get(newLotKey) : undefined
       const lotNumberConflicts =
-        newLotNumber !== existing.lotNumber &&
+        newLotKey !== existingLotKey &&
         lotNumberOwner !== undefined &&
         lotNumberOwner.id !== existing.id
 
       // If a *removed* listing is holding this lotNumber, clear it first so our update can claim it.
       if (
-        newLotNumber &&
-        newLotNumber !== existing.lotNumber &&
+        newLotKey &&
+        newLotKey !== existingLotKey &&
         !lotNumberConflicts
       ) {
-        const removedOwnerId = removedByLotNumber.get(newLotNumber)
+        const removedOwnerId = removedByLotNumber.get(newLotKey)
         if (removedOwnerId !== undefined) {
           await prisma.listing.update({ where: { id: removedOwnerId }, data: { lotNumber: null } })
-          removedByLotNumber.delete(newLotNumber)
+          removedByLotNumber.delete(newLotKey)
         }
       }
 

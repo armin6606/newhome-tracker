@@ -36,7 +36,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM           = "New Key Alerts <reports@newkey.us>"
 const TO             = "armin.sabe@gmail.com"
 const WORKFLOW_URL   = process.env.WORKFLOW_RUN_URL || ""
-const PLACEHOLDER_ADDRESS_RE = /^(lot|home site)\s+\d+$/i
+const PLACEHOLDER_ADDRESS_RE = /^(?:lot|homesite|home\s*site|home-site|hs|site)\s*#?\s*[-:]?\s*[a-z0-9-]+$/i
 
 // ── Load scraper results ──────────────────────────────────────────────────────
 

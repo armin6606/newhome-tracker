@@ -21,6 +21,7 @@ import { fetchBuilderSheet } from "./sheet-reader"
 import type { SheetCommunityRow } from "./sheet-reader"
 import type { ScrapedListing } from "./toll-brothers"
 import type { MapResult } from "./map-readers/types"
+import { normalizeLotNumber } from "@/lib/lot-number"
 
 // Map readers
 import { readTollBrothersMap } from "./map-readers/toll-brothers-map"
@@ -130,7 +131,7 @@ export function buildListings(
     return result.lots.map((lot) => {
       // No-price rule: lots marked active without a price are downgraded to future —
       // A real price is required before a home is considered active inventory.
-      const hasRealAddress = lot.address && !/^(lot|home site|avail|sold|future)\s*[-\d]/i.test(lot.address)
+      const hasRealAddress = lot.address && !/^(lot|homesite|home\s*site|home-site|hs|site|avail|sold|future)\s*#?\s*[-:\d]/i.test(lot.address)
       const status: string =
         lot.status === "for sale" && (!lot.price || !hasRealAddress) ? "future" : lot.status
 
@@ -351,7 +352,7 @@ async function scrapeOneCommunity(
       if (normAddr && !/^(avail|sold|future)-/.test(normAddr)) {
         seenAddrs.set(normAddr, l)
       } else if (l.lotNumber) {
-        seenLots.set(l.lotNumber, l)
+        seenLots.set(normalizeLotNumber(l.lotNumber) ?? l.lotNumber, l)
       }
     }
     const dedupedListings = [...seenAddrs.values(), ...seenLots.values()]

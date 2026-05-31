@@ -4,6 +4,7 @@ import { BUILDER_SHEET_TABS, getSheetCommunities } from "@/lib/sheet-validator"
 import { normalizeBuilderName, normalizeCommunityName } from "@/lib/normalizer"
 import { updateTable2, type Table2Counts } from "@/lib/sheet-writer"
 import { getTable3Plans, lookupPlan, matchPlanBySpecs, normalizePlan } from "@/lib/table3-reader"
+import { normalizeListingLotKey, normalizeLotNumber } from "@/lib/lot-number"
 
 /**
  * POST /api/ingest
@@ -422,7 +423,11 @@ export async function POST(req: NextRequest) {
   // ── Pre-fetch all existing listings for this community (1 query replaces N findUnique calls) ──
   const allExisting = await prisma.listing.findMany({ where: { communityId: community.id } })
   const existingByAddress   = new Map(allExisting.filter(l => l.address).map(l => [l.address!,    l]))
-  const existingByLotNumber = new Map(allExisting.filter(l => l.lotNumber).map(l => [l.lotNumber!, l]))
+  const existingByLotNumber = new Map(
+    allExisting
+      .map(l => [normalizeListingLotKey(l.lotNumber, l.address), l] as const)
+      .filter((entry): entry is [string, typeof allExisting[number]] => entry[0] !== null)
+  )
 
   // Collect DB write ops — executed together in one transaction after the loop.
   // This gives us: (a) parallel execution to avoid Vercel timeout, (b) atomicity so
@@ -434,11 +439,12 @@ export async function POST(req: NextRequest) {
     const isPlaceholder = !!(l.lotNumber && PLACEHOLDER_RE.test(l.lotNumber))
     const rawAddress    = l.address   || null
     const rawLotNumber  = l.lotNumber || null
+    const rawLotKey     = normalizeListingLotKey(rawLotNumber, rawAddress)
 
     // O(1) map lookup — no DB round-trip (all listings pre-fetched above)
     const existing =
-      rawAddress   ? (existingByAddress.get(rawAddress)     ?? null) :
-      rawLotNumber ? (existingByLotNumber.get(rawLotNumber) ?? null) :
+      rawAddress ? (existingByAddress.get(rawAddress) ?? null) :
+      rawLotKey  ? (existingByLotNumber.get(rawLotKey) ?? null) :
       null
 
     const v = validateListing(l, community.name, existing?.status ?? undefined)
@@ -549,9 +555,11 @@ export async function POST(req: NextRequest) {
       // Guard: only update lotNumber if it won't collide with a different listing's unique key.
       // Mirrors the same guard in detect-changes.ts to prevent P2002 on (communityId, lotNumber).
       const candidateLotNumber = lotNumber ?? existing.lotNumber
-      const lotOwner = candidateLotNumber ? existingByLotNumber.get(candidateLotNumber) : undefined
+      const candidateLotKey = normalizeLotNumber(candidateLotNumber)
+      const existingLotKey = normalizeLotNumber(existing.lotNumber)
+      const lotOwner = candidateLotKey ? existingByLotNumber.get(candidateLotKey) : undefined
       const lotNumberConflicts =
-        candidateLotNumber !== existing.lotNumber &&
+        candidateLotKey !== existingLotKey &&
         lotOwner !== undefined &&
         lotOwner.id !== existing.id
       const safeLotNumber = lotNumberConflicts ? existing.lotNumber : candidateLotNumber

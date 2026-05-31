@@ -66,7 +66,7 @@ const BUILDER_TABS = {
 
 const SUPPORTED_BUILDERS = new Set(Object.keys(BUILDER_TABS))
 const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
-const LOT_ONLY_ADDRESS_RE = /^(lot|home site)\s+\d+$/i
+const LOT_ONLY_ADDRESS_RE = /^(?:lot|homesite|home\s*site|home-site|hs|site)\s*#?\s*[-:]?\s*[a-z0-9-]+$/i
 
 function isRealListing(l) {
   return (

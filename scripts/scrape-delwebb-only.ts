@@ -14,7 +14,7 @@ function buildListings(result: MapResult, communityName: string, communityUrl: s
   if (result.lots && result.lots.length > 0) {
     return result.lots.map((lot) => {
       // Preserve "active" when the lot has a real street address (e.g. QMI lots)
-      const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
+      const hasRealAddress = lot.address && !/^(lot|homesite|home\s*site|home-site|hs|site|avail|sold|future)\s*#?\s*[-:\d]/i.test(lot.address)
       const status: string = lot.status === "active" && !lot.price && !hasRealAddress ? "future" : lot.status
       return {
         communityName, communityUrl,

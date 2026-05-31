@@ -10,6 +10,7 @@ import { detectAndApplyChanges, type ChangeDetails } from "../../lib/scraper/det
 import type { ScrapedListing } from "../../lib/scraper/toll-brothers"
 import { readTrumarkMap, trumarkCityFromUrl } from "../../lib/scraper/map-readers/trumark-map"
 import { findExistingCommunityForScrape, upsertCommunityForScrape } from "../../lib/scraper/community-resolver"
+import { normalizeLotNumber } from "../../lib/lot-number"
 import type { MapResult } from "../../lib/scraper/map-readers/types"
 
 const prisma = new PrismaClient()
@@ -110,7 +111,8 @@ async function fetchBuilderSheet(): Promise<SheetCommunityRow[]> {
 
 function buildListings(result: MapResult, communityName: string, communityUrl: string): ScrapedListing[] {
   return (result.lots ?? []).map((lot) => {
-    const status = lot.status === "for sale" && !lot.price ? "future" : lot.status
+    const hasRealAddress = lot.address && !/^(lot|homesite|home\s*site|home-site|hs|site|avail|sold|future)\s*#?\s*[-:\d]/i.test(lot.address)
+    const status = lot.status === "for sale" && (!lot.price || !hasRealAddress) ? "future" : lot.status
     const price = status === "for sale" ? lot.price : undefined
     return {
       communityName,
@@ -179,7 +181,7 @@ async function scrapeOneCommunity(
     )
 
     const deduped = Array.from(
-      new Map(listings.map((listing) => [`${listing.lotNumber ?? ""}|${listing.address}`, listing])).values()
+      new Map(listings.map((listing) => [`${normalizeLotNumber(listing.lotNumber) ?? ""}|${listing.address}`, listing])).values()
     )
     const stats = await detectAndApplyChanges(deduped, community.id, BUILDER_NAME)
     console.log(`  [${BUILDER_NAME}] ${row.communityName}: +${stats.added} new, ${stats.priceChanges} price changes, ${stats.removed} removed/sold, ${stats.unchanged} unchanged`)
