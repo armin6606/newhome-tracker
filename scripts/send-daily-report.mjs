@@ -66,15 +66,41 @@ const BUILDER_TABS = {
 
 const SUPPORTED_BUILDERS = new Set(Object.keys(BUILDER_TABS))
 const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
+const LOT_ONLY_ADDRESS_RE = /^(lot|home site)\s+\d+$/i
 
 function isRealListing(l) {
-  return l.address !== null && !PLACEHOLDER_LOT_RE.test(l.lotNumber || "")
+  return (
+    l.address !== null &&
+    !LOT_ONLY_ADDRESS_RE.test(l.address.trim()) &&
+    !PLACEHOLDER_LOT_RE.test(l.lotNumber || "")
+  )
 }
 
 function isVisibleCommunityCard(card) {
   if (!SUPPORTED_BUILDERS.has(card.builder)) return false
   const isFutureOnly = card.active === 0 && card.sold === 0 && card.future > 0
   return card.lastScrapedAt !== null || isFutureOnly
+}
+
+function pricedListingHiddenReason(listing) {
+  const builderName = listing.community.builder.name
+  if (!SUPPORTED_BUILDERS.has(builderName)) return `builder has no dedicated sheet tab (${builderName})`
+  if (!listing.address) return "missing address"
+  if (LOT_ONLY_ADDRESS_RE.test(listing.address.trim())) return "address is only a lot label"
+  if (/^(avail|sold|future)-/i.test(listing.address)) return "placeholder address"
+  if (listing.lotNumber && PLACEHOLDER_LOT_RE.test(listing.lotNumber)) return "placeholder lot number"
+
+  const realListings = listing.community.listings.filter(isRealListing)
+  const active = realListings.filter(l => l.status === "for sale" && l.currentPrice !== null).length
+  const sold = realListings.filter(l => l.status === "sold").length
+  const future = realListings.filter(l => l.status === "future").length
+  const isFutureOnly = active === 0 && sold === 0 && future > 0
+
+  if (listing.community.lastScrapedAt === null && !isFutureOnly) {
+    return "community is hidden because it has not been marked scraped"
+  }
+
+  return null
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -271,6 +297,29 @@ async function collectData(snapshot) {
     where: { status: "pending" },
   })
 
+  const pricedForSaleListings = await prisma.listing.findMany({
+    where: {
+      status: "for sale",
+      currentPrice: { not: null },
+    },
+    include: {
+      community: {
+        include: {
+          builder: { select: { name: true } },
+          listings: {
+            where: { status: { not: "removed" } },
+            select: { address: true, status: true, lotNumber: true, currentPrice: true },
+          },
+        },
+      },
+    },
+    orderBy: { lastUpdated: "desc" },
+  })
+
+  const hiddenPricedListings = pricedForSaleListings
+    .map(l => ({ listing: l, reason: pricedListingHiddenReason(l) }))
+    .filter(item => item.reason)
+
   // Current community card counts (from real scraped listings only — no placeholders)
   const communities = await prisma.community.findMany({
     where: {
@@ -305,7 +354,7 @@ async function collectData(snapshot) {
     table2Now[builderName] = await fetchTable2(tabName)
   }
 
-  return { since, until, forSaleNow, newListings, newlySold, priceChanges, pendingPromoCount, communityCardsNow, table2Now }
+  return { since, until, forSaleNow, newListings, newlySold, priceChanges, pendingPromoCount, hiddenPricedListings, communityCardsNow, table2Now }
 }
 
 // ── Group by builder ───────────────────────────────────────────────────────────
@@ -386,6 +435,35 @@ function sectionNewlySold(newlySold) {
   return card(`
     ${sectionHeader("Newly Sold Homes")}
     ${table(["Builder","Address","Community","Last Price","Detected"], rows, "No newly sold homes detected in this report window.")}
+  `)
+}
+
+function sectionPricedListingVisibility(hiddenPricedListings) {
+  const rows = hiddenPricedListings.slice(0, 50).map(({ listing: l, reason }) => [
+    l.community.builder.name,
+    lotAddr(l),
+    l.community.name,
+    fmt(l.currentPrice),
+    reason,
+  ])
+
+  const extra = hiddenPricedListings.length > rows.length
+    ? `<p style="margin:8px 0 0;font-size:12px;color:#92400e">Showing first ${rows.length} of ${hiddenPricedListings.length} hidden priced homes.</p>`
+    : ""
+
+  const body = hiddenPricedListings.length === 0
+    ? `<p style="color:#16a34a;font-size:13px;margin:0">Passed: every priced for-sale home is eligible to show on the website.</p>`
+    : `
+      <p style="margin:0 0 10px;font-size:13px;color:#92400e;line-height:1.5">
+        <strong>${hiddenPricedListings.length}</strong> priced for-sale home${hiddenPricedListings.length === 1 ? " is" : "s are"} hidden from the public listing page.
+      </p>
+      ${table(["Builder","Address","Community","Price","Why Hidden"], rows, "")}
+      ${extra}
+    `
+
+  return card(`
+    ${sectionHeader("Priced Homes Hidden From Site")}
+    ${body}
   `)
 }
 
@@ -678,7 +756,7 @@ function sectionPendingPromos(pendingPromoCount) {
 }
 
 function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
-  const { communityCardsNow, table2Now, pendingPromoCount, newlySold, since, until } = data
+  const { communityCardsNow, table2Now, pendingPromoCount, hiddenPricedListings, newlySold, since, until } = data
   const dateStr = new Date().toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
     timeZone: "America/Los_Angeles",
@@ -689,6 +767,7 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
   const windowLabel = `${formatPacificDateTime(since)} to ${formatPacificDateTime(until)}`
 
   const s0 = section0ScraperStatus(scraperResults)
+  const sHidden = sectionPricedListingVisibility(hiddenPricedListings)
   const sSold = sectionNewlySold(newlySold)
   const sPromos = sectionPendingPromos(pendingPromoCount)
   const s5 = section5Other(snapshot, communityCardsNow, table2Now)
@@ -711,6 +790,7 @@ function buildHtml(snapshot, data, scraperResults, workflowRunUrl) {
     <!-- Body -->
     <div style="background:#f3f4f6;padding:16px 0">
       ${s0}
+      ${sHidden}
       ${sSold}
       ${sPromos}
       ${s5}
@@ -793,17 +873,18 @@ async function main() {
   console.log("\n  Collecting post-scrape data…")
   const data = await collectData(snapshot)
 
-  const { since, until, forSaleNow, newListings, newlySold, priceChanges } = data
+  const { since, until, forSaleNow, newListings, newlySold, priceChanges, hiddenPricedListings } = data
   console.log(`  Report window : ${formatPacificDateTime(since)} to ${formatPacificDateTime(until)}`)
   console.log(`  For sale now  : ${forSaleNow} (was ${snapshot?.forSaleCount ?? "N/A"} at pre-scrape snapshot)`)
   console.log(`  New listings  : ${newListings.length}`)
   console.log(`  Newly sold    : ${newlySold.length}`)
   console.log(`  Price changes : ${priceChanges.length}`)
+  console.log(`  Hidden priced : ${hiddenPricedListings.length}`)
 
   const dateStr    = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" })
-  const issueCount = (failCount || 0) + (timeoutCount || 0)
+  const issueCount = (failCount || 0) + (timeoutCount || 0) + hiddenPricedListings.length
   const subject    = issueCount > 0
-    ? `⚠️ New Key Daily Report — ${dateStr} (${issueCount} scraper issue${issueCount > 1 ? "s" : ""})`
+    ? `⚠️ New Key Daily Report — ${dateStr} (${issueCount} issue${issueCount > 1 ? "s" : ""})`
     : `✅ New Key Daily Report — ${dateStr}`
   const html       = buildHtml(snapshot, data, scraperResults, workflowRunUrl)
 
