@@ -38,6 +38,8 @@ const INGEST_SECRET = process.env.INGEST_SECRET
 if (!INGEST_SECRET) throw new Error("INGEST_SECRET is required")
 const BUILDER_NAME  = "Brookfield Residential"
 const USER_AGENT    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+const SHEET_ID      = "1CVHJ5Fimh4bknzuPjdiPDsxgCnkiuaGsTw0p2yvvE5c"
+const BROOKFIELD_TAB = "Brookfield"
 
 const COMMUNITY_NAME = "Vista in Summit Collection"
 const COMMUNITY_CITY = "Irvine"
@@ -84,6 +86,82 @@ function lotFromUrl(url) {
 
 function compositeKey(communityName, rawLot) {
   return communityName.replace(/\s+/g, "") + String(rawLot)
+}
+
+function parseCsvLine(line) {
+  const cols = []
+  let current = ""
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    const next = line[i + 1]
+    if (ch === '"' && inQuotes && next === '"') {
+      current += '"'
+      i++
+    } else if (ch === '"') {
+      inQuotes = !inQuotes
+    } else if (ch === "," && !inQuotes) {
+      cols.push(current.trim())
+      current = ""
+    } else {
+      current += ch
+    }
+  }
+  cols.push(current.trim())
+  return cols
+}
+
+function cityFromUrl(url) {
+  const m = url.match(/\/new-homes\/california\/[^/]+\/([^/?#]+)\//i)
+  return m ? toTitleCase(m[1].replace(/-/g, " ")) : COMMUNITY_CITY
+}
+
+function communityNameFromRow(row) {
+  if (row.communityName.toLowerCase() === "vista" && row.url.includes("vista-in-summit")) {
+    return COMMUNITY_NAME
+  }
+  return row.communityName
+}
+
+async function fetchBrookfieldRows() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(BROOKFIELD_TAB)}`
+  const res = await fetch(url, { cache: "no-store", redirect: "follow" })
+  if (!res.ok) throw new Error(`Failed to fetch Brookfield tab: HTTP ${res.status}`)
+
+  const rows = (await res.text()).split(/\r?\n/).filter(Boolean).map(parseCsvLine)
+  return rows
+    .slice(1)
+    .map((cols) => ({
+      communityName: cols[0]?.trim() || "",
+      url: cols[1]?.trim() || "",
+      city: cityFromUrl(cols[1]?.trim() || ""),
+    }))
+    .filter((row) =>
+      row.communityName &&
+      row.url.startsWith("http") &&
+      row.url.includes("brookfieldresidential.com")
+    )
+}
+
+async function discoverQmiUrls(page, communityUrl) {
+  console.log(`Discovering QMI links from: ${communityUrl}`)
+  await page.goto(communityUrl, { waitUntil: "domcontentloaded", timeout: 60000 })
+  await page.waitForTimeout(4000)
+
+  const urls = await page.evaluate((baseUrl) => {
+    const normalizedBase = baseUrl.replace(/\/+$/, "")
+    const found = new Set()
+    document.querySelectorAll("a[href]").forEach((a) => {
+      const href = a.href
+      if (!href || !href.includes("unit-")) return
+      if (!href.startsWith(normalizedBase)) return
+      found.add(href.split("#")[0])
+    })
+    return [...found]
+  }, communityUrl)
+
+  console.log(`Discovered ${urls.length} QMI link(s)`)
+  return urls
 }
 
 // ---------------------------------------------------------------------------
@@ -222,22 +300,56 @@ async function main() {
   console.log("Brookfield Residential OC Scraper (diff-based)")
   console.log("=".repeat(60))
 
-  // Use the hardcoded community name directly (already matches DB exactly)
-  const resolvedName = COMMUNITY_NAME
+  const sheetRows = await fetchBrookfieldRows()
+  const activeCommunity = sheetRows[0] ?? {
+    communityName: COMMUNITY_NAME,
+    url: BROOKFIELD_COMMUNITY_URL,
+    city: COMMUNITY_CITY,
+  }
+  if (sheetRows.length === 0) {
+    console.warn(`Brookfield tab had no usable rows; falling back to ${COMMUNITY_NAME}`)
+  } else if (sheetRows.length > 1) {
+    console.warn(`Brookfield tab has ${sheetRows.length} rows; this scraper will use the first row for tomorrow's run.`)
+  }
+
+  const resolvedName = await resolveDbCommunityName(communityNameFromRow(activeCommunity), BUILDER_NAME, prisma)
+  const communityCity = activeCommunity.city || COMMUNITY_CITY
+  const communityUrl = activeCommunity.url
+  console.log(`Community: ${resolvedName} (${communityCity})`)
+
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  })
+  const context = await browser.newContext({
+    userAgent: USER_AGENT,
+    extraHTTPHeaders: { "Accept-Language": "en-US,en;q=0.9" },
+  })
+  let page = await context.newPage()
+
+  let qmiUrls = await discoverQmiUrls(page, communityUrl)
+  if (qmiUrls.length === 0 && communityUrl === BROOKFIELD_COMMUNITY_URL) {
+    console.warn("No QMI links discovered from page; using legacy Vista fallback URLs.")
+    qmiUrls = QMI_URLS
+  }
+  if (qmiUrls.length === 0) {
+    throw new Error(`No Brookfield QMI links discovered for ${resolvedName}; skipping scrape to avoid false sold updates.`)
+  }
+
   // Query DB active listings
   const db = await getDbActive(resolvedName, BUILDER_NAME)
   console.log(`DB active listings: ${db.all.length}`)
 
   // Build set of QMI URL-derived addresses/lots for sold detection
-  const qmiAddresses = new Set(QMI_URLS.map(u => addressFromUrl(u).toLowerCase()))
-  const qmiLots      = new Set(QMI_URLS.map(u => lotFromUrl(u)).filter(Boolean).map(l => compositeKey(resolvedName, l)))
-  const qmiSourceUrls = new Set(QMI_URLS)
+  const qmiAddresses = new Set(qmiUrls.map(u => addressFromUrl(u).toLowerCase()))
+  const qmiLots      = new Set(qmiUrls.map(u => lotFromUrl(u)).filter(Boolean).map(l => compositeKey(resolvedName, l)))
+  const qmiSourceUrls = new Set(qmiUrls)
 
   // Classify each QMI URL
   const newUrls     = []
   const existingUrls = []
 
-  for (const url of QMI_URLS) {
+  for (const url of qmiUrls) {
     const derivedAddr = addressFromUrl(url).toLowerCase()
     const derivedLot  = lotFromUrl(url)
 
@@ -265,22 +377,10 @@ async function main() {
     }
   }
 
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  })
-  const context = await browser.newContext({
-    userAgent: USER_AGENT,
-    extraHTTPHeaders: { "Accept-Language": "en-US,en;q=0.9" },
-  })
-
   const newListings  = []
   const priceUpdates = []
-  let   page         = null
 
   try {
-    page = await context.newPage()
-
     // Visit new URLs for full detail
     for (const url of newUrls) {
       try {
@@ -361,7 +461,7 @@ async function main() {
 
   const payload = {
     builder:   { name: BUILDER_NAME, websiteUrl: "https://www.brookfieldresidential.com" },
-    community: { name: resolvedName, city: COMMUNITY_CITY, state: COMMUNITY_STATE, url: BROOKFIELD_COMMUNITY_URL },
+    community: { name: resolvedName, city: communityCity, state: COMMUNITY_STATE, url: communityUrl },
     listings:  [...newListings, ...priceUpdates, ...soldListings],
   }
 
