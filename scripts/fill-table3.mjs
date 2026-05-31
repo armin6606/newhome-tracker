@@ -100,6 +100,10 @@ function communityKey(val) {
   return String(val ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "")
 }
 
+function compactKey(val) {
+  return String(val ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "")
+}
+
 /**
  * Normalize a floorplan name for fuzzy matching.
  * Rules:
@@ -125,6 +129,30 @@ function normalizePlan(communityName, planName) {
   const m = s.match(/^(\d+)([A-Za-z]*)/)
   if (!m) return planName.toLowerCase().trim()
   return (m[1] + (/x/i.test(m[2]) ? "X" : "")).toLowerCase()
+}
+
+function planLookupKeys(communityName, planName) {
+  const keys = new Set()
+  const raw = String(planName ?? "").toLowerCase().trim()
+  if (!raw) return keys
+
+  keys.add(raw)
+  keys.add(compactKey(raw))
+
+  const normalized = normalizePlan(communityName, planName)
+  if (normalized) {
+    keys.add(normalized.toLowerCase().trim())
+    keys.add(compactKey(normalized))
+  }
+
+  // Last-resort builder label cleanup: "Sierra Crest - Residence 3"
+  // and similar labels should still match Table 3 plan "3".
+  const numeric = raw.match(/\b(\d+)([a-z]*)\b/i)
+  if (numeric) {
+    keys.add((numeric[1] + (/x/i.test(numeric[2]) ? "x" : "")).toLowerCase())
+  }
+
+  return keys
 }
 
 // ── Fetch and parse Table 3 from a sheet tab ───────────────────────────────
@@ -177,9 +205,9 @@ async function fetchTable3(tabName) {
     const commKey = communityKey(entry.community)
     if (!map.has(commKey)) map.set(commKey, new Map())
     const inner = map.get(commKey)
-    inner.set(entry.floorplan, entry)
-    const normKey = normalizePlan(entry.community, entry.floorplan)
-    if (normKey && normKey !== entry.floorplan) inner.set(normKey, entry)
+    for (const key of planLookupKeys(entry.community, entry.floorplan)) {
+      inner.set(key, entry)
+    }
   }
 
   return map
@@ -263,12 +291,14 @@ async function main() {
 
       // Look up in Table 3 — exact match first, normalized fallback
       const commKey  = communityKey(listing.community.name)
-      const planKey  = listing.floorPlan.toLowerCase()
       const commMap  = table3Map.get(commKey)
-      const normKey  = normalizePlan(listing.community.name, listing.floorPlan)
-      const t3Entry  = commMap
-        ? (commMap.get(planKey) ?? (normKey ? commMap.get(normKey) : null))
-        : null
+      let t3Entry = null
+      if (commMap) {
+        for (const key of planLookupKeys(listing.community.name, listing.floorPlan)) {
+          t3Entry = commMap.get(key)
+          if (t3Entry) break
+        }
+      }
 
       if (!t3Entry) {
         totalNoMatch++
