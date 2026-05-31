@@ -23,6 +23,9 @@ jobs:
       - run: npx prisma generate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - run: node scripts/audit-hidden-priced-listings.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - run: npm run typecheck
       - run: npm run test:scraper-guards
       - run: npm audit --omit=dev --audit-level=high
