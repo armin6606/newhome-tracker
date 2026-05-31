@@ -11,6 +11,7 @@ on:
           - no-price-active-to-future
           - merge-duplicate-communities
           - reject-false-promos
+          - fill-table3
 
 jobs:
   run:
@@ -49,5 +50,11 @@ jobs:
       - name: Reject false promo submissions
         if: ${{ inputs.task == 'reject-false-promos' }}
         run: npx tsx scripts/reject-false-promo-submissions.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Fill missing listing fields from Table 3
+        if: ${{ inputs.task == 'fill-table3' }}
+        run: node scripts/fill-table3.mjs
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
