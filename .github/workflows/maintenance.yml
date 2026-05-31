@@ -12,6 +12,7 @@ on:
           - merge-duplicate-communities
           - reject-false-promos
           - fill-table3
+          - audit-hidden-priced
 
 jobs:
   run:
@@ -56,5 +57,11 @@ jobs:
       - name: Fill missing listing fields from Table 3
         if: ${{ inputs.task == 'fill-table3' }}
         run: node scripts/fill-table3.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Audit hidden priced listings
+        if: ${{ inputs.task == 'audit-hidden-priced' }}
+        run: node scripts/audit-hidden-priced-listings.mjs
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

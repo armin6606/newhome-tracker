@@ -119,7 +119,11 @@ export async function GET(req: NextRequest) {
         { address: { startsWith: "sold-"  } },
         { address: { startsWith: "future-"} },
         { address: { startsWith: "Lot " } },
+        { address: { startsWith: "Homesite " } },
         { address: { startsWith: "Home Site " } },
+        { address: { startsWith: "Home-Site " } },
+        { address: { startsWith: "HS" } },
+        { address: { startsWith: "Site " } },
       ],
     }
 
