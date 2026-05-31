@@ -22,10 +22,28 @@ assert.equal(listings[1].status, "future", "no-price QMI must not become active 
 assert.equal(listings[1].price, undefined)
 assert.equal(listings[2].status, "sold")
 
+const placeholderAddressResult: MapResult = {
+  sold: 0,
+  forSale: 1,
+  future: 0,
+  total: 1,
+  lots: [
+    { lotNumber: "104", status: "for sale", address: "Home Site 104", price: 1_100_000 },
+  ],
+}
+const placeholderAddressListings = buildListings(placeholderAddressResult, "Toll Test", "https://example.com")
+assert.equal(
+  placeholderAddressListings[0].status,
+  "future",
+  "priced listings with placeholder addresses must not become visible active inventory"
+)
+assert.equal(placeholderAddressListings[0].price, undefined)
+
 assert.equal(isRealListing({ address: "123 Irvine", lotNumber: "101" }), true)
 assert.equal(isRealListing({ address: "future-1", lotNumber: "future-1" }), false)
 assert.equal(isRealListing({ address: null, lotNumber: "avail-1" }), false)
 assert.equal(isRealListing({ address: "Lot 43", lotNumber: "43" }), false)
+assert.equal(isRealListing({ address: "Home Site 43", lotNumber: "43" }), false)
 
 assert.equal(
   isVisibleCommunity({

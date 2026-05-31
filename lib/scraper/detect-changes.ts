@@ -6,6 +6,7 @@ import { normalizeFloorPlanName } from "@/lib/plan-name"
 
 // Matches placeholder lot numbers created by the ingest route (avail-N, sold-N, future-N)
 const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
+const PLACEHOLDER_ADDRESS_RE = /^(lot|home site)\s+\d+$/i
 
 export interface NewListingDetail {
   address: string | null
@@ -102,6 +103,7 @@ export async function detectAndApplyChanges(
     newIncentives: [],
   }
   const newListingIds: number[] = []
+  const processedExistingIds = new Set<number>()
   // Tracks net change to community.soldCount this run:
   //  +1 for each active→sold transition (explicit or disappearance-based)
   //  -1 for each sold→active reactivation
@@ -224,6 +226,7 @@ export async function detectAndApplyChanges(
         }
       }
     } else {
+      processedExistingIds.add(existing.id)
       // Existing listing — update status and check for price change
 
       // Guard: only update lotNumber if it won't collide with a different listing's unique key.
@@ -266,6 +269,15 @@ export async function detectAndApplyChanges(
         schools: scraped.schools ?? existing.schools,
         incentives: scraped.incentives ?? existing.incentives,
         sourceUrl: scraped.sourceUrl ?? existing.sourceUrl,
+      }
+
+      const addressOwner = existingByAddress.get(key)
+      const addressConflicts =
+        key !== normalizeAddress(existing.address) &&
+        addressOwner !== undefined &&
+        addressOwner.id !== existing.id
+      if (!addressConflicts && !isPlaceholderAddress(scraped.address)) {
+        updates.address = scraped.address
       }
 
       // Track new or changed incentives on existing listings
@@ -370,6 +382,7 @@ export async function detectAndApplyChanges(
   //       Future/already-sold listings not in scrape are left unchanged.
   for (const [key, listing] of existingByAddress.entries()) {
     if (scrapedAddresses.has(key)) continue       // still present — skip
+    if (processedExistingIds.has(listing.id)) continue // matched by lotNumber/address change
     if (listing.status !== "for sale") continue     // future/sold — leave as-is
 
     if (listing.currentPrice != null) {
@@ -408,4 +421,8 @@ export async function detectAndApplyChanges(
 
 function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
+}
+
+function isPlaceholderAddress(address: string | null | undefined): boolean {
+  return !address || PLACEHOLDER_ADDRESS_RE.test(address.trim())
 }

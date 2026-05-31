@@ -1,7 +1,7 @@
 import { BUILDER_SHEET_TABS } from "@/lib/sheet-validator"
 
 export const PLACEHOLDER_LOT_RE = /^(sold|avail|future)-\d+$/
-export const LOT_ONLY_ADDRESS_RE = /^lot\s+\d+$/i
+export const LOT_ONLY_ADDRESS_RE = /^(lot|home site)\s+\d+$/i
 
 export function isSupportedBuilder(builderName: string): boolean {
   return Boolean(BUILDER_SHEET_TABS[builderName])

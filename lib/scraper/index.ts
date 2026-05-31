@@ -130,7 +130,7 @@ export function buildListings(
     return result.lots.map((lot) => {
       // No-price rule: lots marked active without a price are downgraded to future —
       // A real price is required before a home is considered active inventory.
-      const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
+      const hasRealAddress = lot.address && !/^(lot|home site|avail|sold|future)\s*[-\d]/i.test(lot.address)
       const status: string =
         lot.status === "for sale" && (!lot.price || !hasRealAddress) ? "future" : lot.status
 

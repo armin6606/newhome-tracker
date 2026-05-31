@@ -61,9 +61,14 @@ interface ChangeDetails {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PLACEHOLDER_RE = /^(sold|avail|future)-\d+$/
+const PLACEHOLDER_ADDRESS_RE = /^(lot|home site)\s+\d+$/i
 
 function normalizeAddress(address: string | null): string {
   return (address ?? "").toLowerCase().replace(/\s+/g, " ").trim()
+}
+
+function isPlaceholderAddress(address: string | null | undefined): boolean {
+  return !address || PLACEHOLDER_ADDRESS_RE.test(address.trim())
 }
 
 function normalizeTaxes(taxes: number | string | undefined | null): string | undefined {
@@ -150,7 +155,7 @@ async function fetchBuilderSheet(gid: string): Promise<SheetCommunityRow[]> {
 function buildListings(result: MapResult, communityName: string, communityUrl: string): ScrapedListing[] {
   if (result.lots && result.lots.length > 0) {
     return result.lots.map(lot => {
-      const hasRealAddress = lot.address && !/^(lot|avail|sold|future)\s*[-\d]/i.test(lot.address)
+      const hasRealAddress = lot.address && !/^(lot|home site|avail|sold|future)\s*[-\d]/i.test(lot.address)
       const status: string = lot.status === "for sale" && (!lot.price || !hasRealAddress) ? "future" : lot.status
       return {
         communityName, communityUrl,
@@ -211,6 +216,7 @@ async function detectAndApplyChanges(
     newIncentives: [],
   }
   const newListingIds: number[] = []
+  const processedExistingIds = new Set<number>()
   let soldDelta = 0
 
   for (const scraped of scrapedListings) {
@@ -329,6 +335,7 @@ async function detectAndApplyChanges(
         }
       }
     } else {
+      processedExistingIds.add(existing.id)
       const newLotNumber = scraped.lotNumber ?? existing.lotNumber
       const lotNumberOwner = newLotNumber ? existingByLotNumber.get(newLotNumber) : undefined
       const lotNumberConflicts =
@@ -365,6 +372,15 @@ async function detectAndApplyChanges(
         schools: scraped.schools ?? existing.schools,
         incentives: scraped.incentives ?? existing.incentives,
         sourceUrl: scraped.sourceUrl ?? existing.sourceUrl,
+      }
+
+      const addressOwner = existingByAddress.get(key)
+      const addressConflicts =
+        key !== normalizeAddress(existing.address) &&
+        addressOwner !== undefined &&
+        addressOwner.id !== existing.id
+      if (!addressConflicts && !isPlaceholderAddress(scraped.address)) {
+        updates.address = scraped.address
       }
 
       if (scraped.incentives && scraped.incentives !== existing.incentives) {
@@ -457,6 +473,7 @@ async function detectAndApplyChanges(
 
   for (const [key, listing] of existingByAddress.entries()) {
     if (scrapedAddresses.has(key)) continue
+    if (processedExistingIds.has(listing.id)) continue
     if (listing.status !== "for sale") continue
 
     if (listing.currentPrice != null) {

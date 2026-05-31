@@ -36,6 +36,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM           = "New Key Alerts <reports@newkey.us>"
 const TO             = "armin.sabe@gmail.com"
 const WORKFLOW_URL   = process.env.WORKFLOW_RUN_URL || ""
+const PLACEHOLDER_ADDRESS_RE = /^(lot|home site)\s+\d+$/i
 
 // ── Load scraper results ──────────────────────────────────────────────────────
 
@@ -202,6 +203,58 @@ async function main() {
         }
       }
     }
+  }
+
+  // Check 5: Priced active homes must have real street addresses.
+  // Future lots may be placeholders, but active inventory with a price must
+  // be visible on the public site and therefore needs a real address.
+  const pricedPlaceholderRows = await prisma.listing.findMany({
+    where: {
+      status: "for sale",
+      currentPrice: { not: null },
+      address: { not: null },
+      OR: [
+        { address: { startsWith: "Lot " } },
+        { address: { startsWith: "Home Site " } },
+      ],
+    },
+    select: {
+      address: true,
+      lotNumber: true,
+      currentPrice: true,
+      community: {
+        select: {
+          name: true,
+          builder: { select: { name: true } },
+        },
+      },
+    },
+    take: 50,
+  })
+
+  const pricedPlaceholderByCommunity = new Map()
+  for (const row of pricedPlaceholderRows) {
+    if (!PLACEHOLDER_ADDRESS_RE.test(row.address || "")) continue
+    const key = `${row.community.builder.name}::${row.community.name}`
+    const entry = pricedPlaceholderByCommunity.get(key) ?? {
+      builder: row.community.builder.name,
+      community: row.community.name,
+      count: 0,
+      examples: [],
+    }
+    entry.count += 1
+    if (entry.examples.length < 3) {
+      entry.examples.push(`${row.address}${row.lotNumber ? ` / lot ${row.lotNumber}` : ""}`)
+    }
+    pricedPlaceholderByCommunity.set(key, entry)
+  }
+
+  for (const entry of pricedPlaceholderByCommunity.values()) {
+    issues.push({
+      severity: "high",
+      builder: entry.builder,
+      message: `${entry.community}: ${entry.count} priced active listing${entry.count === 1 ? "" : "s"} still have placeholder addresses (${entry.examples.join(", ")})`,
+    })
   }
 
   await prisma.$disconnect()
