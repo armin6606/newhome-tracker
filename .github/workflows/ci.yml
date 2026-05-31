@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   verify:
@@ -26,6 +27,7 @@ jobs:
       - run: node scripts/audit-hidden-priced-listings.mjs
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run typecheck
       - run: npm run test:scraper-guards
       - run: npm audit --omit=dev --audit-level=high

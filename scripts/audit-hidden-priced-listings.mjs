@@ -104,4 +104,51 @@ if (hidden.length > 100) {
   console.log(`AUDIT truncated: showing first 100 of ${hidden.length}`)
 }
 
+async function publishStatus(context, state, description) {
+  const token = process.env.GITHUB_TOKEN
+  const repo = process.env.GITHUB_REPOSITORY
+  const sha = process.env.GITHUB_SHA
+  if (!token || !repo || !sha) return
+
+  const res = await fetch(`https://api.github.com/repos/${repo}/statuses/${sha}`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: "application/vnd.github+json",
+      "content-type": "application/json",
+      "x-github-api-version": "2022-11-28",
+    },
+    body: JSON.stringify({
+      state,
+      context,
+      description: description.slice(0, 140),
+    }),
+  })
+
+  if (!res.ok) {
+    console.warn(`AUDIT status publish failed for ${context}: ${res.status} ${await res.text()}`)
+  }
+}
+
+const byBuilderText = [...byBuilder.entries()]
+  .sort()
+  .map(([builder, count]) => `${builder}:${count}`)
+  .join(", ")
+
+await publishStatus(
+  "audit/hidden-priced-summary",
+  hidden.length === 0 ? "success" : "failure",
+  hidden.length === 0
+    ? `0 hidden priced homes; ${rows.length} priced active checked`
+    : `${hidden.length} hidden priced homes; ${byBuilderText}`
+)
+
+for (const [index, { listing: l, reason }] of hidden.slice(0, 10).entries()) {
+  await publishStatus(
+    `audit/hidden-priced-${index + 1}`,
+    "failure",
+    `${l.community.builder.name} ${l.community.name}: ${l.address ?? "no address"} ${l.currentPrice ?? ""} ${reason}`
+  )
+}
+
 await prisma.$disconnect()
