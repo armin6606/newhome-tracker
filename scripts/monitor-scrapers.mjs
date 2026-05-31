@@ -215,7 +215,11 @@ async function main() {
       address: { not: null },
       OR: [
         { address: { startsWith: "Lot " } },
+        { address: { startsWith: "Homesite " } },
         { address: { startsWith: "Home Site " } },
+        { address: { startsWith: "Home-Site " } },
+        { address: { startsWith: "HS" } },
+        { address: { startsWith: "Site " } },
       ],
     },
     select: {
