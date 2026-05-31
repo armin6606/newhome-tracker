@@ -96,6 +96,10 @@ function toStr(val) {
   return s === "" ? null : s
 }
 
+function communityKey(val) {
+  return String(val ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "")
+}
+
 /**
  * Normalize a floorplan name for fuzzy matching.
  * Rules:
@@ -153,7 +157,7 @@ async function fetchTable3(tabName) {
     if (community === "Community") continue // header row
 
     table3.push({
-      community:    community.toLowerCase(),
+      community,
       floorplan:    floorplan.toLowerCase(),
       propertyType: toStr(row[3]),
       floors:       toInt(row[4]),
@@ -170,8 +174,9 @@ async function fetchTable3(tabName) {
   // Each plan is indexed under both its exact key AND its normalized key
   const map = new Map()
   for (const entry of table3) {
-    if (!map.has(entry.community)) map.set(entry.community, new Map())
-    const inner = map.get(entry.community)
+    const commKey = communityKey(entry.community)
+    if (!map.has(commKey)) map.set(commKey, new Map())
+    const inner = map.get(commKey)
     inner.set(entry.floorplan, entry)
     const normKey = normalizePlan(entry.community, entry.floorplan)
     if (normKey && normKey !== entry.floorplan) inner.set(normKey, entry)
@@ -257,7 +262,7 @@ async function main() {
       }
 
       // Look up in Table 3 — exact match first, normalized fallback
-      const commKey  = listing.community.name.toLowerCase()
+      const commKey  = communityKey(listing.community.name)
       const planKey  = listing.floorPlan.toLowerCase()
       const commMap  = table3Map.get(commKey)
       const normKey  = normalizePlan(listing.community.name, listing.floorPlan)
