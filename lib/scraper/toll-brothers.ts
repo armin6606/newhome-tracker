@@ -46,6 +46,17 @@ function parsePrice(text: string | null | undefined): number | undefined {
   return isNaN(n) ? undefined : n
 }
 
+function normalizePropertyTypeText(text: string | null | undefined): string | undefined {
+  if (!text) return undefined
+  const normalized = text.toLowerCase()
+  if (/\btown\s*homes?\b|\btownhomes?\b|\btownhouses?\b/.test(normalized)) return "townhome"
+  if (/\bcondominiums?\b|\bcondos?\b/.test(normalized)) return "condo"
+  if (/\bsingle[-\s]?family\b|\bdetached\b/.test(normalized)) return "single-family"
+  if (/\bduets?\b/.test(normalized)) return "duet"
+  if (/\battached\b/.test(normalized)) return "attached"
+  return undefined
+}
+
 /**
  * Parse the modelDetails block:
  * "5\n\nBedrooms\n\n5\n\nBaths\n\n3,411\n\nSquare Feet\n\n0\n\nHalf Bath\n\n2\n\nGarages"
@@ -274,8 +285,18 @@ export async function scrapeCommunityPage(
   const realName = h1Text ? toTitleCase(h1Text) : communityName
 
   // Extract community-level HOA from the page before clicking any tabs
-  const communityHoa = await page.evaluate(() => {
+  const { communityHoa, communityPropertyType } = await page.evaluate(() => {
     const body = (document.body as HTMLElement).innerText || ""
+    const propertyType = (() => {
+      const normalized = body.toLowerCase()
+      if (/\btown\s*homes?\b|\btownhomes?\b|\btownhouses?\b/.test(normalized)) return "townhome"
+      if (/\bcondominiums?\b|\bcondos?\b/.test(normalized)) return "condo"
+      if (/\bsingle[-\s]?family\b|\bdetached\b/.test(normalized)) return "single-family"
+      if (/\bduets?\b/.test(normalized)) return "duet"
+      if (/\battached\b/.test(normalized)) return "attached"
+      return null
+    })()
+
     const patterns = [
       /HOA\s*(?:Fee|Dues|Fees|Assessment)?\s*:?\s*\$\s*([\d,]+)/i,
       /\$\s*([\d,]+)\s*\/\s*(?:mo\.?|month)\s*HOA/i,
@@ -287,7 +308,7 @@ export async function scrapeCommunityPage(
       const m = body.match(pat)
       if (m) {
         const n = parseInt(m[1].replace(/,/g, ""), 10)
-        if (!isNaN(n) && n > 0 && n < 5000) return n
+        if (!isNaN(n) && n > 0 && n < 5000) return { communityHoa: n, communityPropertyType: propertyType }
       }
     }
     // Also check any element whose class name contains "hoa" (case-insensitive)
@@ -297,12 +318,13 @@ export async function scrapeCommunityPage(
       const m = txt.match(/\$\s*([\d,]+)/)
       if (m) {
         const n = parseInt(m[1].replace(/,/g, ""), 10)
-        if (!isNaN(n) && n > 0 && n < 5000) return n
+        if (!isNaN(n) && n > 0 && n < 5000) return { communityHoa: n, communityPropertyType: propertyType }
       }
     }
-    return null
+    return { communityHoa: null, communityPropertyType: propertyType }
   })
   if (communityHoa) console.log(`  HOA: $${communityHoa}/mo`)
+  if (communityPropertyType) console.log(`  Property type: ${communityPropertyType}`)
 
   // Try clicking a QMI / Available Homes tab
   for (const tabText of ["Quick Move-In", "Available Homes", "Move-In Ready"]) {
@@ -415,7 +437,7 @@ export async function scrapeCommunityPage(
       floors: floorsFromDetails ?? detailFloors ?? parseFloors(raw.planName),
       price,
       pricePerSqft: price && sqft ? Math.round(price / sqft) : undefined,
-      propertyType,
+      propertyType: communityPropertyType ?? normalizePropertyTypeText(propertyType) ?? propertyType,
       hoaFees: detailHoa || communityHoa || undefined,
       taxes: detailTaxes,
       moveInDate,
@@ -463,6 +485,8 @@ export interface TollApolloResult {
   planPrices: Record<string, number>
   /** Street addresses keyed by lot number — from QMI ModelCard "Home Site N | Street Address" */
   lotAddresses: Record<string, string>
+  /** Community-level property type parsed from the hero/description copy */
+  communityPropertyType?: string
   /** Community page says "sold out" — all lots should be marked sold */
   soldOut?: boolean
 }
@@ -536,6 +560,13 @@ export async function scrapeTollApollo(rawUrl: string, options: TollApolloOption
     await page.goto(communityUrl, { waitUntil: "networkidle", timeout: 60000 })
     await page.waitForTimeout(2000)
 
+    const communityPropertyType = normalizePropertyTypeText(
+      await page.evaluate(() => (document.body as HTMLElement).innerText || "")
+    )
+    if (communityPropertyType) {
+      console.log(`[TollApollo] Community property type: ${communityPropertyType}`)
+    }
+
     // ── 0. Detect sold-out communities BEFORE expensive SVG work ─────────────────
     const isSoldOut = await page.evaluate(() =>
       /sold\s*out/i.test((document.body as HTMLElement).innerText || "")
@@ -545,6 +576,7 @@ export async function scrapeTollApollo(rawUrl: string, options: TollApolloOption
       return {
         forSale: 0, sold: 0, future: 0, total: 0, lots: [],
         planSpecs: {}, lotPrices: {}, planPrices: {}, lotAddresses: {},
+        communityPropertyType,
         soldOut: true,
       }
     }
@@ -965,7 +997,7 @@ export async function scrapeTollApollo(rawUrl: string, options: TollApolloOption
       }
     }
 
-    const result = { forSale, sold, future, total: lots.length, lots, planSpecs, lotPrices, planPrices, lotAddresses }
+    const result = { forSale, sold, future, total: lots.length, lots, planSpecs, lotPrices, planPrices, lotAddresses, communityPropertyType }
     console.log(`[TollApollo] Total lots: ${lots.length} | forSale: ${forSale} | sold: ${sold} | future: ${future}`)
 
     if (options.expectedTotal && result.total !== options.expectedTotal) {

@@ -106,7 +106,7 @@ export async function readTollBrothersMap(
       baths: spec?.baths,
       sqft: spec?.sqft,
       floors: spec?.floors,
-      propertyType: spec?.propertyType,
+      propertyType: spec?.propertyType ?? result.communityPropertyType,
     } satisfies MapLot
   })
 
