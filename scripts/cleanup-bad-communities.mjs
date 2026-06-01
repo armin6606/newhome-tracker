@@ -58,7 +58,13 @@ async function fetchSheetCommunities(tabName) {
       const col3 = row[3]?.trim() ?? ""
       if (col0 === "Table 3") break
       if (col3 === "Table 2 Community" || col3 === "Community") { inTable2 = true; continue }
-      if (inTable2 && col3) names.add(col3)
+      if (inTable2 && col3) {
+        const canonicalName =
+          tabName === "Brookfield" && col3.toLowerCase() === "vitsa"
+            ? "Vista in Summit Collection"
+            : col3
+        names.add(canonicalName)
+      }
     }
     const TOLL_SENTINEL = new Set(["Elm Collection","Rowan Collection","Pinnacle","Skyline","Birch"])
     if (tabName !== "Toll" && tabName !== "Toll Communities") {

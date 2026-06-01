@@ -246,7 +246,11 @@ async function fetchTable2(tabName) {
       const future  = parseInt(row[6]) || 0
       const total   = parseInt(row[7]) || 0
       if (sold === 0 && forSale === 0 && future === 0 && total === 0) continue
-      counts[name] = { sold, forSale, future, total }
+      const canonicalName =
+        tabName === "Brookfield" && name.toLowerCase() === "vitsa"
+          ? "Vista in Summit Collection"
+          : name
+      counts[canonicalName] = { sold, forSale, future, total }
     }
     return counts
   } catch {
