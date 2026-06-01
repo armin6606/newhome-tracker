@@ -203,12 +203,9 @@ async function scrapeQmiPage(page, url) {
       address = addrSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
     }
 
-    const lotM     = bodyText.match(/Lot[:\s]+(\w+)/i)
-    let lotNumber  = lotM ? lotM[1] : null
-    if (!lotNumber) {
-      const urlLot = window.location.pathname.match(/unit-0*(\d+)$/i)
-      if (urlLot) lotNumber = urlLot[1]
-    }
+    const urlLot = window.location.pathname.match(/unit-0*(\d+)$/i)
+    const lotM   = bodyText.match(/Lot[:\s]+(\d+)/i)
+    const lotNumber = urlLot ? urlLot[1] : lotM ? lotM[1] : null
 
     const sqftM  = bodyText.match(/([\d,]+)\s*ft\s*[²2]/i) || bodyText.match(/([\d,]+)\s*sq\s*ft/i)
     const bedsM  = bodyText.match(/([\d]+)\s*beds/i)
