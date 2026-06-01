@@ -428,6 +428,7 @@ export async function POST(req: NextRequest) {
       .map(l => [normalizeListingLotKey(l.lotNumber, l.address), l] as const)
       .filter((entry): entry is [string, typeof allExisting[number]] => entry[0] !== null)
   )
+  const existingByRawLotNumber = new Map(allExisting.filter(l => l.lotNumber).map(l => [l.lotNumber!, l]))
 
   // Collect DB write ops — executed together in one transaction after the loop.
   // This gives us: (a) parallel execution to avoid Vercel timeout, (b) atomicity so
@@ -443,8 +444,9 @@ export async function POST(req: NextRequest) {
 
     // O(1) map lookup — no DB round-trip (all listings pre-fetched above)
     const existing =
-      rawAddress ? (existingByAddress.get(rawAddress) ?? null) :
-      rawLotKey  ? (existingByLotNumber.get(rawLotKey) ?? null) :
+      (rawAddress ? existingByAddress.get(rawAddress) : undefined) ??
+      (rawLotKey ? existingByLotNumber.get(rawLotKey) : undefined) ??
+      (rawLotNumber ? existingByRawLotNumber.get(rawLotNumber) : undefined) ??
       null
 
     const v = validateListing(l, community.name, existing?.status ?? undefined)
