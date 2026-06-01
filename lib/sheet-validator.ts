@@ -28,7 +28,7 @@ export const BUILDER_SHEET_TABS: Record<string, string> = {
   "KB Home":                "KB",
   "Melia Homes":            "Melia",
   "Shea Homes":             "Shea",
-  "Brookfield Residential": "Brookfield Communities",
+  "Brookfield Residential": "Brookfield",
   "TRI Pointe Homes":       "TRI Pointe Communities",
   "Trumark":                "Trumark",
 }

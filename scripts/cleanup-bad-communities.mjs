@@ -28,7 +28,7 @@ const BUILDER_SHEET_TABS = {
   "KB Home":                "KB",
   "Melia Homes":            "Melia",
   "Shea Homes":             "Shea",
-  "Brookfield Residential": "Brookfield Communities",
+  "Brookfield Residential": "Brookfield",
   "Trumark":                "Trumark",
 }
 const CANONICAL_BUILDERS = Object.keys(BUILDER_SHEET_TABS)
