@@ -170,10 +170,9 @@ async function discoverQmiUrls(page, communityUrl) {
 async function getDbActive(communityName, builderName) {
   const listings = await prisma.listing.findMany({
     where: {
-      status:    { in: ["for sale", "future release"] },
       community: { name: communityName, builder: { name: builderName } },
     },
-    select: { id: true, address: true, lotNumber: true, currentPrice: true, sourceUrl: true },
+    select: { id: true, address: true, lotNumber: true, currentPrice: true, sourceUrl: true, status: true },
   })
   return {
     byAddress:   new Map(listings.filter(l => l.address).map(l => [l.address.toLowerCase(), l])),
@@ -372,6 +371,7 @@ async function main() {
   // Detect sold: active in DB but sourceUrl not in QMI_URLS and address/lot not in QMI set
   const soldListings = []
   for (const dbL of db.all) {
+    if (dbL.status === "sold") continue
     const addrMatch = dbL.address && qmiAddresses.has(dbL.address.toLowerCase())
     const lotMatch  = dbL.lotNumber && qmiLots.has(dbL.lotNumber)
     const urlMatch  = dbL.sourceUrl && qmiSourceUrls.has(dbL.sourceUrl)
