@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { BUILDER_SHEET_TABS } from "@/lib/sheet-validator"
+import { getCitiesForCounty } from "@/lib/county"
 
 // ── Guards ────────────────────────────────────────────────────────────────────
 
@@ -68,23 +69,8 @@ export async function GET(req: NextRequest) {
     const communities = searchParams.getAll("community").slice(0, MAX_FILTER_VALUES).map(sanitise).filter(Boolean)
     const counties    = searchParams.getAll("county")   .slice(0, MAX_FILTER_VALUES).map(sanitise).filter(Boolean)
 
-    // Expand county → city list
-    const CITY_COUNTY: Record<string, string> = {
-      "irvine": "Orange County", "orange": "Orange County", "anaheim": "Orange County",
-      "tustin": "Orange County", "fullerton": "Orange County", "garden grove": "Orange County",
-      "huntington beach": "Orange County", "newport beach": "Orange County", "lake forest": "Orange County",
-      "mission viejo": "Orange County", "aliso viejo": "Orange County", "laguna niguel": "Orange County",
-      "rancho mission viejo": "Orange County", "yorba linda": "Orange County", "brea": "Orange County",
-      "long beach": "Los Angeles County", "los angeles": "Los Angeles County", "torrance": "Los Angeles County",
-      "hacienda heights": "Los Angeles County", "chino hills": "San Bernardino County",
-      "french valley": "Riverside County", "murrieta": "Riverside County", "temecula": "Riverside County",
-      "menifee": "Riverside County", "riverside": "Riverside County", "moreno valley": "Riverside County",
-      "perris": "Riverside County", "winchester": "Riverside County", "wildomar": "Riverside County",
-    }
     const countyCities = counties.length > 0
-      ? Object.entries(CITY_COUNTY)
-          .filter(([, co]) => counties.some((c) => c.toLowerCase() === co.toLowerCase()))
-          .map(([city]) => city.charAt(0).toUpperCase() + city.slice(1))
+      ? counties.flatMap((county) => getCitiesForCounty(county))
       : []
 
     // Merge explicit city filters with county-expanded cities

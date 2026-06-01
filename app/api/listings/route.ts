@@ -37,7 +37,7 @@ const VALID_SORT_FIELDS = ["currentPrice", "firstDetected", "sqft", "beds", "pri
 // Note: beds is Float? (nullable) — must NOT be in this set or Prisma crashes on null rows
 const NON_NULLABLE_SORT = new Set(["firstDetected"])
 
-const MAX_PAGE_SIZE = 500
+const MAX_PAGE_SIZE = 5000
 
 export async function GET(req: NextRequest) {
   try {

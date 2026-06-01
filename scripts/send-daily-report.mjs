@@ -625,30 +625,10 @@ function section3CommunityCards(snapshot, communityCardsNow) {
 // ── Section 5: Other Changes ───────────────────────────────────────────────────
 
 function section5Other(snapshot, communityCardsNow, table2Now) {
-  // New communities that appear in DB now but weren't in snapshot
-  const now        = Object.keys(communityCardsNow)
-  const visibleBefore = Object.fromEntries(
-    Object.entries(snapshot?.communityCards || {}).filter(([, card]) => isVisibleCommunityCard(card))
-  )
-  const beforeVisibleNames = Object.keys(visibleBefore)
-  const newComms   = now.filter(n => !beforeVisibleNames.includes(n))
-  const goneComms  = beforeVisibleNames.filter(n => !now.includes(n))
-
   // Total site-wide counts now
   const totalActive = Object.values(communityCardsNow).reduce((s, c) => s + c.active, 0)
   const totalSold   = Object.values(communityCardsNow).reduce((s, c) => s + c.sold, 0)
   const totalFuture = Object.values(communityCardsNow).reduce((s, c) => s + c.future, 0)
-
-  let extras = ""
-  if (newComms.length > 0) {
-    extras += `<div style="margin-top:12px"><strong style="font-size:13px">New Communities on Site (${newComms.length})</strong>
-      <ul style="margin:6px 0 0;padding-left:18px">${newComms.map(n => `<li style="font-size:13px;color:#374151">${n}</li>`).join("")}</ul></div>`
-  }
-  if (goneComms.length > 0) {
-    extras += `<div style="margin-top:12px"><strong style="font-size:13px;color:#dc2626">Communities No Longer Visible on Site (${goneComms.length})</strong>
-      <ul style="margin:6px 0 0;padding-left:18px">${goneComms.map(n => `<li style="font-size:13px;color:#374151">${n}</li>`).join("")}</ul></div>`
-  }
-  if (!extras) extras = `<p style="color:#9ca3af;font-size:13px;margin:12px 0 0">No other changes detected.</p>`
 
   return card(`
     ${sectionHeader("Other Website Changes")}
@@ -657,7 +637,6 @@ function section5Other(snapshot, communityCardsNow, table2Now) {
       { label: "Sold (site total)",     value: totalSold,   color: "#dc2626" },
       { label: "Future (site total)",   value: totalFuture, color: "#6b7280" },
     ])}
-    ${extras}
   `)
 }
 

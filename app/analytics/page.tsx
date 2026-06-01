@@ -15,22 +15,6 @@ const CHART_COLORS = [
   "#8848A8", "#3EA0C0", "#A09038", "#A85878", "#5888C8",
 ]
 
-// ── City → County map (client-side, same as server) ──────────────────────────
-const CITY_COUNTY: Record<string, string> = {
-  "irvine": "Orange County", "orange": "Orange County", "anaheim": "Orange County",
-  "tustin": "Orange County", "fullerton": "Orange County", "garden grove": "Orange County",
-  "huntington beach": "Orange County", "newport beach": "Orange County", "lake forest": "Orange County",
-  "mission viejo": "Orange County", "aliso viejo": "Orange County", "laguna niguel": "Orange County",
-  "rancho mission viejo": "Orange County", "yorba linda": "Orange County", "brea": "Orange County",
-  "long beach": "Los Angeles County", "los angeles": "Los Angeles County", "torrance": "Los Angeles County",
-  "hacienda heights": "Los Angeles County", "chino hills": "San Bernardino County",
-  "french valley": "Riverside County", "murrieta": "Riverside County", "temecula": "Riverside County",
-  "menifee": "Riverside County", "riverside": "Riverside County", "moreno valley": "Riverside County",
-  "perris": "Riverside County", "winchester": "Riverside County", "wildomar": "Riverside County",
-}
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 type Community = {
   name: string; builderName: string; active: number; sold: number; total: number;
   avgPrice: number | null; minPrice: number | null; maxPrice: number | null;

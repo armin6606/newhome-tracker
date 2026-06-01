@@ -6,6 +6,7 @@ import { formatPrice, formatNumber, cleanCommunityName } from "@/lib/utils"
 import { HeartButton } from "@/app/_components/HeartButton"
 import { FilterGate } from "@/app/_components/FilterGate"
 import { getBuilderColor } from "@/lib/builder-colors"
+import { getCountyForCity } from "@/lib/county"
 
 type Listing = {
   id: number
@@ -273,6 +274,7 @@ export default function HomePage() {
     if (minSqft) params.set("minSqft", minSqft)
     if (maxSqft) params.set("maxSqft", maxSqft)
     if (floors) params.set("floors", floors)
+    params.set("limit", "5000")
     const res = await fetch(`/api/listings?${params}`)
     const json = await res.json()
     // API now returns { listings, total, hasMore } — extract the array
@@ -306,22 +308,10 @@ export default function HomePage() {
     return arr.findIndex((x) => `${x.communityId}__${(x.address ?? "").toLowerCase().trim()}` === key) === idx
   })
 
-  // County lookup (SoCal cities → county)
-  const CITY_COUNTY: Record<string, string> = {
-    "irvine": "Orange County", "orange": "Orange County", "anaheim": "Orange County",
-    "tustin": "Orange County", "fullerton": "Orange County", "garden grove": "Orange County",
-    "huntington beach": "Orange County", "newport beach": "Orange County", "lake forest": "Orange County",
-    "mission viejo": "Orange County", "aliso viejo": "Orange County", "laguna niguel": "Orange County",
-    "long beach": "Los Angeles County", "los angeles": "Los Angeles County", "torrance": "Los Angeles County",
-    "french valley": "Riverside County", "murrieta": "Riverside County", "temecula": "Riverside County",
-    "menifee": "Riverside County", "riverside": "Riverside County",
-  }
-  const getCounty = (city: string) => CITY_COUNTY[city.toLowerCase().trim()] ?? null
-
   // Builders and cities that have at least one listing (for dropdowns)
   const buildersWithListings = Array.from(new Set(listings.map((l) => l.community.builder.name))).sort()
   const citiesWithListings   = Array.from(new Set(listings.map((l) => l.community.city.trim().replace(/\b\w/g, c => c.toUpperCase())))).sort()
-  const countiesWithListings = Array.from(new Set(listings.map((l) => getCounty(l.community.city)).filter(Boolean) as string[])).sort()
+  const countiesWithListings = Array.from(new Set(listings.map((l) => getCountyForCity(l.community.city)).filter(Boolean) as string[])).sort()
   const typesWithListings    = Array.from(new Set(listings.map((l) => l.propertyType).filter(Boolean) as string[])).sort()
   const bedsWithListings     = Array.from(new Set(listings.map((l) => l.beds).filter((b): b is number => b != null))).sort((a, b) => a - b)
   const floorsWithListings   = Array.from(new Set(listings.map((l) => l.floors).filter((f): f is number => f != null))).sort((a, b) => a - b)
@@ -331,7 +321,7 @@ export default function HomePage() {
 
   const displayed = deduped.filter((l) => {
     if (citySearch    && l.community.city.toLowerCase() !== citySearch.toLowerCase()) return false
-    if (countyFilter  && getCounty(l.community.city) !== countyFilter) return false
+    if (countyFilter  && getCountyForCity(l.community.city) !== countyFilter) return false
     if (moveInOnly    && !isReady(l.moveInDate)) return false
     if (typeFilter    && l.propertyType !== typeFilter) return false
     if (builderFilter && l.community.builder.name !== builderFilter) return false
