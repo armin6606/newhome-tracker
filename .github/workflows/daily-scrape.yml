@@ -294,6 +294,7 @@ jobs:
         env:
           DATABASE_URL:                ${{ secrets.DATABASE_URL }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          INGEST_SECRET:               ${{ secrets.INGEST_SECRET }}
 
       - name: Save scrape result
         if: always()
