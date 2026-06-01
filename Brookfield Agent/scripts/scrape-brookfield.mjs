@@ -170,7 +170,7 @@ async function discoverQmiUrls(page, communityUrl) {
 async function getDbActive(communityName, builderName) {
   const listings = await prisma.listing.findMany({
     where: {
-      status:    "for sale",
+      status:    { in: ["for sale", "future release"] },
       community: { name: communityName, builder: { name: builderName } },
     },
     select: { id: true, address: true, lotNumber: true, currentPrice: true, sourceUrl: true },
@@ -394,7 +394,7 @@ async function main() {
           lotNumber:    home.lotNumber ? compositeKey(resolvedName, home.lotNumber) : null,
           currentPrice: price,
           moveInDate:   home.moveInDate || null,
-          status:       "for sale",
+          status:       price ? "for sale" : "future release",
           sourceUrl:    home.sourceUrl,
           floorPlan:    home.floorPlan || null,
           sqft:         home.sqft || null,
