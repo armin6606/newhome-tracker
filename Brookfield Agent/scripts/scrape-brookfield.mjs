@@ -355,7 +355,10 @@ async function main() {
 
     const inDb = db.bySourceUrl.has(url)
       || db.byAddress.has(derivedAddr)
-      || (derivedLot && db.byLotNumber.has(derivedLot))
+      || (derivedLot && (
+        db.byLotNumber.has(derivedLot) ||
+        db.byLotNumber.has(compositeKey(resolvedName, derivedLot))
+      ))
 
     if (inDb) {
       existingUrls.push(url)
@@ -418,7 +421,10 @@ async function main() {
         const derivedLot  = lotFromUrl(url)
         const dbEntry = db.bySourceUrl.get(url)
           || db.byAddress.get(derivedAddr)
-          || (derivedLot ? db.byLotNumber.get(derivedLot) : null)
+          || (derivedLot ? (
+            db.byLotNumber.get(derivedLot) ||
+            db.byLotNumber.get(compositeKey(resolvedName, derivedLot))
+          ) : null)
 
         if (dbEntry && price && dbEntry.currentPrice !== price) {
           priceUpdates.push({
