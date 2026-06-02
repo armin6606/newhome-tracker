@@ -205,13 +205,13 @@ function getPacificScrapeWindow(now = new Date()) {
 function formatPacificDateTime(date) {
   return date.toLocaleString("en-US", {
     timeZone: "America/Los_Angeles",
-    month: "short",
+    month: "numeric",
     day: "numeric",
-    year: "numeric",
+    year: "2-digit",
     hour: "numeric",
     minute: "2-digit",
-    timeZoneName: "short",
-  })
+    hour12: true,
+  }).replace(",", " ")
 }
 
 // ── CSV parser ──────────────────────────────────────────────────────────────────
