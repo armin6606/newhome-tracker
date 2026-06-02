@@ -30,6 +30,7 @@ const rows = await prisma.listing.findMany({
     floorPlan: true,
     status: true,
     currentPrice: true,
+    lastUpdated: true,
     soldAt: true,
     sourceUrl: true,
     community: {
