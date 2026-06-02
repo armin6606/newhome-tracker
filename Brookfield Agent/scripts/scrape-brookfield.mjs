@@ -391,7 +391,7 @@ async function main() {
           lotNumber:    home.lotNumber ? compositeKey(resolvedName, home.lotNumber) : null,
           currentPrice: price,
           moveInDate:   home.moveInDate || null,
-          status:       price ? "for sale" : "future release",
+          status:       price ? "for sale" : "future",
           sourceUrl:    home.sourceUrl,
           floorPlan:    home.floorPlan || null,
           sqft:         home.sqft || null,
