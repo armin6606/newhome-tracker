@@ -298,10 +298,13 @@ export async function detectAndApplyChanges(
       }
 
       // Real listing went active → sold — update sheet counts.
-      if (existing.status === "for sale" && scraped.status === "sold") {
+      if (existing.status !== "sold" && scraped.status === "sold") {
         soldDelta++
         updates.soldAt = new Date()
-        updateTable2(builderName ?? "Unknown", communityName, { sold: +1, forSale: -1 })
+        const table2Delta = existing.status === "for sale"
+          ? { sold: +1, forSale: -1 }
+          : { sold: +1 }
+        updateTable2(builderName ?? "Unknown", communityName, table2Delta)
           .catch((e) => console.error(`[sheet-writer] ${communityName} active→sold:`, e))
       }
 

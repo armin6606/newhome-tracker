@@ -399,10 +399,13 @@ async function detectAndApplyChanges(
         })
       }
 
-      if (existing.status === "for sale" && scraped.status === "sold") {
+      if (existing.status !== "sold" && scraped.status === "sold") {
         updates.soldAt = new Date()
         soldDelta++
-        updateTable2(builderName ?? "Unknown", communityName, { sold: +1, forSale: -1 })
+        const table2Delta = existing.status === "for sale"
+          ? { sold: +1, forSale: -1 }
+          : { sold: +1 }
+        updateTable2(builderName ?? "Unknown", communityName, table2Delta)
           .catch((e) => console.error(`[sheet-writer] ${communityName} active→sold:`, e))
       }
 

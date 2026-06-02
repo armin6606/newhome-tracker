@@ -45,7 +45,7 @@ import { normalizeListingLotKey, normalizeLotNumber } from "@/lib/lot-number"
  *  9.  Street suffix stripped
  *  10. Title case applied to address
  *  11. active + no price + real address → forced to future
- *  12. soldAt is set only when an existing active listing turns sold
+ *  12. soldAt is set only when an existing non-sold listing turns sold
  *
  *  WARNINGS:
  *  13. Floorplan not found in Table 3 → email sent, listing created with nulls
@@ -210,7 +210,7 @@ function validateListing(l: RawListing, communityName: string, existingStatus?: 
     }
     const forcedStatus  = (status === "for sale" && !l.currentPrice) ? "future" : undefined
     // forcedSoldAt is intentionally NOT set on new lots that arrive already-sold.
-    // We only know soldAt when we observe the active→sold transition on an existing lot.
+    // We only know soldAt when we observe a non-sold→sold transition on an existing lot.
     // Setting soldAt=now on first ingestion causes false sales spikes on the chart.
     const forcedSoldAt  = undefined
 
@@ -469,7 +469,7 @@ export async function POST(req: NextRequest) {
     }
 
     const soldAt =
-      existing?.status === "for sale" && status === "sold"
+      existing && existing.status !== "sold" && status === "sold"
         ? new Date()
         : existing?.soldAt ?? null
 
@@ -549,9 +549,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Table 2 delta: active → sold on real listings
-      if (!isPlaceholder && address && existing.status === "for sale" && status === "sold") {
+      if (!isPlaceholder && address && existing.status !== "sold" && status === "sold") {
         sheetDelta.sold    += 1
-        sheetDelta.forSale -= 1
+        if (existing.status === "for sale") sheetDelta.forSale -= 1
       }
 
       // Guard: only update lotNumber if it won't collide with a different listing's unique key.
